@@ -20,6 +20,16 @@ Five scenes were ported in an afternoon and measured. Two were slow:
 | scene | per frame | fps |
 | --- | --- | --- |
 | fireworks | ~120 circles | 58 |
+| hilbert | 1023 lines, colours precomputed | 60 |
+| tree | 511 branches, rebuilt each frame for the sway | 59 |
+| stars | 220 circles | 58 |
+
+Hilbert is the one worth staring at. It draws MORE lines than spirograph and
+runs faster, 1023 at 60 against roughly 1000 at 55, because its curve and its
+per-segment colours are computed once at init and the draw loop does nothing
+but read two vectors. The original recomputes each segment's colour inline from
+three sin calls, which is 3069 transcendentals a frame for a picture that never
+changes.
 | penrose | ~2400 FFI calls: 1360 rlgl, 1020 lines | 59 |
 | spirograph | ~1800 lines | 18 |
 | kaleidoscope | ~1788 lines | 15 |

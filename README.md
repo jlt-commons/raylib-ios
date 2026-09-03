@@ -35,6 +35,8 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
 <p>
   <img src="docs/images/pendulum.gif" width="200" alt="A chaotic double pendulum">
   <img src="docs/images/epicycles.gif" width="200" alt="Fourier epicycles drawing a square wave">
+  <img src="docs/images/tree.gif" width="200" alt="A fractal tree swaying">
+  <img src="docs/images/stars.gif" width="200" alt="A starfield">
 </p>
 
 *And moving, recorded off a live iPhone Mirroring window by

@@ -13,15 +13,18 @@
             [raylib.host :as rl]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.epicycles :as epi]
+            [raylib.scenes.hilbert :as hil]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
-            [raylib.scenes.spirograph :as spiro]))
+            [raylib.scenes.spirograph :as spiro]
+            [raylib.scenes.stars :as stars]
+            [raylib.scenes.tree :as tree]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
-             (pend/scene) (epi/scene)])
+             (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -39,8 +42,10 @@
 (def categories
   [{:id :generative :title "Generative"
     :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles]}
+   {:id :fractals :title "Fractals"
+    :scenes [:hilbert :tree]}
    {:id :toys :title "Toys"
-    :scenes [:following-eyes :touch-trail :boids :pendulum]}
+    :scenes [:following-eyes :touch-trail :boids :pendulum :stars]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -187,6 +192,42 @@
       (rl/draw-line (int ax) (int ay) (int bx) (int by) edge)
       (rl/draw-line (int bx) (int by) (int cx) (int cy) edge)
       (rl/draw-line (int cx) (int cy) (int ax) (int ay) edge))))
+
+(defmethod draw-scene! :hilbert [_ {:keys [points colours]} _]
+  (rl/clear-background (rl/rgba 12 12 20 255))
+  (let [n (count points)]
+    (loop [i 1]
+      (when (< i n)
+        (let [a (nth points (dec i))
+              b (nth points i)
+              [r g bl al] (nth colours i)]
+          (rl/draw-line (int (nth a 0)) (int (nth a 1)) (int (nth b 0)) (int (nth b 1))
+                        (rl/rgba r g bl al)))
+        (recur (inc i))))))
+
+(defmethod draw-scene! :tree [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [segs (tree/branches m (tree/wind t))
+        n (count segs)
+        bark (color tree/bark)
+        leaf (color tree/leaf)]
+    (loop [i 0]
+      (when (< i n)
+        (let [s (nth segs i)]
+          (rl/draw-line (int (nth s 0)) (int (nth s 1)) (int (nth s 2)) (int (nth s 3))
+                        (if (nth s 4) leaf bark)))
+        (recur (inc i))))))
+
+(defmethod draw-scene! :stars [_ {:keys [stars]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 0 0 8 255))
+  (let [dims (stars/dimensions m)
+        n (count stars)
+        white (rl/rgba 255 255 255 255)]
+    (loop [i 0]
+      (when (< i n)
+        (when-let [p (stars/project dims (nth stars i))]
+          (rl/draw-circle (int (nth p 0)) (int (nth p 1)) (double (nth p 2)) white))
+        (recur (inc i))))))
 
 (defmethod draw-scene! :pendulum [_ {:keys [trail] :as st} {:keys [m]}]
   ;; Indexed loops throughout, per docs/guide/performance-on-a-phone.md.
