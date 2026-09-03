@@ -136,6 +136,15 @@ default, 33 MB and three with it.
 | `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
 | `raylib.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
+`raylib.link` and `raylib.touch` are bring-up tools, kept on purpose. Nothing
+runs them and they are not dead code: they are the two rungs that isolate a
+failure when the gallery does not come up. `link` calls one function from each
+archive with no window at all, so it separates a broken link, a missing
+framework or an empty export trie from anything to do with rendering. `touch`
+is the smallest thing that draws and responds to a finger. Reach for them first
+after an Xcode, SDK, SDL or raylib bump, when the useful question is which
+layer moved rather than what the gallery is doing.
+
 ## Layout
 
 ```
