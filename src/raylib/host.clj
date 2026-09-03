@@ -159,6 +159,14 @@
 ;; can be right while the renderbuffer is not.
 (defonce pre-swap (atom nil))
 
+;; GetFPS is a stateful sampler: each call advances a 30-slot ring by one and
+;; returns 1/sum-of-ring, so it is a frame rate only when called every frame.
+;; These two reproduce both halves on one binary. With fps-every-frame? on, the
+;; loop calls it once per frame and parks the answer in last-fps; with it off,
+;; nothing calls it at all and an nREPL can call it at whatever cadence it likes.
+(defonce fps-every-frame? (atom false))
+(defonce last-fps (atom nil))
+
 ;; GL_FRAMEBUFFER_COMPLETE. Anything else means the currently bound framebuffer
 ;; is not a usable render target.
 (def GL-FRAMEBUFFER-COMPLETE 0x8CD5)
@@ -262,6 +270,7 @@
         (let [state' (frame state)]
           (reset! current-state state')
           (when (and colorbuffer @bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
+          (when @fps-every-frame? (reset! last-fps (get-fps)))
           (reset! pre-swap {:framebuffer (gl-int GL-FRAMEBUFFER-BINDING)
                             :renderbuffer (gl-int GL-RENDERBUFFER-BINDING)})
           (end-drawing)
