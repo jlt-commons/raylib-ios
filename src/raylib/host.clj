@@ -155,9 +155,28 @@
                 n     (inc n)
                 sum   (+ sum dt)
                 worst (max worst dt)]
+            ;; fps from this window's own frame times, NOT from GetFPS.
+            ;;
+            ;; raylib's GetFPS is a stateful sampler: each call advances a
+            ;; 30-slot ring by one and writes GetFrameTime()/30 into it, then
+            ;; returns 1/sum-of-ring. That is only a frame rate if it is called
+            ;; every frame, which is how DrawFPS uses it and the only way
+            ;; raylib itself ever calls it. Called once per 300 frames, as this
+            ;; summary used to, n calls fill n slots and it returns
+            ;; 1/(n * frame-time/30) -- so it read 1757, then 887, 590, 441,
+            ;; and decayed toward the truth over the 30 calls it takes to wrap.
+            ;; Measured: that model fits 18 consecutive readings to within
+            ;; 0.76%, and the same binary with Flappy Bird open (which draws
+            ;; GetFPS every frame) reported a steady 59 from the first window.
+            ;;
+            ;; The header says only "Get current FPS" and does not mention the
+            ;; requirement, which is worth an upstream documentation note.
+            ;;
+            ;; sum is 300 frame times in seconds, so 300/sum is exactly the
+            ;; window's frame rate and needs nothing from raylib.
             (when (zero? (mod n 300))
-              (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %d fps"
-                               n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (get-fps))))
+              (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
+                               n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (/ 300.0 sum))))
             (if (pos? (window-should-close))
               (do (close-window) 0)
               (recur state' n (if (zero? (mod n 300)) 0.0 sum) (if (zero? (mod n 300)) 0.0 worst)))))))))

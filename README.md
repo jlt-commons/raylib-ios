@@ -186,31 +186,37 @@ with room to spare: the simulation, the reducer, the twenty-odd FFI calls per
 frame and the collector all land well inside a frame. The 279 ms in the first
 window is `InitWindow` compiling shaders and building the default font.
 
-### raylib's own `GetFPS` is wrong here, and the frame time is not
+### `GetFPS` must be called every frame, and nothing says so
 
-Worth knowing, because the gallery and Flappy Bird both draw `GetFPS` on
-screen, so the number you see on the phone is not the frame rate.
+Worth knowing, because it looks exactly like a broken frame rate and is not.
 
-Across the same run it read 1757, 887, 590, 441, 355, 295, 253 and so on down
-to 98, decaying monotonically while `GetFrameTime` never moved off 17.02 ms.
-The readings follow a clean inverse law against elapsed time (each one times
-its window number lands within a percent of 1770), which is the signature of
-an accumulator that grows instead of settling, not of a rate that is being
-measured.
+An earlier version of this host printed `GetFPS()` in its 300-frame summary,
+and the readings decayed: 1757, 887, 590, 441, 355, 295, and on down to 98
+over ninety seconds, while `GetFrameTime` never moved off 17.02 ms.
 
-This is not the `CUSTOMIZE_BUILD` trap below misfiring: the build was checked,
-and `SUPPORT_CUSTOM_FRAME_CONTROL`, `SUPPORT_BUSY_WAIT_LOOP` and
-`SUPPORT_MODULE_RAUDIO` are all genuinely absent from the 52 `SUPPORT_*`
-defines that reached the compiler, so `GetFPS`'s real body is what compiled.
-The suspect is its `static float average` in `rcore.c`, updated by
-subtract-then-add forever, next to a `last = (float)GetTime()` that stores
-absolute seconds in a float. Neither has been confirmed as the cause, so treat
-that as a lead rather than a diagnosis.
+`GetFPS` is a stateful sampler. Each call advances a 30-slot ring by one
+position, writes `GetFrameTime()/30` into that slot, and returns
+`1/sum-of-ring`. That is a frame rate only when the ring holds a full 30
+slots, which happens only if you call it every frame. `DrawFPS` does, and it
+is the only place raylib itself ever calls it. Call it once per 300 frames
+instead and after n calls just n slots are filled, so it returns
+`1/(n * frame-time/30)`.
 
-The notebook this port follows reported a stable 59 fps on an iPhone 16 Pro,
-so something differs between the two builds and this is not simply how raylib
-behaves everywhere. Until it is chased down, trust `GetFrameTime`, which the
-host already averages itself.
+That model has no free parameters, since the slot size comes from the measured
+frame time and raylib's own `FPS_CAPTURE_FRAMES_COUNT`, and it fits all
+eighteen readings to within 0.76%. The controlled run settles it: the same
+binary running `raylib.flappy`, which draws `GetFPS` every frame, reported a
+steady 59 from the first window through 5700 frames.
+
+So raylib is behaving as designed and the misuse was ours. `raylib.host` now
+computes the window's rate from the frame times it already sums, which needs
+nothing from raylib and cannot drift. Scenes that draw `GetFPS` every frame,
+which is `raylib.flappy` and `raylib.touch`, were always fine.
+
+The one fair complaint is upstream and small: `raylib.h` documents `GetFPS`
+as "Get current FPS" and never mentions the requirement, so calling it from a
+timer or a summary gives a plausible wrong number rather than an obviously
+wrong one.
 
 ## Test on the phone, not the simulator
 
