@@ -1,10 +1,23 @@
 (ns raylib.host
-  "The iOS owner loop for raylib (RAY-018's shape). run! hands the app to
-  SDL_UIKitRunApp; a :collect-safe SDL_main then owns InitWindow and the
-  while loop — per frame: BeginDrawing, bind SDL's drawable FBO (iOS has no
-  framebuffer 0), (frame state) -> state', bind the colour renderbuffer,
-  EndDrawing. The screen is sized in PIXELS (UIScreen scale × points), since
-  raylib's SDL platform does not do HighDPI itself."
+  "The loop that owns thread 0, and the raylib surface this project calls.
+
+  There is no host process here. jolt emits a whole executable and Chez owns
+  main, so raylib and SDL2 are static archives in the same binary and every
+  defcfn below resolves against the process image the first time it is called.
+
+  Startup is one handoff. run! calls SDL_UIKitRunApp and never returns; SDL
+  runs UIApplicationMain, and its delegate calls back into sdl-main on thread
+  0. The loop then lives there for the life of the app.
+
+  A blocking loop is normally wrong on iOS, because it starves the run loop
+  that delivers touches and lifecycle events. It works here because EndDrawing
+  reaches SDL_PollEvent, which at a zero timeout pumps, and on UIKit the pump
+  is CFRunLoopRunInMode. The loop and the run loop take turns, once a frame.
+
+  The window is created in PIXELS rather than points. raylib's SDL platform
+  does no HighDPI translation of its own, so a window sized in points would
+  render at a third of the resolution on this screen and every coordinate the
+  scenes compute would be wrong by the same factor."
   (:refer-clojure :exclude [run!])          ; run! is the entry point here, as in raylib-jlt
   (:require [jolt.ffi :as ffi]
             [raylib.objc :as u]
@@ -176,6 +189,34 @@
       (try (f)
            (catch :default e (println "host: queued work failed:" (ex-message e)))))))
 
+(def ^:private window-frames
+  "Frames per timing report. Long enough that one slow frame does not dominate
+  the mean, short enough to notice a scene degrading while you watch it."
+  300)
+
+(defn- fresh-window [] {:count 0 :seconds 0.0 :worst 0.0})
+
+(defn- accumulate [{:keys [count seconds worst]} dt]
+  {:count (inc count) :seconds (+ seconds dt) :worst (max worst dt)})
+
+(defn- report-window!
+  "Print the window's own numbers.
+
+  The frame rate is computed here rather than read from GetFPS, and that is not
+  a preference. GetFPS is a sampler: each call advances a 30-slot ring by one
+  and returns the reciprocal of its sum, so it is a frame rate only if you call
+  it every frame. Called once per window it returns a plausible number that is
+  wrong by two orders of magnitude and decays slowly toward the truth. This
+  project reported that as a raylib bug for an afternoon. `seconds` is the sum
+  of this window's own frame times, so frames divided by it is exactly the rate
+  over exactly that window, and it owes raylib nothing."
+  [total {:keys [count seconds worst]}]
+  (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
+                   total
+                   (* 1000.0 (/ seconds count))
+                   (* 1000.0 worst)
+                   (/ (double count) seconds))))
+
 (defn- sdl-main
   "SDL_main: the main thread, inside UIApplicationMain, event pump on. Sizes
   the screen in pixels, then owns the loop for the life of the app."
@@ -201,33 +242,29 @@
                    "drawable" (ffi/read dw :int 0) "x" (ffi/read dh :int 0) "fbo" framebuffer
                    "(safe area: ask UIKit from inside the loop, not SDL)")))
       ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
-      (loop [state (init {:width w :height h :scale k :inset-top 0}) n 0 sum 0.0 worst 0.0]
+      (loop [state (init {:width w :height h :scale k :inset-top 0})
+             frames 0
+             window (fresh-window)]
         (begin-drawing)
-        (when (and framebuffer @probe/bind-drawable?) (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
-        (drain-pending!)                        ; main thread, inside the frame
+        (when (and framebuffer @probe/bind-drawable?)
+          (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
+        ;; queued work runs on the main thread and inside the frame, which is
+        ;; the only place it is safe to touch raylib from outside the loop
+        (drain-pending!)
         (let [state' (frame state)]
           (reset! current-state state')
-          (when (and colorbuffer @probe/bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
-          (when @probe/fps-every-frame? (reset! probe/last-fps (get-fps)))
-          (when @probe/record-pre-swap?
-            (reset! probe/pre-swap
-                    {:framebuffer  (probe/gl-int probe/GL-FRAMEBUFFER-BINDING)
-                     :renderbuffer (probe/gl-int probe/GL-RENDERBUFFER-BINDING)}))
+          (when (and colorbuffer @probe/bind-drawable?)
+            (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
+          (probe/sample-frame!)
           (end-drawing)
-          (let [dt    (get-frame-time)
-                n     (inc n)
-                sum   (+ sum dt)
-                worst (max worst dt)]
-            ;; fps from this window's own frame times, never from GetFPS:
-            ;; sum is 300 frame times in seconds, so 300/sum is exactly the
-            ;; window's rate. GetFPS is a per-frame sampler and reading it from
-            ;; a 300-frame summary returns nonsense; see the README.
-            (when (zero? (mod n 300))
-              (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
-                               n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (/ 300.0 sum))))
+          (let [frames  (inc frames)
+                window' (accumulate window (get-frame-time))]
             (if (pos? (window-should-close))
               (do (close-window) 0)
-              (recur state' n (if (zero? (mod n 300)) 0.0 sum) (if (zero? (mod n 300)) 0.0 worst)))))))))
+              (if (= window-frames (:count window'))
+                (do (report-window! frames window')
+                    (recur state' frames (fresh-window)))
+                (recur state' frames window')))))))))
 
 (defonce ^:private sdl-main-cb
   (ffi/foreign-callable sdl-main [:int :pointer] :int :collect-safe))
