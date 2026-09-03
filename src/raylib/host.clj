@@ -1,0 +1,175 @@
+(ns raylib.host
+  "The iOS owner loop for raylib (RAY-018's shape). run! hands the app to
+  SDL_UIKitRunApp; a :collect-safe SDL_main then owns InitWindow and the
+  while loop — per frame: BeginDrawing, bind SDL's drawable FBO (iOS has no
+  framebuffer 0), (frame state) -> state', bind the colour renderbuffer,
+  EndDrawing. The screen is sized in PIXELS (UIScreen scale × points), since
+  raylib's SDL platform does not do HighDPI itself."
+  (:refer-clojure :exclude [run!])          ; run! is the entry point here, as in raylib-jlt
+  (:require [jolt.ffi :as ffi]
+            [raylib.objc :as u]))
+
+;; --- SDL ---------------------------------------------------------------------
+(ffi/defcfn sdl-uikit-run-app            "SDL_UIKitRunApp"           [:int :pointer :pointer] :int :blocking)
+(ffi/defcfn sdl-init                     "SDL_Init"                  [:uint32] :int)
+(ffi/defcfn sdl-get-current-display-mode "SDL_GetCurrentDisplayMode" [:int :pointer] :int)
+(ffi/defcfn sdl-get-error                "SDL_GetError"              [] :string)
+(ffi/defcfn sdl-gl-get-current-window    "SDL_GL_GetCurrentWindow"   [] :pointer)
+(ffi/defcfn sdl-get-window-wm-info       "SDL_GetWindowWMInfo"       [:pointer :pointer] :int)
+(ffi/defcfn sdl-gl-get-drawable-size     "SDL_GL_GetDrawableSize"    [:pointer :pointer :pointer] :void)
+(ffi/defcfn gl-bind-framebuffer          "glBindFramebuffer"         [:uint :uint] :void)
+(ffi/defcfn gl-bind-renderbuffer         "glBindRenderbuffer"        [:uint :uint] :void)
+(ffi/defcfn msg-0d                       "objc_msgSend"              [:pointer :pointer] :double)   ; [UIScreen scale]
+(ffi/defcfn sdl-set-hint                 "SDL_SetHint"               [:string :string] :uint8)
+(def ^:private SDL-INIT-VIDEO 0x20)
+(def ^:private GL-FRAMEBUFFER 0x8D40)
+(def ^:private GL-RENDERBUFFER 0x8D41)
+
+;; --- raylib: window, frame, drawing (the raylib-jlt subset, packed :uint colours) ---
+(ffi/defcfn set-config-flags    "SetConfigFlags"    [:uint] :void)
+(ffi/defcfn init-window         "InitWindow"        [:int :int :string] :void)
+(ffi/defcfn window-should-close "WindowShouldClose" [] :uint8)
+(ffi/defcfn close-window        "CloseWindow"       [] :void)
+(ffi/defcfn set-target-fps      "SetTargetFPS"      [:int] :void)
+(ffi/defcfn begin-drawing       "BeginDrawing"      [] :void)
+(ffi/defcfn end-drawing         "EndDrawing"        [] :void)
+(ffi/defcfn clear-background    "ClearBackground"   [:uint] :void)
+(ffi/defcfn draw-text           "DrawText"          [:string :int :int :int :uint] :void)
+(ffi/defcfn draw-circle         "DrawCircle"        [:int :int :float :uint] :void)
+(ffi/defcfn draw-circle-lines   "DrawCircleLines"   [:int :int :float :uint] :void)
+(ffi/defcfn draw-rectangle      "DrawRectangle"     [:int :int :int :int :uint] :void)
+(ffi/defcfn draw-line           "DrawLine"          [:int :int :int :int :uint] :void)
+(ffi/defcfn get-screen-width    "GetScreenWidth"    [] :int)
+(ffi/defcfn get-screen-height   "GetScreenHeight"   [] :int)
+(ffi/defcfn get-frame-time      "GetFrameTime"      [] :float)
+(ffi/defcfn get-fps             "GetFPS"            [] :int)
+(ffi/defcfn measure-text        "MeasureText"       [:string :int] :int)
+(ffi/defcfn sdl-get-display-usable-bounds "SDL_GetDisplayUsableBounds" [:int :pointer] :int)   ; iOS: the safe area
+(def FLAG-WINDOW-HIGHDPI 0x2000)
+
+(defn- safe-area-top
+  "The status bar / Dynamic Island inset in points, from SDL's usable bounds
+  (an SDL_Rect {int x, y, w, h}; y is the top inset). 0 if SDL cannot say —
+  which it cannot before the window has been laid out (see safe-area-insets)."
+  []
+  (ffi/with-alloc [r 16]
+    (if (zero? (sdl-get-display-usable-bounds 0 r)) (ffi/read r :int 4) 0)))
+
+;; UIEdgeInsets {double top, left, bottom, right}: a four-double HFA, returned in
+;; registers — the by-value return milestone 0 proved through libffi.
+(ffi/defcfn msg-0-insets "objc_msgSend" [:pointer :pointer]
+  [:by-value [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]])
+(def ^:private insets-l (ffi/layout [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]))
+
+(defn safe-area-insets
+  "[[UIApplication sharedApplication].windows firstObject].safeAreaInsets, in
+  points: {:top :left :bottom :right}. Ask from inside the loop — insets are
+  only real once the window has been laid out, i.e. after the first frame."
+  []
+  (let [win (u/objc-msg-send-0
+              (u/objc-msg-send-0 (u/objc-msg-send-0 (u/cls "UIApplication") (u/sel "sharedApplication")) (u/sel "windows"))
+              (u/sel "firstObject"))]
+    (ffi/with-layout [i insets-l]
+      (msg-0-insets i win (u/sel "safeAreaInsets"))
+      (into {} (for [f [:top :left :bottom :right]] [f (ffi/read-field i insets-l f)])))))
+
+;; --- raylib: touch (RAY-010's scalar surface, plus the by-value Vector2) ----
+(ffi/defcfn get-touch-point-count "GetTouchPointCount" [] :int)
+(ffi/defcfn get-touch-point-id    "GetTouchPointId"    [:int] :int)
+(ffi/defcfn get-touch-x           "GetTouchX"          [] :int)
+(ffi/defcfn get-touch-y           "GetTouchY"          [] :int)
+(ffi/defcfn get-touch-position    "GetTouchPosition"   [:int] [:by-value [:struct [[:x :float] [:y :float]]]])
+(def ^:private vec2-l (ffi/layout [:struct [[:x :float] [:y :float]]]))
+(defn touch-position
+  "[x y] of touch point `i`, through the by-value Vector2 return."
+  [i]
+  (ffi/with-layout [v vec2-l]
+    (get-touch-position v i)
+    [(ffi/read-field v vec2-l :x) (ffi/read-field v vec2-l :y)]))
+
+(defn rgba [r g b a] (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left a 24)))
+(def RAYWHITE  (rgba 245 245 245 255))
+(def LIGHTGRAY (rgba 200 200 200 255))
+(def DARKGRAY  (rgba 80 80 80 255))
+(def MAROON    (rgba 190 33 55 255))
+(def SKYBLUE   (rgba 102 191 255 255))
+
+;; --- the host ----------------------------------------------------------------
+(defn- display-points
+  "[w h] of display 0 in points, from SDL, before any window exists."
+  []
+  (when (neg? (sdl-init SDL-INIT-VIDEO)) (println "host: SDL_Init failed:" (sdl-get-error)))
+  (ffi/with-alloc [m 24]                    ; SDL_DisplayMode {u32 format; int w, h, refresh_rate; void *driverdata}
+    (if (zero? (sdl-get-current-display-mode 0 m))
+      [(ffi/read m :int 4) (ffi/read m :int 8)]
+      (do (println "host: no display mode:" (sdl-get-error)) [390 844]))))
+
+(defn- screen-scale [] (msg-0d (u/objc-msg-send-0 (u/cls "UIScreen") (u/sel "mainScreen")) (u/sel "scale")))
+
+(def ^:private sdl-version-l (ffi/layout [:struct [[:major :uint8] [:minor :uint8] [:patch :uint8]]]))
+
+(defn- view-framebuffer
+  "SDL's drawable FBO and colour renderbuffer for the current window, via
+  SDL_SysWMinfo (version @0, subsystem @4, uikit.framebuffer @16, colorbuffer @20).
+  Only the version is ours to write — SDL fills the rest — and it goes through a
+  layout, since jolt 0.8.0 swapped ffi/write's value and offset."
+  []
+  (ffi/with-alloc [info 128]
+    (ffi/write-field info sdl-version-l :major 2)
+    (ffi/write-field info sdl-version-l :minor 32)
+    (ffi/write-field info sdl-version-l :patch 10)                 ; SDL 2.32.10
+    (if (pos? (sdl-get-window-wm-info (sdl-gl-get-current-window) info))
+      {:framebuffer (ffi/read info :uint32 16) :colorbuffer (ffi/read info :uint32 20)}
+      (do (println "host: SDL_GetWindowWMInfo failed:" (sdl-get-error)) {}))))
+
+(defonce ^:private app (atom nil))        ; {:title :init :frame :fps} — the callable is global, so this is how it finds the scene
+
+(defn- sdl-main
+  "SDL_main: the main thread, inside UIApplicationMain, event pump on. Sizes
+  the screen in pixels, then owns the loop for the life of the app."
+  [_argc _argv]
+  (let [{:keys [title init frame fps] :or {fps 60}} @app
+        [pw ph] (display-points)
+        k       (screen-scale)
+        w       (int (* pw k))
+        h       (int (* ph k))]
+    (set-config-flags FLAG-WINDOW-HIGHDPI)       ; SDL_WINDOW_ALLOW_HIGHDPI: a full-resolution drawable
+    (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")   ; the software rasteriser's surface: present through Metal, never GLES
+    (init-window w h title)                      ; ...and a screen the same size, so raylib never scales
+    (set-target-fps fps)
+    (let [{:keys [framebuffer colorbuffer]} (view-framebuffer)]
+      (ffi/with-alloc [dw 4]
+        (ffi/with-alloc [dh 4]
+          (sdl-gl-get-drawable-size (sdl-gl-get-current-window) dw dh)
+          (println "host:" pw "x" ph "points × scale" k "→ screen" (get-screen-width) "x" (get-screen-height)
+                   "drawable" (ffi/read dw :int 0) "x" (ffi/read dh :int 0) "fbo" framebuffer
+                   "safe-area top" (safe-area-top) "pt")))
+      ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
+      (loop [state (init {:width w :height h :scale k :inset-top (int (* k (safe-area-top)))}) n 0 sum 0.0 worst 0.0]
+        (begin-drawing)
+        (when framebuffer (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
+        (let [state' (frame state)]
+          (when colorbuffer (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
+          (end-drawing)
+          (let [dt    (get-frame-time)
+                n     (inc n)
+                sum   (+ sum dt)
+                worst (max worst dt)]
+            (when (zero? (mod n 300))
+              (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %d fps"
+                               n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (get-fps))))
+            (if (pos? (window-should-close))
+              (do (close-window) 0)
+              (recur state' n (if (zero? (mod n 300)) 0.0 sum) (if (zero? (mod n 300)) 0.0 worst)))))))))
+
+(defonce ^:private sdl-main-cb
+  (ffi/foreign-callable sdl-main [:int :pointer] :int :collect-safe))
+
+(defn run!
+  "Hand `scene` to UIKit and never return.
+  scene: {:title s, :init (fn [{:keys [width height scale]}] state), :frame (fn [state] state'), :fps n}"
+  [scene]
+  (reset! app scene)
+  (println "host: entering SDL_UIKitRunApp")
+  (ffi/with-c-string-array [argv 1] ["Hello"]
+    (sdl-uikit-run-app 1 argv sdl-main-cb)))

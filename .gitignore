@@ -1,0 +1,9 @@
+.DS_Store
+.jolt
+.lsp
+.cpcache
+.clj-kondo/.cache
+.nrepl-history
+.nrepl-port
+# built bundle: the plist is copied in, the binary is compiled, nothing is source
+RaylibIOS.app

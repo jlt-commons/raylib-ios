@@ -1,0 +1,30 @@
+#!/usr/bin/env bb
+;; tools/ios/nrepl-eval PORT CODE: one nREPL eval over bencode; prints the replies.
+;; HOST=<addr> to reach something other than 127.0.0.1.
+(require '[bencode.core :as b])
+(let [[port code] *command-line-args*
+      port (Integer/parseInt (or port "7999"))]
+  (with-open [s (java.net.Socket. (or (System/getenv "HOST") "127.0.0.1") port)]
+    (let [out (.getOutputStream s)
+          in  (java.io.PushbackInputStream. (.getInputStream s))
+          str-vals (fn [m] (into {} (map (fn [[k v]]
+                                           [k (cond (bytes? v) (String. v)
+                                                    (sequential? v) (mapv #(if (bytes? %) (String. %) %) v)
+                                                    :else v)]) m)))]
+      (b/write-bencode out {"op" "eval" "code" code "id" "1"})
+      (.flush out)
+      ;; Exit non-zero on an eval-error, and say when the reply cap truncated
+      ;; the conversation. This used to return 0 whatever came back, which
+      ;; matters because live-development.md documents these as scriptable
+      ;; one-liners run in sequence: a failed eval read as a success.
+      (loop [n 0 err false]
+        (let [m (str-vals (b/read-bencode in))
+              st (set (get m "status"))
+              err (or err (contains? st "eval-error"))]
+          (println m)
+          (cond
+            (contains? st "done") (when err (System/exit 1))
+            (>= n 20) (do (println "nrepl-eval: stopped after 20 replies without a done;"
+                                   "the value above may be truncated")
+                          (System/exit 1))
+            :else (recur (inc n) err)))))))

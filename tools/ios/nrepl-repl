@@ -1,0 +1,38 @@
+#!/usr/bin/env bb
+;; tools/ios/nrepl-repl [HOST] [PORT]: a terminal REPL over nREPL, in babashka.
+;; ^D to leave; the server keeps running.
+(require '[bencode.core :as b] '[clojure.string :as str])
+(let [[host port] *command-line-args*
+      host (or host (System/getenv "HOST") "127.0.0.1")
+      port (Integer/parseInt (or port (System/getenv "PORT") "7999"))
+      ->str (fn [v] (cond (bytes? v) (String. v "UTF-8")
+                          (sequential? v) (mapv #(if (bytes? %) (String. % "UTF-8") %) v)
+                          :else v))
+      sock (try (java.net.Socket. host port)
+                (catch java.net.ConnectException _
+                  (binding [*out* *err*]
+                    (println (str "nothing listening on " host ":" port
+                                  ". Is the app in the foreground? iOS suspends"
+                                  " backgrounded apps and a suspended listener accepts"
+                                  " nothing. `jolt wake` brings it forward.")))
+                  (System/exit 1)))
+      out (.getOutputStream sock)
+      in  (java.io.PushbackInputStream. (.getInputStream sock))
+      rdr (java.io.BufferedReader. (java.io.InputStreamReader. System/in))]
+  (println (str ";; nREPL " host ":" port " (^D to leave)"))
+  (loop [ns "user" id 0]
+    (print (str ns "=> ")) (flush)
+    (when-let [line (.readLine rdr)]
+      (if (str/blank? line)
+        (recur ns id)
+        (do (b/write-bencode out {"op" "eval" "code" line "id" (str id) "ns" ns})
+            (.flush out)
+            (recur
+             (loop [ns ns]
+               (let [m (into {} (map (fn [[k v]] [k (->str v)]) (b/read-bencode in)))]
+                 (when-let [o (get m "out")] (print o) (flush))
+                 (when-let [e (get m "err")] (binding [*out* *err*] (print e) (flush)))
+                 (when (contains? m "value") (println (get m "value")))
+                 (let [ns (or (get m "ns") ns)]
+                   (if (some #{"done"} (get m "status")) ns (recur ns)))))
+             (inc id)))))))

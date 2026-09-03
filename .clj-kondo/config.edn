@@ -1,0 +1,11 @@
+{;; defcfn and the with-* forms define symbols kondo cannot see through
+ :lint-as {jolt.ffi/defcfn              clj-kondo.lint-as/def-catch-all
+           jolt.ffi/with-c-string       clojure.core/let
+           jolt.ffi/with-c-string-array clojure.core/let
+           jolt.ffi/with-alloc          clojure.core/let
+           jolt.ffi/with-out            clojure.core/let
+           jolt.ffi/with-layout         clojure.core/let}
+ ;; alloc/free/read/write/null/null? are host-provided (see jolt.ffi's
+ ;; docstring): there is no defn in ffi.clj for kondo to resolve, so every use
+ ;; reads as unresolved.
+ :linters {:unresolved-var {:exclude [jolt.ffi]}}}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>        <string>io.jlt-commons.raylib-ios</string>
+  <key>CFBundleExecutable</key>        <string>RaylibIOS</string>
+  <key>CFBundleName</key>              <string>RaylibIOS</string>
+  <key>CFBundleDisplayName</key>       <string>raylib</string>
+  <key>CFBundlePackageType</key>       <string>APPL</string>
+  <key>CFBundleVersion</key>           <string>1</string>
+  <key>CFBundleShortVersionString</key><string>0.1</string>
+  <key>MinimumOSVersion</key>          <string>14.0</string>
+  <key>UIDeviceFamily</key>            <array><integer>1</integer></array>
+  <key>LSRequiresIPhoneOS</key>        <true/>
+  <!-- without UILaunchScreen iOS letterboxes the app into a small rectangle -->
+  <key>UILaunchScreen</key>            <dict/>
+</dict>
+</plist>

@@ -1,0 +1,44 @@
+{:paths ["src"]
+
+ ;; No dependencies at all, and that is the point.
+ ;;
+ ;; raylib and SDL2 are STATIC ARCHIVES linked into the executable by
+ ;; tools/ios/build.sh, not shared libraries loaded at run time -- `jolt build
+ ;; --target` emits the whole binary and Chez owns main, so there is no host
+ ;; process to dlopen anything and every defcfn resolves against the process
+ ;; image at first call. A :jolt/native entry naming libraylib.dylib (which is
+ ;; what both published raylib bindings declare) would be actively wrong here:
+ ;; jolt loads a dependency's natives transitively, before any namespace, and
+ ;; hard-fails when one is missing. There is no .dylib in an .ipa.
+ ;;
+ ;; The raylib surface this project calls -- some thirty-five functions -- is
+ ;; declared inline in raylib.host, mirroring what the demo did. Taking
+ ;; jlt-commons/raylib-jlt as a real dependency would mean dealing with its own
+ ;; :jolt/native declaration; jolt's `:process true` is the door if the other
+ ;; four hundred functions are ever wanted.
+ :deps {}
+ :jolt/native []
+
+ ;; ffi/write took (p t offset v) before 0.8.0 and (p t v offset) after, and the
+ ;; two cannot be told apart at runtime -- both arguments are integers, so an
+ ;; older jolt would write the wrong byte to the wrong place in silence rather
+ ;; than refuse. Every struct here goes through ffi/layout + write-field, which
+ ;; is stable across both, and this floor is belt and braces.
+ :jolt/min-version "0.8.0"
+
+ :aliases
+ {:test {:extra-paths ["test"]
+         :main-opts ["-m" "raylib.test-runner"]}}
+
+ :tasks
+ {;; the two static archives, per SDK. Slow the first time, cached after.
+  deps    "sh tools/ios/deps.sh"
+  ;; cross-compile NS into RaylibIOS.app. NS=raylib.gallery TARGET=device jolt build-app
+  build-app "sh tools/ios/build.sh"
+  ;; sign, install and launch on the phone. UDID=<hardware udid> jolt deploy
+  deploy  "sh tools/ios/deploy.sh"
+  ;; the pure namespaces, on the host: no raylib, no SDL, no device
+  test    "jolt -M:test"
+  ;; what deploy would talk to. devicectl's cached list lies about state, so
+  ;; this asks each device for its tunnelState instead of trusting the summary.
+  devices "sh tools/ios/devices.sh"}}

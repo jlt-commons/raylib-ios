@@ -1,0 +1,86 @@
+#!/usr/bin/env bb
+;; tools/extract-from-notebooks SRC-REPO [DEST]
+;;
+;; One-shot provenance tool. Pulls the tangled sources out of the
+;; glimmer-ios-demo notebooks (org-mode literate files) into plain .clj/.cljc
+;; files, so this project can be built and read WITHOUT org tangling. After the
+;; first run the extracted files are this repo's source of truth and this
+;; script is history, not a build step -- rerunning it would clobber local
+;; edits, so it refuses to overwrite a file whose content has diverged unless
+;; FORCE=1.
+;;
+;; Blocks marked `:tangle no` are skipped: in the notebooks those are
+;; superseded spikes kept for the record. `:comments link` is IGNORED rather
+;; than honoured -- it makes org write a breadcrumb comment naming the source
+;; org file and line, which is exactly the coupling this extraction removes,
+;; and which would break the byte-identity check below.
+;;
+;; Byte-identity matters for src/poc/raylib/*.cljc: those six namespaces come
+;; from jasalt/jolt-android-experiment at 6d2b291 unchanged, and both notebooks
+;; record their sha256 to prove it. --verify checks the extracted files against
+;; the hashes recorded in expected-shas below.
+(require '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def expected-shas
+  "sha256 of the six pure poc.raylib namespaces, as recorded in the notebooks
+  (examples/flappy README milestone 4; examples/gallery 'What comes across').
+  The gallery records only the first 16 hex digits, so those are prefixes."
+  {"src/poc/raylib/flappy_bird.cljc"   "4d9cf3ae1984613d2e0a4fc25269e147d09e3562d57e12743233b38610a8c560"
+   "src/poc/raylib/gallery.cljc"       "6bfc1f12cb425b9b"
+   "src/poc/raylib/gallery_ui.cljc"    "a2301b268d555504"
+   "src/poc/raylib/diagnostics.cljc"   "179b24736879fdf1"
+   "src/poc/raylib/following_eyes.cljc" "9dcd98e36aafcb78"
+   "src/poc/raylib/touch_trail.cljc"   "242385a4855c083a"})
+
+(defn sha256 [path]
+  (let [d (java.security.MessageDigest/getInstance "SHA-256")]
+    (->> (.digest d (fs/read-all-bytes path))
+         (map #(format "%02x" %))
+         (apply str))))
+
+(defn blocks
+  "Every #+begin_src block in `org` carrying a :tangle path, as
+  {:path <relative to the org's own directory> :body <string>}."
+  [org]
+  (let [lines (str/split-lines (slurp (str org)))]
+    (loop [[l & more] lines, target nil, acc [], out []]
+      (cond
+        (nil? l) out
+        target   (if (str/starts-with? (str/trim l) "#+end_src")
+                   (recur more nil [] (conj out {:path target :body (str (str/join "\n" acc) "\n")}))
+                   (recur more target (conj acc l) out))
+        (str/starts-with? (str/trim l) "#+begin_src")
+        (let [t (second (re-find #":tangle\s+(\S+)" l))]
+          (if (and t (not= t "no"))
+            (recur more t [] out)
+            ;; :tangle no, or no :tangle at all -- skip to the matching end
+            (recur (drop-while #(not (str/starts-with? (str/trim %) "#+end_src")) more) nil [] out)))
+        :else (recur more nil [] out)))))
+
+(let [[src dest] *command-line-args*
+      src   (or src (str (fs/expand-home "~/dev/github--statonjr--glimmer-ios-demo")))
+      dest  (or dest (str (fs/expand-home "~/dev/raylib-ios")))
+      force (= "1" (System/getenv "FORCE"))
+      orgs  ["examples/flappy/README.org" "examples/gallery/README.org"]]
+  (doseq [org orgs
+          {:keys [path body]} (blocks (fs/path src org))
+          ;; the C probe and the shell scripts are milestone scaffolding this
+          ;; project replaces with tools/ios; only Clojure sources come across
+          :when (re-find #"\.cljc?$" path)]
+    (let [abs (fs/normalize (fs/path (fs/parent (fs/path src org)) path))
+          out (fs/path dest (str (fs/relativize (fs/path src) abs)))]
+      (fs/create-dirs (fs/parent out))
+      (if (and (fs/exists? out) (not= body (slurp (str out))) (not force))
+        (println "SKIP (diverged, FORCE=1 to overwrite):" (str out))
+        (do (spit (str out) body)
+            (println "wrote" (str (fs/relativize (fs/path dest) out)))))))
+  (println)
+  (println "byte-identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291):")
+  (doseq [[rel want] (sort expected-shas)]
+    (let [f (fs/path dest rel)]
+      (if-not (fs/exists? f)
+        (println "  MISSING" rel)
+        (let [got (sha256 (str f))]
+          (println (format "  %-38s %s  %s" rel (if (str/starts-with? got want) "ok" "MISMATCH")
+                           (subs got 0 16))))))))
