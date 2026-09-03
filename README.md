@@ -362,11 +362,10 @@ Two related things about iOS itself, both of which look like rendering bugs:
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt), raylib and SDL2. The
 whole stack is zlib.
 
-Third-party code, and one blocker that must be cleared before this repository
-is published or transferred, are in [`NOTICE`](NOTICE). The short version: five
-namespaces are derived from a repository that carries no licence file, so
-default copyright applies to them and this project cannot be made public until
-that is resolved.
+Third-party code and attribution are in [`NOTICE`](NOTICE), and it is worth
+reading before you fork. The short version: four namespaces contain material
+from a repository that carries no licence file, published here while a request
+for one is pending, so the zlib licence above does not cover those parts.
 
 ## Attribution
 

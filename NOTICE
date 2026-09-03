@@ -127,8 +127,31 @@ MIT is a grant, not a trade: it lets him build on our work without obliging him
 to license his own back. It makes option 1 very likely to land. It is not a
 substitute for it.
 
-Option 1 was filed on 2026-09-03 as statonjr/glimmer-ios-demo#1, the first
-issue on that repository. Until it is answered, or option 2 is done, treat this
-repository as private and unpublishable.
+## Status, stated plainly
+
+**This repository was made public on 2026-09-04 with option 1 still pending.**
+No licence had been granted for the four derived files at that point, and none
+had been refused either: the request at statonjr/glimmer-ios-demo#1 was simply
+unanswered.
+
+That is a deliberate decision by this project's author, not an oversight, and
+anyone using this repository should know what it means:
+
+- `src/raylib/host.clj`, `gallery.clj`, `touch.clj` and `link.clj` contain
+  material whose copyright belongs to Larry Staton Jr. and which is published
+  here without his express permission. The zlib licence in `LICENSE` cannot
+  grant what this project does not hold, so it does not cover those parts.
+- If you fork or redistribute this repository, that limitation travels with
+  you. It is not cured by the licence file.
+- If Larry asks for the material to be removed, it will be removed and this
+  section will say so. If he grants a licence, this section will be replaced
+  with the grant and the date.
+
+The other three sources are properly licensed and unaffected: jasalt's files
+under MIT, the raylib-jlt ports under zlib, and raylib and SDL2 themselves.
+
+Option 2 remains the clean fix and is well understood: 264 substantive lines
+across four files, of which `link.clj` is four `defcfn` declarations of
+published SDL symbols and `host.clj` is the only part needing real thought.
 The presence of a LICENSE file does not change that: a licence grants what the
 grantor holds, and this is the one part we do not hold.
