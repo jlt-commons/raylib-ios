@@ -30,11 +30,13 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <img src="docs/images/kaleidoscope.gif" width="200" alt="Kaleidoscope">
   <img src="docs/images/fireworks.gif" width="200" alt="Fireworks">
   <img src="docs/images/boids.gif" width="200" alt="Boids flocking">
+  <img src="docs/images/flappy-bird.gif" width="200" alt="Flappy Bird, flapped over the nREPL">
 </p>
 
 *And moving, recorded off a live iPhone Mirroring window by
 `tools/ios/capture-gif.sh`. The device bezel is the mirror's, not a frame we
-drew.*
+drew. Nobody touched the phone for any of them, including Flappy Bird: that one
+is flapped by a loop running inside the app, started from the nREPL.*
 
 Private for now.
 
