@@ -21,8 +21,7 @@
   Randomness is a seeded LCG rather than raylib's GetRandomValue, for the
   same reason flappy-bird carries one: it keeps the namespace pure, so the
   curve is reproducible from a seed and the whole thing is testable on a
-  build host with no raylib, no SDL and no device."
-  (:require [clojure.string :as str]))
+  build host with no raylib, no SDL and no device.")
 
 (def default-seed 20260903)
 

@@ -209,7 +209,7 @@
           (rl/draw-line (int (nth s 0)) (int (nth s 1)) (int (nth s 2)) (int (nth s 3)) green))
         (recur (inc i))))))
 
-(defmethod draw-scene! :flowfield [_ {:keys [parts t]} {:keys [m]}]
+(defmethod draw-scene! :flowfield [_ {:keys [parts]} _]
   (rl/clear-background (rl/rgba 0 0 0 255))
   (let [n (count parts)]
     (loop [i 0]

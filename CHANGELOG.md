@@ -63,10 +63,10 @@ Clojure, fifteen scenes, and the measurements that shaped them.
   without a finger.
 - **cider-nrepl**, opt-in behind `-A:cider`. The default build has no
   dependencies at all and that is worth keeping.
-- **Capture tooling.** `tools/ios/capture.sh` photographs every scene
-  unattended; `capture-gif.sh` records the moving ones off a live iPhone
-  Mirroring window. Flappy Bird plays itself for the camera, flapped by a loop
-  running inside the app.
+- **Capture tooling**, since moved out to a separate capture project's `contrib/ios-device`
+  because it needs tools that are not published yet. Every image in
+  `docs/images` was taken off a real device by it, unattended, and Flappy Bird
+  plays itself for the camera, flapped by a loop running inside the app.
 - **Two guides.** `performance-on-a-phone.md` and `porting-an-example.md`.
 
 ### Fixed

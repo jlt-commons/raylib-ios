@@ -12,8 +12,7 @@
   no horizontal room for a scrolling wave and plenty of vertical. Here the
   chain hangs near the top and the wave scrolls DOWN, which is the same picture
   through ninety degrees. The maths is untouched: only which axis carries time
-  has changed."
-  (:require [clojure.string :as str]))
+  has changed.")
 
 (def terms 8)
 (def theta-step 0.05)

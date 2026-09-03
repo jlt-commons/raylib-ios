@@ -8,8 +8,7 @@
 
   Pure, and the integrator is the original's verbatim. What changed is that the
   geometry derives from the live screen instead of a fixed 800x450, and the
-  loop belongs to the host."
-  (:require [clojure.string :as str]))
+  loop belongs to the host.")
 
 (def gravity 1.0)
 (def dt 0.06)

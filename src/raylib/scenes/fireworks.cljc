@@ -4,8 +4,7 @@
   A rocket launches every launch-interval frames, rises, and at the top of its
   arc becomes forty particles that fall and fade. Pure: raylib's
   GetRandomValue becomes the seeded LCG the other scenes use, so a seed
-  reproduces a display exactly and the whole thing runs on a build host."
-  (:require [clojure.string :as str]))
+  reproduces a display exactly and the whole thing runs on a build host.")
 
 (def default-seed 8161)
 (def gravity-ratio 0.00027)   ; the original's 0.07 of a 450-tall window
@@ -73,7 +72,7 @@
     (assoc state :frame (inc frame) :seed seed :rockets rockets
            :parts (filterv (fn [p] (pos? (:life p))) parts))))
 
-(defn- init [input]
+(defn- init [_input]
   [{:frame 0 :seed default-seed :rockets [] :parts []}
    [[:scene/init :fireworks]]])
 

@@ -22,8 +22,8 @@
 
 (deftest the-trajectory-stays-on-the-attractor
   (let [[points _] (l/warm l/default-seed)]
-    (testing "nothing diverges, which is the check that the step size holds up"
-      (is (every? (fn [p] (every? (fn [c] (and (not (Double/isNaN c)) (< (abs c) 100.0))) p))
+    (testing "nothing diverges or goes NaN, which checks the step size holds up.\n            (== c c) is false only for NaN, and unlike Double/isNaN it reads\n            the same under every .cljc host"
+      (is (every? (fn [p] (every? (fn [c] (and (== c c) (< (abs c) 100.0))) p))
                   points)))
     (testing "z stays positive, as the attractor sits well above the xy plane"
       (is (every? (fn [[_ _ z]] (pos? z)) points)))

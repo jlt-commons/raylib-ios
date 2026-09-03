@@ -11,8 +11,7 @@
   its edges. Five deflations is roughly 1500 triangles, so about 6000 fill
   calls and 4500 line calls a frame, every one of them crossing libffi. So
   `default-deflations` is lower here than the original's 5 and `tiling` takes
-  the count, which means it can be tuned live over the nREPL."
-  (:require [clojure.string :as str]))
+  the count, which means it can be tuned live over the nREPL.")
 
 (def default-deflations 4)
 

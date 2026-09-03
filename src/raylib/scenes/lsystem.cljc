@@ -7,8 +7,7 @@
 
   The rewrite and the turtle walk happen ONCE at init, because the string does
   not change: only how much of it is shown does. That keeps the per-frame cost
-  to the draw loop, which is the shape this runtime rewards."
-  (:require [clojure.string :as str]))
+  to the draw loop, which is the shape this runtime rewards.")
 
 (def rules {\X "F+[[X]-X]-F[-FX]+X" \F "FF"})
 (def iterations 5)

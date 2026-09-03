@@ -8,8 +8,7 @@
   That matters here more than it would elsewhere: the original recomputes each
   segment's colour inline with three sin calls, which at 1023 segments is 3069
   transcendentals a frame on an interpreter, for a picture that is identical
-  every time. See docs/guide/performance-on-a-phone.md."
-  (:require [clojure.string :as str]))
+  every time. See docs/guide/performance-on-a-phone.md.")
 
 (def order 5)
 

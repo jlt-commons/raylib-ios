@@ -7,8 +7,7 @@
   without a render texture.
 
   Pure: the rotations are computed here and handed to the host as line
-  segments, so nothing in this file touches raylib."
-  (:require [clojure.string :as str]))
+  segments, so nothing in this file touches raylib.")
 
 (def folds 6)
 ;; 60 leaves 708 lines a frame, which holds 59 fps on an iPhone 17 Pro. 90 is
@@ -66,7 +65,7 @@
            :frame frame
            :trail (vec (take-last trail-length (conj (:trail state) (trail-point reach t)))))))
 
-(defn- init [input]
+(defn- init [_input]
   [{:frame 0 :trail []} [[:scene/init :kaleidoscope]]])
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])

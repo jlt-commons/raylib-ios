@@ -13,8 +13,7 @@
   The cheapest scene in the gallery by a wide margin. 32 line segments a frame
   against the 1200 the Lorenz trail draws, so it holds the frame rate with the
   screen almost empty, which makes it the useful control when something else
-  starts dropping frames."
-  (:require [clojure.string :as str]))
+  starts dropping frames.")
 
 (def d4 3.0)
 (def d3 4.0)

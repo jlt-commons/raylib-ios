@@ -29,8 +29,7 @@
       ;; NOT safe: calls raylib from the nREPL thread
       (raylib.host/set-target-fps 30)"
   (:require [jolt.nrepl]
-            [raylib.gallery :as gallery]
-            [raylib.host :as rl]))
+            [raylib.gallery :as gallery]))
 
 (def default-port
   "The phone's own loopback port. 7888 by convention, matching the notebooks."

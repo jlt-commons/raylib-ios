@@ -1,0 +1,65 @@
+# The pure half, on every push. The iOS half is not here on purpose.
+#
+# Building the app needs a macOS runner, a Chez cross-compiler for
+# tarm64ios, raylib and SDL2 compiled for the device, and a signing identity.
+# That is a lot of machinery to prove something a runner cannot check anyway,
+# since nothing in CI can put a frame on a phone. The scenes are pure .cljc
+# precisely so their behaviour is testable without any of it, and the rest is
+# proven by running on hardware.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Clojure
+        uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+
+      # The project declares no dependencies, so there is nothing to restore
+      # beyond the CLI's own. Kept anyway because the :cider alias has some.
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ runner.os }}-deps-${{ hashFiles('deps.edn') }}
+
+      - name: Test
+        run: clojure -M:test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clj-kondo
+        uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+          clj-kondo: latest
+
+      # Clean as of the open-sourcing pass, so a new warning is a real one.
+      - name: Lint
+        run: clj-kondo --lint src test --fail-level warning
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck tools/ios
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          # -S warning: the scripts are POSIX sh and use some deliberate
+          # word splitting, which style-level checks object to.
+          shellcheck -S warning tools/ios/*.sh

@@ -11,8 +11,7 @@
   and the collector section of the notebooks measured this interpreter at
   roughly 45x native on arithmetic. `default-count` is therefore a starting
   point rather than a constant, and `advance` takes the flock it is given, so
-  the number can be tuned live over the nREPL without a rebuild."
-  (:require [clojure.string :as str]))
+  the number can be tuned live over the nREPL without a rebuild.")
 
 (def default-seed 4423)
 (def default-count 45)

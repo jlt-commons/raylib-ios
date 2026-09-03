@@ -22,8 +22,8 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <a href="docs/images/flappy-bird.png"><img src="docs/images/thumbs/flappy-bird.png" width="200" alt="Flappy Bird"></a>
 </p>
 
-*Every one of these is a photograph of an iPhone 17 Pro, captured unattended by
-`tools/ios/capture.sh`. Click for full size.*
+*Every one of these is a photograph of an iPhone 17 Pro, captured unattended
+off the device. Click for full size.*
 
 <p>
   <img src="docs/images/spirograph.gif" width="200" alt="Spirograph drawing itself">
@@ -40,11 +40,15 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <img src="docs/images/lsystem.gif" width="200" alt="An L-system plant growing">
   <img src="docs/images/flowfield.gif" width="200" alt="Particles in a flow field">
 </p>
+<p>
+  <img src="docs/images/lorenz.gif" width="200" alt="The Lorenz attractor, camera orbiting">
+  <img src="docs/images/tesseract.gif" width="200" alt="A rotating 4D hypercube">
+</p>
 
-*And moving, recorded off a live iPhone Mirroring window by
-`tools/ios/capture-gif.sh`. The device bezel is the mirror's, not a frame we
-drew. Nobody touched the phone for any of them, including Flappy Bird: that one
-is flapped by a loop running inside the app, started from the nREPL.*
+*And moving, recorded off a live iPhone Mirroring window. The device bezel is
+the mirror's, not a frame we drew. Nobody touched the phone for any of them,
+including Flappy Bird: that one is flapped by a loop running inside the app,
+started from the nREPL.*
 
 Private for now.
 

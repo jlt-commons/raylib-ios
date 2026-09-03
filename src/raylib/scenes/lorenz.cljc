@@ -17,8 +17,7 @@
   what docs/guide/performance-on-a-phone.md says fits in a frame here.
 
   Input-free. The original maps rho to the arrow keys; this holds it at 28.0,
-  the value that gives the butterfly, and lets the camera do the moving."
-  (:require [clojure.string :as str]))
+  the value that gives the butterfly, and lets the camera do the moving.")
 
 (def default-seed 90210)
 
@@ -169,11 +168,11 @@
    (int (- 200 (* 130 age)))
    (int (- 255 (* 105 age)))])
 
-(defn- init [input]
+(defn- init [_input]
   (let [[points seed] (warm default-seed)]
     [{:points points :seed seed :t 0.0} [[:scene/init :lorenz]]]))
 
-(defn- update-scene [state input]
+(defn- update-scene [state _input]
   [(-> state
        (update :points advance)
        (update :t + 0.004))

@@ -3,8 +3,7 @@
 
   Each star has a z that shrinks every frame; the projection divides by it, so
   a star sweeps outward and grows as it approaches, then respawns at the back.
-  Pure, with the seeded LCG in place of GetRandomValue."
-  (:require [clojure.string :as str]))
+  Pure, with the seeded LCG in place of GetRandomValue.")
 
 (def default-seed 90210)
 (def default-count 220)

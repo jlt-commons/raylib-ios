@@ -16,8 +16,7 @@
   Two rounds of tuning, both from the same lesson. The first was the draw loop
   recomputing each particle's field angle for its colour when the step had just
   computed it: carrying the angle on the particle took 130 particles from 32 fps
-  to 39. The rest is the stepping itself, which is why the count came down."
-  (:require [clojure.string :as str]))
+  to 39. The rest is the stepping itself, which is why the count came down.")
 
 (def default-seed 31337)
 
