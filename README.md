@@ -1,6 +1,6 @@
 # raylib-ios
 
-[![CI](https://github.com/jlt-commons/raylib-ios/actions/workflows/test.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/test.yml)
+[![CI](https://github.com/jlt-commons/raylib-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/ci.yml)
 [![Site](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml)
 [![Docs](https://img.shields.io/badge/docs-jlt--commons.github.io-blue)](https://jlt-commons.github.io/raylib-ios)
 [![License](https://img.shields.io/badge/license-zlib-green)](LICENSE)

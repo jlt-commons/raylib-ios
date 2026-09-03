@@ -22,6 +22,10 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      jolt-version:
+        description: "jolt to test under (blank = the pinned JOLT_VERSION below)"
+        required: false
+        default: ""
       clj-kondo-version:
         description: "clj-kondo to lint with (blank = the pinned version below)"
         required: false
@@ -46,6 +50,10 @@ concurrency:
 # in one reviewed commit. To try a candidate first, use a workflow_dispatch run
 # with the clj-kondo-version input, which overrides this for that run only.
 env:
+  # jolt is the runtime this project actually ships on, and jlt-commons/ci-builds
+  # dispatches this workflow with a jolt-version input to test the whole fleet
+  # against a candidate release before it lands anywhere.
+  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.1' }}
   CLOJURE_VERSION: 1.12.6.1673
   CLJ_KONDO_VERSION: ${{ inputs.clj-kondo-version || '2026.08.04' }}
   SHELLCHECK_VERSION: v0.9.0
@@ -75,6 +83,30 @@ jobs:
 
       - name: Test
         run: clojure -M:test
+
+  jolt:
+    name: tests on jolt ${{ inputs.jolt-version || '0.8.1' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Install jolt
+        run: |
+          set -euo pipefail
+          : "${JOLT_VERSION:?empty; the workflow-level pin did not resolve}"
+          curl -sSL https://raw.githubusercontent.com/jolt-lang/jolt/main/install \
+            | bash -s -- --version "$JOLT_VERSION"
+          jolt --version
+
+      # The runtime this project ships on, so this is the run that counts. The
+      # JVM job above is the fast one and catches ordinary Clojure mistakes; it
+      # cannot catch a jolt-specific divergence, which is the whole reason
+      # ci-builds fans a candidate jolt across every project here.
+      #
+      # Nothing native is involved: the scenes are pure .cljc and raylib, SDL2
+      # and the device are all absent by design.
+      - name: Test under jolt
+        run: jolt -M:test
 
   lint:
     name: clj-kondo
