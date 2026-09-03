@@ -1,34 +1,72 @@
-# The pure half, on every push. The iOS half is not here on purpose.
+name: CI
+
+# ---------------------------------------------------------------------------
+# The pure half, on every push and pull request.
 #
-# Building the app needs a macOS runner, a Chez cross-compiler for
-# tarm64ios, raylib and SDL2 compiled for the device, and a signing identity.
-# That is a lot of machinery to prove something a runner cannot check anyway,
-# since nothing in CI can put a frame on a phone. The scenes are pure .cljc
-# precisely so their behaviour is testable without any of it, and the rest is
-# proven by running on hardware.
-name: test
+# The iOS half is not here on purpose. Building the app needs a macOS runner, a
+# Chez cross-compiler for tarm64ios, raylib and SDL2 compiled for the device,
+# and a signing identity. That is a lot of machinery to prove something a
+# runner cannot check anyway, since nothing in CI can put a frame on a phone.
+# The scenes are pure .cljc precisely so their behaviour is testable without
+# any of it, and the rest is proven by running on hardware.
+#
+# Actions is free for standard runners on public repositories, which this repo
+# now is. It was authored dormant while it was private, where minutes bill
+# against the account's included quota.
+# ---------------------------------------------------------------------------
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      clj-kondo-version:
+        description: "clj-kondo to lint with (blank = the pinned version below)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# A push that lands while an earlier run is going cancels it. main is not
+# exempt the way the site workflow's is: a superseded test run tells you
+# nothing, where a superseded deploy can leave a half-applied site.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Pinned rather than floating, because `latest` lets a release published
+# overnight turn CI red on a tree nobody touched. clj-kondo is the one that
+# matters here: a new lint rule arriving on its own schedule would fail a gate
+# set to --fail-level warning, on code that has not changed.
+#
+# Moving a pin IS the cutover commit. Bump it and fix what it surfaces together,
+# in one reviewed commit. To try a candidate first, use a workflow_dispatch run
+# with the clj-kondo-version input, which overrides this for that run only.
+env:
+  CLOJURE_VERSION: 1.12.6.1673
+  CLJ_KONDO_VERSION: ${{ inputs.clj-kondo-version || '2026.08.04' }}
+  SHELLCHECK_VERSION: v0.9.0
 
 jobs:
   test:
+    name: tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Install Clojure
-        uses: DeLaGuardo/setup-clojure@13.0
+        uses: DeLaGuardo/setup-clojure@13.6.1
         with:
-          cli: latest
+          cli: ${{ env.CLOJURE_VERSION }}
 
       # The project declares no dependencies, so there is nothing to restore
-      # beyond the CLI's own. Kept anyway because the :cider alias has some.
+      # beyond the CLI's own. Kept because the :cider alias has some, and
+      # because a cold run downloads the CLI's jars every time otherwise.
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6.1.0
         with:
           path: |
             ~/.m2
@@ -39,36 +77,42 @@ jobs:
         run: clojure -M:test
 
   lint:
+    name: clj-kondo
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
       - name: Install clj-kondo
-        uses: DeLaGuardo/setup-clojure@13.0
+        uses: DeLaGuardo/setup-clojure@13.6.1
         with:
-          cli: latest
-          clj-kondo: latest
+          cli: ${{ env.CLOJURE_VERSION }}
+          clj-kondo: ${{ env.CLJ_KONDO_VERSION }}
 
-      # Clean as of the open-sourcing pass, so a new warning is a real one.
+      # Clean as of the open-sourcing pass, so a new warning is a real one and
+      # --fail-level warning is a gate rather than noise.
       - name: Lint
-        run: clj-kondo --lint src test --fail-level warning
+        run: |
+          clj-kondo --version
+          clj-kondo --lint src test --fail-level warning
 
   shellcheck:
+    name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
+
       # Pinned, because the distro version and a developer's brew version
-      # disagree about which bashisms to flag. An unpinned checker that is
-      # green locally and red here costs a round trip to find out why, and
-      # the first time it happened the finding was real: `-nt` in deploy.sh,
-      # which 0.9.0 flags and 0.11.0 does not.
-      - name: Shellcheck tools/ios
-        env:
-          SHELLCHECK_VERSION: v0.9.0
+      # disagree about which bashisms to flag. An unpinned checker that is green
+      # locally and red here costs a round trip to find out why, and the first
+      # time it happened the finding was real: `-nt` in deploy.sh, which 0.9.0
+      # flags and 0.11.0 does not.
+      - name: Install shellcheck ${{ env.SHELLCHECK_VERSION }}
         run: |
           curl -sSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
             | tar -xJf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
           shellcheck --version
-          # -S warning: the scripts are POSIX sh and use some deliberate word
-          # splitting, which style-level checks object to.
-          shellcheck -S warning tools/ios/*.sh
+
+      # -S warning: the scripts are POSIX sh and use some deliberate word
+      # splitting, which style-level checks object to.
+      - name: Shellcheck
+        run: shellcheck -S warning tools/ios/*.sh docs/check-site.sh

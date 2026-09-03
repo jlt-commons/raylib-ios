@@ -1,5 +1,10 @@
 # raylib-ios
 
+[![CI](https://github.com/jlt-commons/raylib-ios/actions/workflows/test.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/test.yml)
+[![Site](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml)
+[![Docs](https://img.shields.io/badge/docs-jlt--commons.github.io-blue)](https://jlt-commons.github.io/raylib-ios)
+[![License](https://img.shields.io/badge/license-zlib-green)](LICENSE)
+
 raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
