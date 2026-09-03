@@ -10,23 +10,46 @@
             [poc.raylib.gallery-ui :as ui]
             [poc.raylib.touch-trail :as trail]
             [raylib.flappy :as flappy-draw]
-            [raylib.host :as rl]))
+            [raylib.host :as rl]
+            [raylib.scenes.spirograph :as spiro]))
 
-(def scenes [(eyes/scene) (trail/scene) (flappy/scene)])
+(def scenes [(eyes/scene) (trail/scene) (flappy/scene) (spiro/scene)])
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
 
 (def WHITE (rl/rgba 255 255 255 255))
 (defn- color [[r g b a]] (rl/rgba r g b a))
 
+;; --- driving it from an editor ------------------------------------------------
+;; A synthetic tap, consumed by the next frame. The host can already read state
+;; and run work on the main thread, but the scene state is threaded through the
+;; loop rather than held in an atom, so an nREPL could look and not touch. This
+;; is the missing half: it lets a session open a scene, press Back, or flap the
+;; bird without a finger, which is what makes the examples testable from a
+;; keyboard.
+;;
+;; One tap per frame, cleared as it is taken, so a queued tap cannot be seen
+;; twice and read as a held touch.
+(defonce pending-tap (atom nil))
+
+(defn tap!
+  "Queue a synthetic tap at [x y] in SCREEN PIXELS, not points. The next frame
+  sees a press there and the frame after sees the release, which is the edge
+  the gallery opens a card on."
+  [x y]
+  (reset! pending-tap [x y])
+  nil)
+
 ;; --- polling: raylib's scalars, in the shape diagnostics/normalize-input expects
 (defn- raw-sample [previous-count]
-  (let [n (rl/get-touch-point-count)
+  (let [tap (first (swap-vals! pending-tap (constantly nil)))
+        n (if tap 1 (rl/get-touch-point-count))
         w (rl/get-screen-width) h (rl/get-screen-height)]
     {:screen-width w :screen-height h :render-width w :render-height h
      :touch-count n
-     :touch-ids   (vec (for [i (range n)] (rl/get-touch-point-id i)))
-     :pointer-x   (rl/get-touch-x) :pointer-y (rl/get-touch-y)
+     :touch-ids   (if tap [0] (vec (for [i (range n)] (rl/get-touch-point-id i))))
+     :pointer-x   (if tap (first tap) (rl/get-touch-x))
+     :pointer-y   (if tap (second tap) (rl/get-touch-y))
      :pressed?    (and (pos? n) (zero? previous-count))
      :down?       (pos? n)
      :released?   (and (zero? n) (pos? previous-count))
@@ -47,6 +70,11 @@
         (rl/draw-circle (int ex) (int ey) (double eye-radius) WHITE)
         (rl/draw-circle-lines (int ex) (int ey) (double eye-radius) rl/DARKGRAY)
         (rl/draw-circle (int px) (int py) (double pupil-radius) rl/DARKGRAY)))))
+
+(defmethod draw-scene! :spirograph [_ {:keys [points]} _]
+  (rl/clear-background (rl/rgba 0 0 0 255))
+  (doseq [[i [[x1 y1] [x2 y2]]] (map-indexed vector (partition 2 1 points))]
+    (rl/draw-line (int x1) (int y1) (int x2) (int y2) (color (spiro/rainbow i)))))
 
 (defmethod draw-scene! :touch-trail [_ {:keys [points]} {:keys [m]}]
   (let [{:keys [radius]} (trail/layout m)

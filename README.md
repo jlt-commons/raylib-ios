@@ -136,6 +136,17 @@ default, 33 MB and three with it.
 | `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
 | `raylib.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
+Ported examples live in `src/raylib/scenes/`. They are pure `.cljc` in the same
+shape as the six from the Android experiment, so they test on the build host,
+and `raylib.gallery` owns their drawing. `spirograph` is the first, from
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt); porting one means
+turning a namespace that owns its own loop into a reducer over frames, and
+deriving geometry from the live screen instead of a fixed 800x450.
+
+**Develop with `DEV_BUILD=1`.** A release build inlines across call sites, so a
+var redefined over the nREPL reaches the REPL and not the running loop. See the
+RUNBOOK.
+
 `raylib.link` and `raylib.touch` are bring-up tools, kept on purpose. Nothing
 runs them and they are not dead code: they are the two rungs that isolate a
 failure when the gallery does not come up. `link` calls one function from each

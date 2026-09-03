@@ -88,7 +88,13 @@ cp tools/ios/Info.plist "$APP/Info.plist"
 JOLT_TARGET_CC=clang \
 JOLT_TARGET_ARCH_FLAG="$ARCH" \
 JOLT_TARGET_LINK_LIBS="$ARCHIVES -L$PACK/lib $LINK_LIBS $FRAMEWORKS" \
-  jolt ${ALIAS:+-A$ALIAS} build -m "$NS" -o "$APP/RaylibIOS" --target tpb64l --target-pack "$PACK"
+  jolt ${ALIAS:+-A$ALIAS} build -m "$NS" -o "$APP/RaylibIOS" ${DEV_BUILD:+--dev} --target tpb64l --target-pack "$PACK"
+# DEV_BUILD=1 builds --dev instead of the default release. Not DEV, which is
+# already this script's name for ~/dev and would break the archive paths. Release inlines across
+# call sites, so a var redefined over the nREPL does not reach code that was
+# already compiled: the REPL sees the new value and the running loop keeps
+# calling the old one. --dev is what makes redefinition actually take effect.
+#
 # -A must precede the `build` subcommand: `jolt build -A:alias ...` silently
 # drops the alias's extra-paths.
 

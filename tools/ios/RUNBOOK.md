@@ -73,6 +73,53 @@ inside `SDL_UIKitRunApp`, and raylib and SDL are main-thread-affine. So:
 (raylib.host/set-target-fps 30)
 ```
 
+### Build --dev, or redefinition silently will not work
+
+**`DEV_BUILD=1 jolt live`.** This is the difference between a REPL you can
+develop with and one you can only read with.
+
+The default build is release, which inlines across call sites. A var redefined
+over the nREPL then updates what the REPL itself sees while every already
+compiled caller keeps calling the original, and nothing announces the split.
+Measured both ways, redefining `point` and asking `advance` (its caller in the
+same namespace) what it now returns:
+
+| build | `advance` sees the redefinition |
+|---|---|
+| default, release | no |
+| `DEV_BUILD=1`, `--dev` | yes |
+
+That covers plain `def` constants too, so a release build will happily report
+`max-points` as 600 while the running loop still uses 1800.
+
+The cost is close to nothing for this workload: `--dev` held mean 17.05 ms and
+58.5 fps against release's 17.02 ms and 58.8, still vsync-bound, with the
+occasional 29 ms frame where release was flat. So develop on `--dev` and ship
+release.
+
+### Driving the app from the REPL
+
+Reading state is not enough to test a scene, because the scene state is
+threaded through the loop rather than kept in an atom, so an editor can look
+and not touch. `raylib.gallery/tap!` is the other half:
+
+```clojure
+;; open a card without a finger. Coordinates are SCREEN PIXELS, not points,
+;; and the gallery's cards sit below the safe-area inset.
+(raylib.gallery/tap! 890 1700)
+
+;; where the cards actually are, asked of the running layout
+(let [m {:screen [(rl/get-screen-width) (rl/get-screen-height)]}]
+  (mapv (juxt :scene-id :x :y)
+        (:cards (ui/gallery-layout m raylib.gallery/scene-ids (diag/layout m)))))
+
+;; what the open scene is doing right now
+(:scene-state (:gstate (raylib.host/state)))
+```
+
+One tap is consumed per frame and cleared as it is taken, so a queued tap
+cannot be read twice and mistaken for a held touch.
+
 An nREPL is a development feature only. App Store rule 2.5.2 forbids executing
 downloaded code, so a shipped build carries no listener.
 
