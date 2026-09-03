@@ -50,7 +50,9 @@ the mirror's, not a frame we drew. Nobody touched the phone for any of them,
 including Flappy Bird: that one is flapped by a loop running inside the app,
 started from the nREPL.*
 
-Private for now.
+Licensed [zlib](LICENSE), matching raylib, SDL2 and
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Third-party code and
+attribution are in [`NOTICE`](NOTICE).
 
 ## Where the code came from
 
@@ -116,9 +118,9 @@ because there is no library to load.
   team wildcard profile already covers your account; `tools/ios/deploy.sh`
   finds it, validates it and embeds it.
 
-No private repositories are needed. `tools/ios/pack.sh` points at the public
-`~/dev/jolt` checkout, whose `make-pack.sh` reads only from a ChezScheme
-checkout, so nothing from a jolt tree ends up in a pack.
+No private repositories are needed. `tools/ios/pack.sh` points at a checkout
+of [jolt](https://github.com/jolt-lang/jolt), whose `make-pack.sh` reads only
+from a ChezScheme checkout, so nothing from a jolt tree ends up in a pack.
 
 ## Quick start
 
