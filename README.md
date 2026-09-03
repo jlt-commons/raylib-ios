@@ -10,7 +10,20 @@ Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
 at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
 open a scene, tap Back to leave it. The bird flaps on a press edge.
 
-![The gallery on an iPhone 17 Pro](docs/images/gallery.png)
+<p>
+  <a href="docs/images/gallery.png"><img src="docs/images/thumbs/gallery.png" width="200" alt="The category screen"></a>
+  <a href="docs/images/spirograph.png"><img src="docs/images/thumbs/spirograph.png" width="200" alt="Spirograph"></a>
+  <a href="docs/images/penrose.png"><img src="docs/images/thumbs/penrose.png" width="200" alt="Penrose P3 tiling"></a>
+  <a href="docs/images/kaleidoscope.png"><img src="docs/images/thumbs/kaleidoscope.png" width="200" alt="Kaleidoscope"></a>
+</p>
+<p>
+  <a href="docs/images/boids.png"><img src="docs/images/thumbs/boids.png" width="200" alt="Boids"></a>
+  <a href="docs/images/fireworks.png"><img src="docs/images/thumbs/fireworks.png" width="200" alt="Fireworks"></a>
+  <a href="docs/images/flappy-bird.png"><img src="docs/images/thumbs/flappy-bird.png" width="200" alt="Flappy Bird"></a>
+</p>
+
+*Every one of these is a photograph of an iPhone 17 Pro, captured unattended by
+`tools/ios/capture.sh`. Click for full size.*
 
 Private for now.
 

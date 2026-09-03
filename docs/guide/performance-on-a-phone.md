@@ -96,10 +96,12 @@ On this runtime, in a loop that runs hundreds of times per frame:
 None of this is exotic Clojure advice. What is different is the magnitude: on a
 JIT these habits cost a few percent, and here they cost three to four times.
 
-![Penrose P3 tiling on an iPhone 17 Pro](../images/penrose.png)
+<a href="../images/penrose.png"><img src="../images/thumbs/penrose.png" width="260" alt="Penrose P3 tiling"></a>
+<a href="../images/kaleidoscope.png"><img src="../images/thumbs/kaleidoscope.png" width="260" alt="Kaleidoscope"></a>
 
-*Penrose, 340 triangles and about 2400 FFI calls a frame, at 57 fps. This is
-the scene that disproved the draw-call theory.*
+*Left: penrose, 340 triangles and about 2400 FFI calls a frame, at 57 fps. It
+is the scene that disproved the draw-call theory. Right: kaleidoscope, 708
+lines a frame at 58, after the allocation came out of its draw loop.*
 
 ## Where the budget lands
 
