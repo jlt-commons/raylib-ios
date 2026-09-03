@@ -144,7 +144,7 @@ one binary, one variable, the call cadence:
 | rare, from a cold ring (~1 call/sec) | 1773, 887, 591, 444, 354, 295, 253, 221 |
 | every frame, same process moments later | 59, 59, 59, 58, 59 |
 
-The first row is exactly `1773/n`. Both halves come from `raylib.host`'s
+The first row is exactly `1773/n`. Both halves come from `raylib.probe`'s
 `fps-every-frame?` toggle, so neither is a separate build.
 
 Duplicate search found nothing: `GetFPS`, `GetFPS wrong`, `fps incorrect` and
@@ -215,7 +215,7 @@ someone else's project: a correct reading of source code is a hypothesis about
 runtime behaviour, not a measurement of it. The tell was cheap and was there to
 be taken all along, which is that the workaround could simply be turned off.
 
-`raylib.host` keeps `bind-drawable?`, defaulting on and settable from launch
+`raylib.probe` keeps `bind-drawable?`, defaulting on and settable from launch
 with `RAYLIB_BIND_DRAWABLE=0`, plus `pre-swap` and `initial-framebuffer`. The
 binding is a no-op today and costs two GL calls a frame. It stays because it is
 what `README-ios` actually requires, so a future SDL or raylib that stops

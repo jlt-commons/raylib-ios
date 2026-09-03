@@ -7,7 +7,8 @@
   raylib's SDL platform does not do HighDPI itself."
   (:refer-clojure :exclude [run!])          ; run! is the entry point here, as in raylib-jlt
   (:require [jolt.ffi :as ffi]
-            [raylib.objc :as u]))
+            [raylib.objc :as u]
+            [raylib.probe :as probe]))
 
 ;; --- SDL ---------------------------------------------------------------------
 (ffi/defcfn sdl-uikit-run-app            "SDL_UIKitRunApp"           [:int :pointer :pointer] :int :blocking)
@@ -140,84 +141,8 @@
 ;; the read and the clear would otherwise be captured by neither, and vanish
 ;; with no error and no log line.
 
-;; raylib's own reading of the bound draw framebuffer. Works on GLES2 only as of
-;; raysan5/raylib#6115 (in 6.1-dev, not in 6.0), which aliased
-;; GL_DRAW_FRAMEBUFFER_BINDING for ES2.
-(ffi/defcfn rl-get-active-framebuffer "rlGetActiveFramebuffer" [] :uint)
-(ffi/defcfn gl-check-framebuffer-status "glCheckFramebufferStatus" [:uint] :uint)
-(ffi/defcfn gl-get-integerv "glGetIntegerv" [:uint :pointer] :void)
-
-(def ^:private GL-FRAMEBUFFER-BINDING 0x8CA6)
-(def ^:private GL-RENDERBUFFER-BINDING 0x8CA7)
-
-(defn- gl-int [pname]
-  (ffi/with-alloc [p 4] (gl-get-integerv pname p) (ffi/read p :int 0)))
-
-;; What is bound at the instant SDL_GL_SwapWindow is about to be called. SDL's
-;; README-ios requires BOTH the drawable framebuffer and the colour renderbuffer
-;; to be bound at that moment, and they are separate bindings: the framebuffer
-;; can be right while the renderbuffer is not.
-(defonce pre-swap (atom nil))
-
-;; GetFPS is a stateful sampler: each call advances a 30-slot ring by one and
-;; returns 1/sum-of-ring, so it is a frame rate only when called every frame.
-;; These two reproduce both halves on one binary. With fps-every-frame? on, the
-;; loop calls it once per frame and parks the answer in last-fps; with it off,
-;; nothing calls it at all and an nREPL can call it at whatever cadence it likes.
-(defonce fps-every-frame? (atom false))
-(defonce last-fps (atom nil))
-
-;; Whether to record pre-swap every frame. Off by default: it is two
-;; glGetIntegerv calls, which are synchronous driver queries, in the hot loop
-;; for a value nothing reads unless someone is debugging the drawable binding.
-(defonce record-pre-swap? (atom false))
-
-;; GL_FRAMEBUFFER_COMPLETE. Anything else means the currently bound framebuffer
-;; is not a usable render target.
-(def GL-FRAMEBUFFER-COMPLETE 0x8CD5)
-
-
-;; SDL's drawable FBO and colour renderbuffer ids, read once at startup. nil
-;; before the window exists. defonce takes no docstring, unlike def.
-(defonce wm-info (atom nil))
-
-;; Whether the loop binds SDL's drawable framebuffer each frame. True is correct
-;; on iOS, which has no default framebuffer. Flipping it to false at runtime
-;; reproduces raylib's own behaviour, which binds neither: the screen goes black
-;; while everything else carries on reporting success. A toggle rather than a
-;; build flag, so the bug can be demonstrated live and both halves of the A/B
-;; come from one binary.
-;; Default true, but overridable from launch via RAYLIB_BIND_DRAWABLE=0 (which
-;; devicectl forwards as DEVICECTL_CHILD_RAYLIB_BIND_DRAWABLE). Flipping it at
-;; runtime is not enough to reproduce raylib's own behaviour, because a
-;; framebuffer binding is sticky: once frame 0 has bound the drawable, turning
-;; the per-frame bind off leaves it bound. Only a process that never binds it
-;; shows what raylib alone does.
-(defonce bind-drawable?
-  (atom (not= "0" (System/getenv "RAYLIB_BIND_DRAWABLE"))))
-
-;; What raylib leaves bound after InitWindow, before this host binds anything.
-;; Captured once, on the first frame, so the question "what does raylib on SDL
-;; actually render into on iOS" has a measured answer rather than an inferred
-;; one.
-(defonce initial-framebuffer (atom nil))
-
-(defn framebuffer-report
-  "Ask GL what it thinks of framebuffer 0 versus SDL's drawable, on this device.
-  MUST run on the main thread: pass it to on-next-frame!. Leaves the drawable
-  bound, so calling it does not break rendering."
-  []
-  (let [{:keys [framebuffer]} @wm-info
-        probe (fn [id]
-                (gl-bind-framebuffer GL-FRAMEBUFFER id)
-                {:bound  (rl-get-active-framebuffer)
-                 :status (gl-check-framebuffer-status GL-FRAMEBUFFER)})
-        zero  (probe 0)
-        sdl   (probe framebuffer)]
-    {:sdl-drawable-id framebuffer
-     :framebuffer-0   zero
-     :sdl-drawable    sdl
-     :complete        GL-FRAMEBUFFER-COMPLETE}))
+;; The measuring apparatus lives in raylib.probe: its flags are read below
+;; and its atoms filled in, and it is off by default.
 
 (defonce ^:private current-state (atom nil))
 (defonce ^:private pending (atom []))
@@ -257,10 +182,10 @@
     (init-window w h title)                      ; ...and a screen the same size, so raylib never scales
     (set-target-fps fps)
     (let [{:keys [framebuffer colorbuffer] :as wm} (view-framebuffer)]
-      (reset! wm-info wm)
-      (reset! initial-framebuffer
-              {:bound  (rl-get-active-framebuffer)      ; before any bind of ours
-               :status (gl-check-framebuffer-status GL-FRAMEBUFFER)})
+      (reset! probe/wm-info wm)
+      (reset! probe/initial-framebuffer
+              {:bound  (probe/rl-get-active-framebuffer)      ; before any bind of ours
+               :status (probe/gl-check-framebuffer-status GL-FRAMEBUFFER)})
       (ffi/with-alloc [dw 4]
         (ffi/with-alloc [dh 4]
           (sdl-gl-get-drawable-size (sdl-gl-get-current-window) dw dh)
@@ -270,15 +195,16 @@
       ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
       (loop [state (init {:width w :height h :scale k :inset-top 0}) n 0 sum 0.0 worst 0.0]
         (begin-drawing)
-        (when (and framebuffer @bind-drawable?) (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
+        (when (and framebuffer @probe/bind-drawable?) (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
         (drain-pending!)                        ; main thread, inside the frame
         (let [state' (frame state)]
           (reset! current-state state')
-          (when (and colorbuffer @bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
-          (when @fps-every-frame? (reset! last-fps (get-fps)))
-          (when @record-pre-swap?
-            (reset! pre-swap {:framebuffer (gl-int GL-FRAMEBUFFER-BINDING)
-                              :renderbuffer (gl-int GL-RENDERBUFFER-BINDING)}))
+          (when (and colorbuffer @probe/bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
+          (when @probe/fps-every-frame? (reset! probe/last-fps (get-fps)))
+          (when @probe/record-pre-swap?
+            (reset! probe/pre-swap
+                    {:framebuffer  (probe/gl-int probe/GL-FRAMEBUFFER-BINDING)
+                     :renderbuffer (probe/gl-int probe/GL-RENDERBUFFER-BINDING)}))
           (end-drawing)
           (let [dt    (get-frame-time)
                 n     (inc n)

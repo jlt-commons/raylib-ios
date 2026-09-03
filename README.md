@@ -140,6 +140,7 @@ default, 33 MB and three with it.
 
 ```
 src/raylib/objc.clj      three Objective-C runtime calls, and nothing else
+src/raylib/probe.clj     the measuring apparatus, all of it off by default
 src/raylib/host.clj      the owner loop: SDL_UIKitRunApp, InitWindow, the frame
 src/raylib/{link,touch,flappy,gallery}.clj   scenes for that host
 src/poc/raylib/*.cljc    six pure namespaces, byte-identical to 6d2b291
