@@ -1,8 +1,13 @@
 (ns raylib.gallery
-  "examples/gallery: the Android experiment's scene contract on the iOS host.
-  Polls raylib's scalars into diagnostics/normalize-input's raw map, runs
-  gallery/run-frame, and draws the active scene or the cards. Their scenes,
-  unchanged; this namespace is the owner-affine part."
+  "The scene gallery: a two-level menu over seventeen scenes, on the iOS host.
+
+  This namespace is the half that has to touch raylib, and it exists so that
+  nothing else does. It polls the scalar input, hands the result to the pure
+  gallery in poc.raylib.gallery, and draws whatever comes back. Every scene
+  itself is pure and appears here only as a draw-scene! method.
+
+  That split is why three of the scenes run byte-identical to files written for
+  Android. Nothing in them knows what a platform is."
   (:require [poc.raylib.diagnostics :as diag]
             [poc.raylib.flappy-bird :as flappy]
             [poc.raylib.following-eyes :as eyes]
@@ -97,20 +102,67 @@
   (reset! pending-tap [x y])
   nil)
 
-;; --- polling: raylib's scalars, in the shape diagnostics/normalize-input expects
-(defn- raw-sample [previous-count]
-  (let [tap (first (swap-vals! pending-tap (constantly nil)))
-        n (if tap 1 (rl/get-touch-point-count))
-        w (rl/get-screen-width) h (rl/get-screen-height)]
-    {:screen-width w :screen-height h :render-width w :render-height h
-     :touch-count n
-     :touch-ids   (if tap [0] (vec (for [i (range n)] (rl/get-touch-point-id i))))
-     :pointer-x   (if tap (first tap) (rl/get-touch-x))
-     :pointer-y   (if tap (second tap) (rl/get-touch-y))
-     :pressed?    (and (pos? n) (zero? previous-count))
+;; --- polling ------------------------------------------------------------------
+;; raylib's input is scalar: nothing is delivered, you sample. The map built
+;; here is the raw shape poc.raylib.diagnostics/normalize-input consumes, and
+;; its keys are that function's contract rather than a choice made here.
+;;
+;; Edges are derived, not received. raylib will tell you how many fingers are
+;; down this instant and nothing about the instant before, so a press is this
+;; frame's count rising off zero and a release is it falling back to it. The
+;; previous count arrives as an argument because the loop, not this function,
+;; is what remembers.
+
+(defn- touched-ids
+  "The raylib id of every active touch. Ids are not always 0..n-1, which is why
+  they are read rather than assumed."
+  [n]
+  (mapv rl/get-touch-point-id (range n)))
+
+(defn- sample-device
+  "One poll of the hardware."
+  [previous-count]
+  (let [n (rl/get-touch-point-count)]
+    {:touch-count n
+     :touch-ids   (touched-ids n)
+     :pointer-x   (rl/get-touch-x)
+     :pointer-y   (rl/get-touch-y)
      :down?       (pos? n)
-     :released?   (and (zero? n) (pos? previous-count))
-     :back?       false}))
+     :pressed?    (and (pos? n) (zero? previous-count))
+     :released?   (and (zero? n) (pos? previous-count))}))
+
+(defn- sample-synthetic
+  "One poll answered by a queued tap! instead of the screen. Reported as a
+  single finger with id 0, since that is what one tap is."
+  [[x y] previous-count]
+  {:touch-count 1
+   :touch-ids   [0]
+   :pointer-x   x
+   :pointer-y   y
+   :down?       true
+   :pressed?    (zero? previous-count)
+   :released?   false})
+
+(defn- raw-sample
+  "A frame's input, from a queued tap if one is waiting and from the screen
+  otherwise. A tap wins because it exists to drive the app with no finger
+  present, and taking both would double-count the press."
+  [previous-count]
+  (let [tap (first (swap-vals! pending-tap (constantly nil)))
+        w   (rl/get-screen-width)
+        h   (rl/get-screen-height)]
+    (merge {:screen-width w :screen-height h
+            ;; no HighDPI translation to do: the window is created at pixel
+            ;; size, so the render surface and the screen are the same numbers
+            :render-width w :render-height h
+            :back? false}
+           ;; Each sampler reports :down? from the count it already read. An
+           ;; earlier draft derived it here with a second GetTouchPointCount
+           ;; call, which polls the hardware twice in one frame and can
+           ;; disagree with itself when a finger lifts between the two.
+           (if tap
+             (sample-synthetic tap previous-count)
+             (sample-device previous-count)))))
 
 ;; --- drawing: the owner-affine half of the contract
 (defmulti draw-scene! (fn [id _state _env] id))
@@ -326,11 +378,19 @@
         (recur (inc i))))))
 
 (defmethod draw-scene! :touch-trail [_ {:keys [points]} {:keys [m]}]
+  ;; The trail is drawn oldest first, so each circle overlaps the one before
+  ;; and the stroke reads as a single tapering shape rather than a row of
+  ;; discs. Radius scales with position in the trail, which is what makes the
+  ;; head look like the finger and the tail look like where it has been.
   (let [{:keys [radius]} (trail/layout m)
-        n (count points)]
+        n (max 1 (count points))
+        biggest (double radius)]
     (rl/clear-background rl/RAYWHITE)
-    (doseq [[i [x y]] (map-indexed vector points)]
-      (rl/draw-circle (int x) (int y) (double (* radius (/ (inc i) (max 1 n)))) rl/MAROON))))
+    (loop [i 0 ps points]
+      (when-let [p (first ps)]
+        (let [scale (/ (double (inc i)) n)]
+          (rl/draw-circle (int (nth p 0)) (int (nth p 1)) (* biggest scale) rl/MAROON))
+        (recur (inc i) (rest ps))))))
 
 (defn- centered-text!
   "Draw `text` centred in the rectangle, with MeasureText."
@@ -351,13 +411,24 @@
     (centered-text! (title-of scene-id) card body-size WHITE)))
 
 (defn- below-the-safe-area
-  "Their layout, computed for the screen minus the top inset and lowered by it,
-  so the Back target and the cards clear the status bar."
+  "gallery-layout, shifted clear of the status bar.
+
+  The pure layout function knows nothing about safe areas and should not: it is
+  handed a screen and divides it. So it is given a screen shortened by the inset
+  and every rectangle it returns is then moved down by the same amount. The
+  result is identical to a layout that understood insets, and the pure half
+  stays portable to a platform that has none.
+
+  Both the cards and the Back target move. Missing the Back target is the
+  interesting bug, because it still draws in the right place and only its
+  hit-test is wrong, so it looks like an unresponsive button."
   [m sizes top ids]
   (let [[w h] (:screen m)
-        lower (fn [r] (update r :y + top))
-        l     (ui/gallery-layout (assoc m :screen [w (- h top)]) ids sizes)]
-    (-> l (update :back lower) (update :cards #(mapv lower %)))))
+        shifted (ui/gallery-layout (assoc m :screen [w (- h top)]) ids sizes)
+        lower (fn [rect] (update rect :y + top))]
+    (-> shifted
+        (update :back lower)
+        (update :cards #(mapv lower %)))))
 
 ;; --- the scene, for raylib.host: the gallery state is the state
 (defn- init [{:keys [scale inset-top]}]
@@ -366,63 +437,123 @@
   {:k scale :top inset-top :touches 0 :category nil
    :gstate gallery/initial-gallery-state})
 
-(defn- frame [{:keys [k top touches gstate] :as s}]
-  (let [top     (if (pos? top)                       ; the safe area is only real once the window is laid out:
-                  top                                ; ask UIKit on the first frame, keep the answer
-                  (let [{t :top} (rl/safe-area-insets) px (int (* k t))]
-                    (when (pos? px) (println "gallery: safe-area top" t "pt =" px "px"))
-                    px))
-        s        (assoc s :top top)
-        category (:category s)
-        input    (diag/normalize-input (raw-sample touches))
-        m        (:metrics input)
-        sizes    (diag/layout m)
-        ;; the ids this level shows: categories at the top, a category's scenes
-        ;; inside one. In :scene mode only the Back target is read, so either
-        ;; list serves.
-        ids      (if category (:scenes (category-by-id category)) category-ids)
-        layout   (below-the-safe-area m sizes top ids)
-        press?   (= :press (get-in input [:pointer :phase]))
-        point    (get-in input [:pointer :position])
-        hit      (when press? (ui/hit-test layout point (:mode gstate)))
-        ;; a category's scene list carries a Back of its own, which hit-test
-        ;; does not look for outside :scene mode
+(defn- resolve-inset
+  "The top safe-area inset in pixels, asked once and then kept.
+
+  UIKit cannot answer before the window has been laid out, so the first frame
+  gets zero and the answer arrives on some later one. Caching it in the state
+  is not an optimisation: asking every frame would be an Objective-C message
+  send through four objects per frame for a number that never changes."
+  [k top]
+  (if (pos? top)
+    top
+    (let [{points :top} (rl/safe-area-insets)
+          px (int (* k points))]
+      (when (pos? px)
+        (println (format "gallery: safe-area top %.1f pt = %d px" points px)))
+      px)))
+
+(defn- visible-ids
+  "The ids this level lays out: the categories at the top, or one category's
+  scenes inside it. In :scene mode nothing but the Back target is read from the
+  layout, so either list would do."
+  [category]
+  (if category
+    (:scenes (category-by-id category))
+    category-ids))
+
+(defn- navigate
+  "Where a press takes the level, as [category opening?].
+
+  Level changes are resolved before the press reaches a scene, so one tap
+  cannot both change level and land on whatever the change puts under the
+  finger. `opening?` says a scene is being opened, which the caller turns into
+  open-scene rather than run-frame.
+
+  There are TWO Back presses here and they do different things. In :scene mode
+  Back closes the scene, and the category must survive so the reader lands back
+  on the list they opened it from. In :gallery mode Back leaves the category,
+  and only then is it cleared. Collapsing the two sends every scene's Back
+  straight to the top level, which looks like the list was never there."
+  [category mode hit list-back?]
+  (cond
+    ;; Back out of a category's scene list, to the categories
+    list-back?                              [nil false]
+    ;; Back out of a running scene: run-frame closes it, the list stays put
+    (not= :gallery mode)                    [category false]
+    ;; a category card at the top level
+    (nil? category)                         [(when (keyword? hit) hit) false]
+    ;; a scene card inside a category
+    (and (keyword? hit)
+         (some #{hit} (:scenes (category-by-id category))))
+    [category true]
+    :else                                   [category false]))
+
+(defn- drain-events!
+  "Print and clear the scene's events. They are the pure half's only way of
+  saying anything, so dropping them silently would hide a scene's own
+  diagnostics."
+  [gstate]
+  (doseq [e (:scene-events gstate)] (println "gallery:" (pr-str e)))
+  (assoc gstate :scene-events []))
+
+(defn- ignore-close
+  "A scene asking to close means nothing here. On a desktop the loop would end;
+  an iOS app does not exit, and one that did would be rejected."
+  [gstate]
+  (if (:close-requested? gstate)
+    (do (println "gallery: close requested, which an iOS app cannot do. Ignored.")
+        (assoc gstate :close-requested? false))
+    gstate))
+
+(defn- render!
+  "Three things can be on screen: a running scene, one category's scenes, or
+  the categories. The first two carry a Back target and the last does not,
+  because there is nowhere above it."
+  [{:keys [mode active-scene-id scene-state]} category layout k m top]
+  (let [p (ui/live-presentation)
+        accent (color (:accent p))]
+    (cond
+      (= :scene mode)
+      (do (draw-scene! active-scene-id scene-state {:k k :m m})
+          (draw-back! layout accent))
+
+      category
+      (do (draw-gallery! layout p top (title-of category) "Choose a scene")
+          (draw-back! layout accent))
+
+      :else
+      (draw-gallery! layout p top (:title p) "Choose a category"))))
+
+(defn- frame
+  "One frame: sample, decide where the press goes, advance the pure gallery,
+  draw. The state carried between frames is the touch count, the cached inset,
+  which category is open, and the pure state itself."
+  [{:keys [k top touches gstate category] :as s}]
+  (let [top    (resolve-inset k top)
+        input  (diag/normalize-input (raw-sample touches))
+        m      (:metrics input)
+        layout (below-the-safe-area m (diag/layout m) top (visible-ids category))
+        press? (= :press (get-in input [:pointer :phase]))
+        point  (get-in input [:pointer :position])
+        hit    (when press? (ui/hit-test layout point (:mode gstate)))
+        ;; hit-test only looks for Back in :scene mode, so the scene list's own
+        ;; Back is recognised here. Kept separate from the scene's Back on
+        ;; purpose: see navigate.
         list-back? (and press? (= :gallery (:mode gstate)) category
                         (within? (:back layout) point))
-        input    (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
-        ;; navigation first, so a tap that changes level is not also read as a
-        ;; tap on whatever now sits under the finger
-        s        (cond
-                   list-back?                                    (assoc s :category nil)
-                   (and (= :gallery (:mode gstate)) (nil? category) (keyword? hit))
-                   (assoc s :category hit)
-                   :else s)
-        category (:category s)
-        opening? (and (= :gallery (:mode gstate)) category (keyword? hit)
-                      (not list-back?) (some #{hit} (:scenes (category-by-id category))))
-        gstate  (if opening?
-                  (gallery/open-scene registry gstate hit input)      ; the opening press is consumed
-                  (gallery/run-frame registry gstate input))
-        gstate  (let [events (:scene-events gstate)]
-                  (doseq [e events] (println "gallery:" (pr-str e)))
-                  (assoc gstate :scene-events []))
-        gstate  (if (:close-requested? gstate)
-                  (do (println "gallery: close requested — an iOS app does not exit; ignored")
-                      (assoc gstate :close-requested? false))
-                  gstate)]
-    (let [p (ui/live-presentation)]
-      (cond
-        (= :scene (:mode gstate))
-        (do (draw-scene! (:active-scene-id gstate) (:scene-state gstate) {:k k :m m})
-            (draw-back! layout (color (:accent p))))
-
-        category
-        (do (draw-gallery! layout p top (title-of category) "Choose a scene")
-            (draw-back! layout (color (:accent p))))
-
-        :else
-        (draw-gallery! layout p top (:title p) "Choose a category")))
-    (assoc s :touches (get-in input [:touches :count]) :gstate gstate)))
+        [category' opening?] (navigate category (:mode gstate) hit list-back?)
+        input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
+        gstate (-> (if opening?
+                     (gallery/open-scene registry gstate hit input)
+                     (gallery/run-frame registry gstate input))
+                   drain-events!
+                   ignore-close)]
+    (render! gstate category' layout k m top)
+    (assoc s :top top
+             :category category'
+             :touches (get-in input [:touches :count])
+             :gstate gstate)))
 
 (defn -main [& _]
   (rl/run! {:title "Gallery" :init init :frame frame}))
