@@ -8,18 +8,10 @@ name: Site
 # this project's: the content under docs/, its config in docs/site.edn, the
 # base path below, and the assertions in docs/check-site.sh.
 #
-# Manual only while the repository is private, for the same reason test.yml is:
-# private-repo Actions minutes are metered. Restore the push and pull_request
-# triggers below when the repository is made public, at which point publishing
-# on every push to main is the behaviour every sibling project already has.
-#
-#   on:
-#     push:
-#       branches: [main]
-#     pull_request:
-#     workflow_dispatch:
-
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:

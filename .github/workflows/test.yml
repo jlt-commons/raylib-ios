@@ -8,19 +8,10 @@
 # proven by running on hardware.
 name: test
 
-# Manual only while the repository is private, because private-repo minutes
-# are metered and this suite has nothing time-critical in it. Public repos get
-# Actions free, so restore the push and pull_request triggers below at the same
-# time the repository is made public:
-#
-#   on:
-#     push:
-#       branches: [main]
-#     pull_request:
-#     workflow_dispatch:
-#
-# Run it in the meantime from the Actions tab, or `gh workflow run test.yml`.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
