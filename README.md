@@ -32,6 +32,10 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <img src="docs/images/boids.gif" width="200" alt="Boids flocking">
   <img src="docs/images/flappy-bird.gif" width="200" alt="Flappy Bird, flapped over the nREPL">
 </p>
+<p>
+  <img src="docs/images/pendulum.gif" width="200" alt="A chaotic double pendulum">
+  <img src="docs/images/epicycles.gif" width="200" alt="Fourier epicycles drawing a square wave">
+</p>
 
 *And moving, recorded off a live iPhone Mirroring window by
 `tools/ios/capture-gif.sh`. The device bezel is the mirror's, not a frame we

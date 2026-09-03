@@ -12,13 +12,16 @@
             [raylib.flappy :as flappy-draw]
             [raylib.host :as rl]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.epicycles :as epi]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.kaleidoscope :as kal]
+            [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.spirograph :as spiro]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
-             (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)])
+             (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
+             (pend/scene) (epi/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -35,9 +38,9 @@
 ;; in a category and it lays out those. Same untouched function, twice.
 (def categories
   [{:id :generative :title "Generative"
-    :scenes [:spirograph :kaleidoscope :fireworks :penrose]}
+    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles]}
    {:id :toys :title "Toys"
-    :scenes [:following-eyes :touch-trail :boids]}
+    :scenes [:following-eyes :touch-trail :boids :pendulum]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -184,6 +187,53 @@
       (rl/draw-line (int ax) (int ay) (int bx) (int by) edge)
       (rl/draw-line (int bx) (int by) (int cx) (int cy) edge)
       (rl/draw-line (int cx) (int cy) (int ax) (int ay) edge))))
+
+(defmethod draw-scene! :pendulum [_ {:keys [trail] :as st} {:keys [m]}]
+  ;; Indexed loops throughout, per docs/guide/performance-on-a-phone.md.
+  (let [{:keys [ox oy bob trail-dot]} (pend/dimensions m)
+        [[x1 y1] [x2 y2]] (pend/positions st m)
+        n (count trail)]
+    (rl/clear-background (rl/rgba 20 20 30 255))
+    (loop [i 0]
+      (when (< i n)
+        (let [p (nth trail i)
+              t (/ (double (inc i)) n)]
+          (rl/draw-circle (int (nth p 0)) (int (nth p 1)) (* 2.0 trail-dot t)
+                          (rl/rgba 80 200 255 (int (* 200 t)))))
+        (recur (inc i))))
+    (rl/draw-line (int ox) (int oy) (int x1) (int y1) rl/RAYWHITE)
+    (rl/draw-line (int x1) (int y1) (int x2) (int y2) rl/RAYWHITE)
+    (rl/draw-circle (int x1) (int y1) (double bob) (rl/rgba 255 203 0 255))
+    (rl/draw-circle (int x2) (int y2) (double bob) rl/MAROON)))
+
+(defmethod draw-scene! :epicycles [_ {:keys [theta trace]} {:keys [m]}]
+  (let [dims (epi/dimensions m)
+        {:keys [trace-top trace-step]} dims
+        {:keys [centers radii]} (epi/chain dims theta)
+        rn (count radii)
+        faint (rl/rgba 70 70 80 255)
+        rod (rl/rgba 130 130 130 255)
+        wave (rl/rgba 255 203 0 255)]
+    (rl/clear-background (rl/rgba 0 0 0 255))
+    (loop [i 0]
+      (when (< i rn)
+        (let [a (nth centers i)
+              b (nth centers (inc i))]
+          (rl/draw-circle-lines (int (nth a 0)) (int (nth a 1)) (double (nth radii i)) faint)
+          (rl/draw-line (int (nth a 0)) (int (nth a 1)) (int (nth b 0)) (int (nth b 1)) rod))
+        (recur (inc i))))
+    ;; the pen, and the line joining it to where the wave starts
+    (let [pen (nth centers rn)
+          px (int (nth pen 0))
+          py (int (nth pen 1))]
+      (rl/draw-line px py px (int trace-top) (rl/rgba 90 90 90 255))
+      (let [n (count trace)]
+        (loop [i 1]
+          (when (< i n)
+            (rl/draw-line (int (nth trace (dec i))) (int (+ trace-top (* (dec i) trace-step)))
+                          (int (nth trace i)) (int (+ trace-top (* i trace-step)))
+                          wave)
+            (recur (inc i))))))))
 
 (defmethod draw-scene! :spirograph [_ {:keys [points]} _]
   ;; An indexed loop rather than (map-indexed vector (partition 2 1 points)).

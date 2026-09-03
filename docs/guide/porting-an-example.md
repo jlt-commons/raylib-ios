@@ -78,9 +78,13 @@ Almost nothing, which was the surprise. Across five ports:
 | fireworks | none |
 | boids | none |
 | penrose | four: `rlBegin`, `rlEnd`, `rlVertex2f`, `rlColor4ub` |
+| double-pendulum | none |
+| fourier-epicycles | none |
 
 `DrawLine`, `DrawCircle`, `DrawText`, `DrawRectangle` and `MeasureText` cover
-most of the collection. Penrose needed rlgl immediate mode only because it fills
+most of the collection. Of eight further candidates surveyed, seven need
+nothing new at all; only `analog_clock` does, wanting `DrawLineEx`, `DrawRing`
+and a local-time call. Penrose needed rlgl immediate mode only because it fills
 polygons and raylib's shapes API has no call for that.
 
 <img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
@@ -103,6 +107,19 @@ usually in the drawing loop rather than the model.
 Give anything that scales with frame cost a plain `def` rather than a literal,
 so it can be tuned live over the nREPL: `trail-length`, `max-points`,
 `default-deflations`, `default-count` all exist for that reason.
+
+## Sometimes the port is a rotation
+
+`fourier_epicycles` is the one that needed a real design decision rather than a
+mechanical change. The original is landscape: the epicycle chain sits on the
+left and the wave it traces scrolls rightward across the remaining width. A
+phone is 1206 wide and 2622 tall, so there is no horizontal room for a
+scrolling wave and a great deal of vertical.
+
+So the chain hangs near the top and the wave scrolls DOWN. It is the same
+picture through ninety degrees, and the maths is untouched: what changed is
+which axis carries time, and therefore which coordinate of the pen the trace
+records. Worth expecting one of these per handful of ports.
 
 ## Wiring it in
 
