@@ -163,6 +163,55 @@ asks for it. `-export_dynamic` goes with it, because a `defcfn` becomes a
 `dlsym` at first call and an executable's own globals are not in its export
 trie without it.
 
+## Numbers, measured
+
+An iPhone 17 Pro on iOS 26.6.1, running `raylib.gallery` with Flappy Bird
+open, over portable bytecode with every draw call a libffi call. The host
+prints a summary every 300 frames:
+
+```
+host: 402 x 874 points x scale 3.0 -> screen 1206 x 2622 drawable 1206 x 2622 fbo 1
+gallery: safe-area top 62.0 pt = 186 px
+host:  300 frames, mean 17.83 ms, worst 279.0 ms      <- InitWindow lands in this window
+host:  600 frames, mean 17.03 ms, worst  17.4 ms
+host: 1200 frames, mean 17.02 ms, worst  17.1 ms
+host: 3000 frames, mean 17.03 ms, worst  17.2 ms
+host: 5400 frames, mean 17.02 ms, worst  17.1 ms
+```
+
+A 60 Hz frame is 16.67 ms, so a mean of 17.02 with a worst of 17.1 over ninety
+seconds is a loop that finishes its work and waits for vsync every single
+frame, with no outliers at all. The interpreter's cost fits inside the slack
+with room to spare: the simulation, the reducer, the twenty-odd FFI calls per
+frame and the collector all land well inside a frame. The 279 ms in the first
+window is `InitWindow` compiling shaders and building the default font.
+
+### raylib's own `GetFPS` is wrong here, and the frame time is not
+
+Worth knowing, because the gallery and Flappy Bird both draw `GetFPS` on
+screen, so the number you see on the phone is not the frame rate.
+
+Across the same run it read 1757, 887, 590, 441, 355, 295, 253 and so on down
+to 98, decaying monotonically while `GetFrameTime` never moved off 17.02 ms.
+The readings follow a clean inverse law against elapsed time (each one times
+its window number lands within a percent of 1770), which is the signature of
+an accumulator that grows instead of settling, not of a rate that is being
+measured.
+
+This is not the `CUSTOMIZE_BUILD` trap below misfiring: the build was checked,
+and `SUPPORT_CUSTOM_FRAME_CONTROL`, `SUPPORT_BUSY_WAIT_LOOP` and
+`SUPPORT_MODULE_RAUDIO` are all genuinely absent from the 52 `SUPPORT_*`
+defines that reached the compiler, so `GetFPS`'s real body is what compiled.
+The suspect is its `static float average` in `rcore.c`, updated by
+subtract-then-add forever, next to a `last = (float)GetTime()` that stores
+absolute seconds in a float. Neither has been confirmed as the cause, so treat
+that as a lead rather than a diagnosis.
+
+The notebook this port follows reported a stable 59 fps on an iPhone 16 Pro,
+so something differs between the two builds and this is not simply how raylib
+behaves everywhere. Until it is chased down, trust `GetFrameTime`, which the
+host already averages itself.
+
 ## Test on the phone, not the simulator
 
 The simulator has not displayed OpenGL ES since iOS 17.5. Pixels reach the
