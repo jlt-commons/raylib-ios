@@ -98,4 +98,19 @@ plutil -replace application-identifier -string "$TEAM.$BUNDLE_ID" "$T/ent.plist"
 codesign --force --sign "$IDENTITY" --entitlements "$T/ent.plist" --timestamp=none "$APP"
 codesign --verify --verbose=2 "$APP"
 xcrun devicectl device install app --device "$UDID" "$APP"
-xcrun devicectl device process launch --console --terminate-existing --device "$UDID" "$BUNDLE_ID"
+
+# The console is a LEASH. `--console` streams the app's stdout, and ending that
+# session signals the app: SDL's handler posts SDL_QUIT, raylib sets
+# shouldClose, the loop closes the window, and SDL's delegate deliberately does
+# not exit, so what is left on screen is a black window. That looked like a
+# rendering bug for an hour in the notebook this port follows.
+#
+# So the console is opt-out. CONSOLE=0 launches detached, which is what you
+# want to actually play with the thing; the default keeps the output, which is
+# what you want when it does not work.
+if [ "${CONSOLE:-1}" = 0 ]; then
+  xcrun devicectl device process launch --terminate-existing --device "$UDID" "$BUNDLE_ID"
+  echo "deploy.sh: launched detached (no console). Its stdout goes nowhere; re-run without CONSOLE=0 to see it."
+else
+  xcrun devicectl device process launch --console --terminate-existing --device "$UDID" "$BUNDLE_ID"
+fi
