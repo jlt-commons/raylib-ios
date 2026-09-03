@@ -6,7 +6,9 @@
   scene contract is that the simulation is pure, so its tests run on the build
   host. The iOS half -- raylib.host and the owner loops over it -- has no
   headless test and is proven by running on the phone."
-  (:require [clojure.test :as t]))
+  (:require [clojure.set]
+            [clojure.string]
+            [clojure.test :as t]))
 
 (defmethod t/report :error [m]
   (t/with-test-out
@@ -28,12 +30,31 @@
 
 (defn -main [& _]
   (let [namespaces '[raylib.scenes.kaleidoscope-test
+                     raylib.scenes.lorenz-test
+                     raylib.scenes.tesseract-test
                      poc.raylib.flappy-bird-test
                      poc.raylib.gallery-test
                      poc.raylib.gallery-ui-test
                      poc.raylib.diagnostics-test
                      poc.raylib.following-eyes-test
                      poc.raylib.touch-trail-test]]
+    ;; A hardcoded list silently skips any test file not on it, and "Ran 23
+    ;; tests" reads exactly like success when the new namespace never loaded.
+    ;; Cost one round today. Compare the list against what is on disk instead.
+    (let [on-disk (->> (file-seq (java.io.File. "test"))
+                       (filter (fn [f] (re-find #"_test\.cljc?$" (.getName f))))
+                       (map (fn [f] (-> (.getPath f)
+                                        (clojure.string/replace #"^test/" "")
+                                        (clojure.string/replace #"\.cljc?$" "")
+                                        (clojure.string/replace "_" "-")
+                                        (clojure.string/replace "/" ".")
+                                        symbol)))
+                       set)
+          missing (clojure.set/difference on-disk (set namespaces))]
+      (when (seq missing)
+        (println "ERROR: test files on disk that this runner does not list:")
+        (doseq [m (sort missing)] (println "  " m))
+        (exit 1)))
     (doseq [ns namespaces]
       (try (require ns :reload)
            (catch Exception e

@@ -145,10 +145,54 @@ plan against, all at 59 fps unless stated:
 | penrose, 4 deflations | 340 triangles, ~2400 calls | 57 |
 | boids, 45 | 2025 distance tests, 90 draws | 52 |
 | fireworks | ~120 circles | 58 |
+| lorenz, 450-point trail | 450 lines, each re-projected | 58 |
+| tesseract | 32 lines | 59 |
 
 So roughly a thousand primitives a frame is comfortable, and the scenes that
 push past it carry a knob: `trail-length`, `max-points`, `default-deflations`,
 `default-count`. Each is a plain `def`, which matters for the next section.
+
+## When a thousand primitives is the wrong budget
+
+Lorenz broke the rule above and it took a sweep to see why. It draws 450 lines,
+well inside the comfortable range, and it will not go much past that. The
+L-system draws 1488 and holds 59.
+
+The difference is not how many lines get drawn, it is what happens per line
+before the draw. The L-system's segments are computed once at init and then
+handed to `DrawLine` unchanged every frame. Lorenz orbits its camera, so every
+point is rotated and perspective-divided on every frame, and the cost is that
+arithmetic rather than the drawing.
+
+The first version made it worse by allocating: `project` returned a fresh
+`[x y]` vector per point and `trail-colour` a fresh `[r g b]` per segment, so a
+frame allocated about 2400 short-lived vectors. That ran at **18 fps**.
+Rewriting the loop to carry the previous screen point in primitive `loop`
+bindings and inline both computations took it to **31**, which is the same 1.7x
+the draw-loop rewrite bought earlier in this guide, for the same reason.
+
+Then the sweep, at 450 through 1200 points, reading `last-fps` after letting
+raylib's 30-frame ring refill at each step:
+
+| trail | 1200 | 1000 | 800 | 600 | 500 | 480 | 460 | 440 | 420 | 400 | 300 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| fps | 25 | 23 | 29 | 32 | 56 | 59 | 59 | 58 | 58 | 59 | 59 |
+
+Flat at vsync to 480, slipping at 500, and falling away steeply past 600. The
+default is 450, which sits inside the flat region with room for a phone that
+has warmed up.
+
+**Read the steep end with suspicion.** The same 1200-point trail measured 31,
+then 20, then 24 to 28 across one session, a spread of about 30% on identical
+code. Once a scene is over budget the readings stop being repeatable, most
+likely thermal. The flat end is solid and the cliff edge is real, but treat any
+single number past the knee as indicative.
+
+The rule the earlier sections give still holds, it just needs its terms stated
+properly. The budget is per-frame *work*, and primitive count is only a good
+proxy for it while the work per primitive is roughly constant. A scene that
+computes geometry once and redraws it gets the thousand. A scene that recomputes
+every vertex every frame gets a few hundred.
 
 ## How these were measured
 

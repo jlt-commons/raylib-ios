@@ -15,6 +15,7 @@
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.kaleidoscope :as kal]
@@ -22,12 +23,13 @@
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.stars :as stars]
+            [raylib.scenes.tesseract :as tess]
             [raylib.scenes.tree :as tree]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
              (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
-             (lsys/scene) (flow/scene)])
+             (lsys/scene) (flow/scene) (lor/scene) (tess/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -44,11 +46,12 @@
 ;; in a category and it lays out those. Same untouched function, twice.
 (def categories
   [{:id :generative :title "Generative"
-    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield]}
+    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield
+             :lorenz]}
    {:id :fractals :title "Fractals"
     :scenes [:hilbert :tree :lsystem]}
    {:id :toys :title "Toys"
-    :scenes [:following-eyes :touch-trail :boids :pendulum :stars]}
+    :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -423,3 +426,57 @@
 
 (defn -main [& _]
   (rl/run! {:title "Gallery" :init init :frame frame}))
+
+(defmethod draw-scene! :lorenz [_ {:keys [points t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 12 14 22 255))
+  ;; Everything the projection needs is pulled out to primitive locals and the
+  ;; previous screen point is carried in the loop, so a frame allocates nothing
+  ;; per segment. The first draft called lor/project and lor/trail-colour per
+  ;; point, each returning a fresh vector, and ran at 18 fps. Same lesson as
+  ;; flowfield and the draw loop before it: the allocation is the cost.
+  (let [cam (lor/camera m t)
+        cs (double (:cos cam)) sn (double (:sin cam))
+        cx (double (:cx cam)) cy (double (:cy cam))
+        f (double (:f cam)) dist (double (:distance cam))
+        sc (double (:scale cam)) lift (double (:lift cam))
+        n (count points)
+        denom (double (max 1 n))]
+    (loop [i 0 px 0.0 py 0.0 have-prev? false]
+      (when (< i n)
+        (let [p (nth points i)
+              ax (* sc (double (nth p 0)))
+              ay (* sc (- (double (nth p 2)) lift))
+              az (* sc (double (nth p 1)))
+              rx (- (* ax cs) (* az sn))
+              rz (+ (* ax sn) (* az cs))
+              d (- dist rz)]
+          (if (> d 0.5)
+            (let [k (/ f d)
+                  sx (+ cx (* rx k))
+                  sy (- cy (* ay k))]
+              (when have-prev?
+                (let [age (/ (double i) denom)]
+                  (rl/draw-line (int px) (int py) (int sx) (int sy)
+                                (rl/rgba (int (+ 90.0 (* 165.0 age)))
+                                         (int (- 200.0 (* 130.0 age)))
+                                         (int (- 255.0 (* 105.0 age)))
+                                         255))))
+              (recur (inc i) sx sy true))
+            ;; behind the camera: drop the segment rather than drawing across
+            (recur (inc i) 0.0 0.0 false)))))))
+
+(defmethod draw-scene! :tesseract [_ {:keys [a]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 8 8 16 255))
+  (let [pts (tess/points m a)
+        es tess/edges
+        n (count es)]
+    (loop [k 0]
+      (when (< k n)
+        (let [e (nth es k)
+              i (nth e 0) j (nth e 1)
+              p (nth pts i) q (nth pts j)
+              [r g b] (tess/edge-colour i j)]
+          (rl/draw-line (int (nth p 0)) (int (nth p 1))
+                        (int (nth q 0)) (int (nth q 1))
+                        (rl/rgba r g b 255)))
+        (recur (inc k))))))

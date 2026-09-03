@@ -2,6 +2,36 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-09-03 (later)
+
+### Added
+
+- **Two scenes, seventeen in total.** `lorenz`, the Lorenz attractor with a
+  hand-rolled orbiting camera since this host binds none of raylib's 3D, and
+  `tesseract`, a 4D hypercube projected 4D to 3D to 2D.
+- **`raylib.scenes.lorenz/trail-length` is an atom**, not a `def`, so the
+  performance ceiling can be swept from a REPL without a rebuild.
+
+### Fixed
+
+- **The test runner silently skipped new test files.** Its namespace list was
+  hardcoded, so two new `*_test.cljc` files never ran and `Ran 23 tests` read
+  as a pass. The runner now compares the list against what is on disk and fails
+  if a test file is not listed.
+- **Lorenz allocated per segment**, a fresh vector from both `project` and
+  `trail-colour`, about 2400 a frame. 18 fps before, 31 after, 58 once the
+  trail was sized from the sweep.
+- **The trail could open on half a butterfly.** A 450-point window is short
+  enough to sit inside one lobe: 499 frames of 600 straddle both. `warm` now
+  runs on until the window spans the divide.
+
+### Measured
+
+- Lorenz's ceiling: flat at vsync to a 480-point trail, slipping at 500,
+  falling away past 600. Default set to 450 at 58 fps.
+- Euler at `dt` 0.006 tracks a near-exact reference; 0.009 and 0.012 inflate
+  the attractor, so a bigger step does not buy more trajectory per point.
+
 ## 2026-09-03
 
 The whole project, in one day. raylib and SDL2 rendering on an iPhone from
