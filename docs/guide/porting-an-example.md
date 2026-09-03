@@ -84,6 +84,7 @@ most of the collection. Penrose needed rlgl immediate mode only because it fills
 polygons and raylib's shapes API has no call for that.
 
 <img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
+<img src="../images/spirograph.gif" width="220" alt="Spirograph">
 <img src="../images/boids.gif" width="220" alt="Boids">
 <img src="../images/fireworks.gif" width="220" alt="Fireworks">
 
