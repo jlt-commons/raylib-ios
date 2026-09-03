@@ -27,9 +27,11 @@
 (def default-seed 20260903)
 
 ;; How many points before the figure resets with new parameters. The original
-;; used 1600 at 800x450; a phone has far more room, so this is per-figure
-;; rather than per-pixel and simply reads as "long enough to close the curve".
-(def max-points 1800)
+;; used 1600 at 800x450, and a phone has more room, but this is a frame-rate
+;; number rather than an aesthetic one: every point is a line drawn every
+;; frame. Measured on an iPhone 17 Pro, 1024 points holds 55 fps, 1344 gives
+;; 40 and 1616 gives 35. See docs/guide/performance-on-a-phone.md.
+(def max-points 1000)
 
 ;; Points added per frame. Eight at 0.04 radians apart was the original's
 ;; trade between a smooth curve and reaching the reset in reasonable time.

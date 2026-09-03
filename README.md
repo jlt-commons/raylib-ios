@@ -143,6 +143,13 @@ and `raylib.gallery` owns their drawing. `spirograph` is the first, from
 turning a namespace that owns its own loop into a reducer over frames, and
 deriving geometry from the live screen instead of a fixed 800x450.
 
+Two guides worth reading before adding to this:
+[docs/guide/porting-an-example.md](docs/guide/porting-an-example.md) for the
+four changes a raylib-jlt example needs, and
+[docs/guide/performance-on-a-phone.md](docs/guide/performance-on-a-phone.md)
+for why the first two ports ran at 15 fps and what fixed them. The short
+version of the second is that the FFI was never the problem.
+
 **Develop with `DEV_BUILD=1`.** A release build inlines across call sites, so a
 var redefined over the nREPL reaches the REPL and not the running loop. See the
 RUNBOOK.

@@ -11,7 +11,10 @@
   (:require [clojure.string :as str]))
 
 (def folds 6)
-(def trail-length 150)
+;; 60 leaves 708 lines a frame, which holds 59 fps on an iPhone 17 Pro. 90 is
+;; 1068 lines and about 47. The measurements are in
+;; docs/guide/performance-on-a-phone.md.
+(def trail-length 60)
 (def tau 6.283185307179586)
 
 (defn dimensions
@@ -27,29 +30,33 @@
   [(* reach (Math/cos t))
    (* reach (Math/sin (* 1.7 t)))])
 
-(defn segments
-  "Every line the pattern is made of, as [[x1 y1] [x2 y2] [r g b a]].
+(defn rotations
+  "The fold-and-mirror transforms, as [cos sin mirror?] triples.
 
-  Each consecutive pair of trail points becomes 2 * folds segments: one per
-  rotation, plus its mirror. Computed here rather than in the host so the
-  geometry is testable without a screen."
-  [{:keys [cx cy]} trail]
-  (let [n (count trail)]
-    (when (> n 1)
-      (for [i (range 1 n)
-            k (range folds)
-            mirror? [false true]]
-        (let [[ax ay] (nth trail (dec i))
-              [bx by] (nth trail i)
-              age (/ (double i) n)
-              colour [(int (* 255 age)) 120 (int (* 255 (- 1.0 age))) 255]
-              ang (* tau (/ (double k) folds))
-              ca (Math/cos ang)
-              sa (Math/sin ang)
-              flip (fn [x] (if mirror? (- x) x))
-              place (fn [x y] [(+ cx (- (* (flip x) ca) (* y sa)))
-                               (+ cy (+ (* (flip x) sa) (* y ca)))])]
-          [(place ax ay) (place bx by) colour])))))
+  Twelve of them for six folds. Computed once per frame and reused across every
+  trail segment, which matters more than it looks: the first version of this
+  namespace returned a lazy sequence of 1788 ready-made segment tuples, and on
+  portable bytecode building that sequence cost far more than the 1788 draw
+  calls it fed. Handing the host a dozen small triples and letting it loop by
+  index instead took the scene from 14 fps to about 50."
+  []
+  (vec (for [k (range folds)
+             mirror? [false true]]
+         (let [ang (* tau (/ (double k) folds))]
+           [(Math/cos ang) (Math/sin ang) mirror?]))))
+
+(defn place
+  "One trail point through one rotation, as [x y]."
+  [{:keys [cx cy]} [ca sa mirror?] x y]
+  (let [x (if mirror? (- x) x)]
+    [(+ cx (- (* x ca) (* y sa)))
+     (+ cy (+ (* x sa) (* y ca)))]))
+
+(defn segment-colour
+  "The colour of the i'th segment of an n-long trail, as [r g b a]."
+  [i n]
+  (let [age (/ (double i) n)]
+    [(int (* 255 age)) 120 (int (* 255 (- 1.0 age))) 255]))
 
 (defn advance [state metrics]
   (let [{:keys [reach]} (dimensions metrics)

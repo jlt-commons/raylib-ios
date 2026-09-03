@@ -27,7 +27,8 @@
     :else nil))
 
 (defn -main [& _]
-  (let [namespaces '[poc.raylib.flappy-bird-test
+  (let [namespaces '[raylib.scenes.kaleidoscope-test
+                     poc.raylib.flappy-bird-test
                      poc.raylib.gallery-test
                      poc.raylib.gallery-ui-test
                      poc.raylib.diagnostics-test

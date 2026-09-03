@@ -115,9 +115,37 @@
         (rl/draw-circle (int px) (int py) (double pupil-radius) rl/DARKGRAY)))))
 
 (defmethod draw-scene! :kaleidoscope [_ {:keys [trail]} {:keys [m]}]
+  ;; Everything on the per-line path is inlined here on purpose, and the
+  ;; measurements are in docs/guide/performance-on-a-phone.md. Briefly: this
+  ;; scene draws twelve lines per trail segment, and calling a helper that
+  ;; returns [x y] allocated two vectors per line. Removing that took 1068
+  ;; lines from 22 fps to 47. kaleidoscope/place is the readable statement of
+  ;; the same transform, kept for the tests.
   (rl/clear-background (rl/rgba 12 12 20 255))
-  (doseq [[[x1 y1] [x2 y2] c] (kal/segments (kal/dimensions m) trail)]
-    (rl/draw-line (int x1) (int y1) (int x2) (int y2) (color c))))
+  (let [{:keys [cx cy]} (kal/dimensions m)
+        rots (kal/rotations)
+        rn (count rots)
+        n (count trail)]
+    (loop [i 1]
+      (when (< i n)
+        (let [a (nth trail (dec i))
+              b (nth trail i)
+              ax (double (nth a 0)) ay (double (nth a 1))
+              bx (double (nth b 0)) by (double (nth b 1))
+              age (/ (double i) n)
+              packed (rl/rgba (int (* 255 age)) 120 (int (* 255 (- 1.0 age))) 255)]
+          (loop [r 0]
+            (when (< r rn)
+              (let [rot (nth rots r)
+                    ca (double (nth rot 0))
+                    sa (double (nth rot 1))
+                    ax (if (nth rot 2) (- ax) ax)
+                    bx (if (nth rot 2) (- bx) bx)]
+                (rl/draw-line (int (+ cx (- (* ax ca) (* ay sa)))) (int (+ cy (+ (* ax sa) (* ay ca))))
+                              (int (+ cx (- (* bx ca) (* by sa)))) (int (+ cy (+ (* bx sa) (* by ca))))
+                              packed))
+              (recur (inc r)))))
+        (recur (inc i))))))
 
 (defmethod draw-scene! :fireworks [_ {:keys [rockets parts]} {:keys [m]}]
   (let [{:keys [rocket-radius particle-radius]} (fw/dimensions m)]
@@ -158,9 +186,20 @@
       (rl/draw-line (int cx) (int cy) (int ax) (int ay) edge))))
 
 (defmethod draw-scene! :spirograph [_ {:keys [points]} _]
+  ;; An indexed loop rather than (map-indexed vector (partition 2 1 points)).
+  ;; Measured on device: the lazy sequence and its per-segment tuple took this
+  ;; from about 50 fps to 14 at a thousand points, while the draw calls
+  ;; themselves were never the problem.
   (rl/clear-background (rl/rgba 0 0 0 255))
-  (doseq [[i [[x1 y1] [x2 y2]]] (map-indexed vector (partition 2 1 points))]
-    (rl/draw-line (int x1) (int y1) (int x2) (int y2) (color (spiro/rainbow i)))))
+  (let [n (count points)]
+    (loop [i 1]
+      (when (< i n)
+        (let [a (nth points (dec i))
+              b (nth points i)
+              [r g b' a'] (spiro/rainbow i)]
+          (rl/draw-line (int (nth a 0)) (int (nth a 1)) (int (nth b 0)) (int (nth b 1))
+                        (rl/rgba r g b' a')))
+        (recur (inc i))))))
 
 (defmethod draw-scene! :touch-trail [_ {:keys [points]} {:keys [m]}]
   (let [{:keys [radius]} (trail/layout m)
