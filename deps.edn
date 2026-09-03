@@ -39,6 +39,17 @@
   deploy  "sh tools/ios/deploy.sh"
   ;; the pure namespaces, on the host: no raylib, no SDL, no device
   test    "jolt -M:test"
+  ;; the gallery plus an nREPL, for driving a running app from an editor.
+  ;; Dev only: App Store rule 2.5.2 bans executing downloaded code, and a
+  ;; shipped build carries no listener.
+  live    "sh tools/ios/live.sh"
+  ;; jolt.nrepl binds loopback only, so reach it by forwarding the phone's
+  ;; 7888 to this machine's 7889 over USB. Needs the cable: iproxy speaks
+  ;; usbmuxd, which a Wi-Fi-only pairing does not answer.
+  ;; Refuses to bind beside a process that already holds the local port,
+  ;; because forwarding onto one sends evals to THAT process and its answers
+  ;; look entirely plausible. LOCAL_PORT and DEVICE_PORT override.
+  proxy   "sh tools/ios/proxy.sh"
   ;; what deploy would talk to. devicectl's cached list lies about state, so
   ;; this asks each device for its tunnelState instead of trusting the summary.
   devices "sh tools/ios/devices.sh"}}

@@ -102,6 +102,20 @@ well.
 The first `jolt deps` takes a few minutes. After that both archives are
 cached under `~/dev/{sdl2,raylib}-ios-dev`.
 
+For live development against the running app, and for every failure worth
+recognising on sight, see [`tools/ios/RUNBOOK.md`](tools/ios/RUNBOOK.md):
+
+```sh
+jolt live                                # the gallery with an nREPL
+jolt proxy                               # another terminal: forward it over USB
+tools/ios/nrepl-eval 7888 '(System/getenv "HOME")'   # prove it is the phone
+```
+
+Reads are free. Anything touching raylib goes through
+`raylib.host/on-next-frame!`, which runs it on the main thread at the top of
+the next frame, because an eval lands on the nREPL thread and the toolkit is
+main-thread-affine.
+
 ### Namespaces worth building
 
 | namespace | what it does |
@@ -110,6 +124,7 @@ cached under `~/dev/{sdl2,raylib}-ios-dev`.
 | `raylib.touch` | scalar touch polling, press edges, a marker under the finger |
 | `raylib.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
 | `raylib.gallery` | the scene contract: cards, hit testing, Back, all three scenes |
+| `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
 
 ## Layout
 

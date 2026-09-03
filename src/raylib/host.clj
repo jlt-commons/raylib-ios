@@ -124,6 +124,46 @@
 
 (defonce ^:private app (atom nil))        ; {:title :init :frame :fps} — the callable is global, so this is how it finds the scene
 
+;; --- the live seam (raylib.live, an nREPL) -----------------------------------
+;; An nREPL eval runs on jolt.nrepl's accept thread, and raylib and SDL are
+;; main-thread-affine: this process is parked inside SDL_UIKitRunApp, so calling
+;; DrawCircle or InitWindow from an eval is a crash waiting for a race rather
+;; than a working REPL. And the scene's state is threaded through the loop
+;; below, so there is nothing global for an editor to look at either.
+;;
+;; Two small things fix both. `state` is refreshed every frame, so an eval can
+;; read what the scene currently holds. `on-next-frame!` queues a thunk that the
+;; loop runs on the main thread, between BeginDrawing and the scene's own frame
+;; fn, which is the only safe place to touch raylib from outside.
+;;
+;; The drain is swap-vals! rather than deref-then-reset!: a thunk posted between
+;; the read and the clear would otherwise be captured by neither, and vanish
+;; with no error and no log line.
+
+(defonce ^:private current-state (atom nil))
+(defonce ^:private pending (atom []))
+
+(defn state
+  "Whatever the running scene's frame fn returned last. nil before the first
+  frame. Read-only: reset!ing this does not affect the loop, which threads its
+  own state through recur."
+  []
+  @current-state)
+
+(defn on-next-frame!
+  "Queue zero-arg `f` to run on the main thread at the top of the next frame.
+  The only safe way to call raylib or SDL from an nREPL eval. Exceptions are
+  printed rather than thrown, so a bad thunk cannot take the loop down."
+  [f]
+  (swap! pending conj f)
+  nil)
+
+(defn- drain-pending! []
+  (let [[queued _] (swap-vals! pending (constantly []))]
+    (doseq [f queued]
+      (try (f)
+           (catch :default e (println "host: queued work failed:" (ex-message e)))))))
+
 (defn- sdl-main
   "SDL_main: the main thread, inside UIApplicationMain, event pump on. Sizes
   the screen in pixels, then owns the loop for the life of the app."
@@ -148,7 +188,9 @@
       (loop [state (init {:width w :height h :scale k :inset-top (int (* k (safe-area-top)))}) n 0 sum 0.0 worst 0.0]
         (begin-drawing)
         (when framebuffer (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
+        (drain-pending!)                        ; main thread, inside the frame
         (let [state' (frame state)]
+          (reset! current-state state')
           (when colorbuffer (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
           (end-drawing)
           (let [dt    (get-frame-time)

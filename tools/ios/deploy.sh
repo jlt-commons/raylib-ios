@@ -99,6 +99,14 @@ codesign --force --sign "$IDENTITY" --entitlements "$T/ent.plist" --timestamp=no
 codesign --verify --verbose=2 "$APP"
 xcrun devicectl device install app --device "$UDID" "$APP"
 
+# An iOS app inherits no shell environment. devicectl forwards any variable
+# named DEVICECTL_CHILD_<NAME> in the caller's environment into the launched
+# process as <NAME>, which is how DEVICE_PORT reaches raylib.live.
+if [ -n "${DEVICE_PORT:-}" ]; then
+  export DEVICECTL_CHILD_RAYLIB_NREPL_PORT="$DEVICE_PORT"
+  echo "deploy.sh: app will read RAYLIB_NREPL_PORT=$DEVICE_PORT"
+fi
+
 # The console is a LEASH. `--console` streams the app's stdout, and ending that
 # session signals the app: SDL's handler posts SDL_QUIT, raylib sets
 # shouldClose, the loop closes the window, and SDL's delegate deliberately does
