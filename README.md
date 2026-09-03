@@ -10,6 +10,8 @@ Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
 at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
 open a scene, tap Back to leave it. The bird flaps on a press edge.
 
+![The gallery on an iPhone 17 Pro](docs/images/gallery.png)
+
 Private for now.
 
 ## Where the code came from

@@ -96,6 +96,11 @@ On this runtime, in a loop that runs hundreds of times per frame:
 None of this is exotic Clojure advice. What is different is the magnitude: on a
 JIT these habits cost a few percent, and here they cost three to four times.
 
+![Penrose P3 tiling on an iPhone 17 Pro](../images/penrose.png)
+
+*Penrose, 340 triangles and about 2400 FFI calls a frame, at 57 fps. This is
+the scene that disproved the draw-call theory.*
+
 ## Where the budget lands
 
 With the loops fixed, the remaining limit really is line count. Numbers to
