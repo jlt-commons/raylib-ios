@@ -350,6 +350,18 @@ Two related things about iOS itself, both of which look like rendering bugs:
   does not exit, so a black window is left behind. Use `CONSOLE=0` to launch
   detached once you want to play rather than debug.
 
+## Licence
+
+[zlib](LICENSE), matching
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt), raylib and SDL2. The
+whole stack is zlib.
+
+Third-party code, and one blocker that must be cleared before this repository
+is published or transferred, are in [`NOTICE`](NOTICE). The short version: five
+namespaces are derived from a repository that carries no licence file, so
+default copyright applies to them and this project cannot be made public until
+that is resolved.
+
 ## Attribution
 
 - [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)

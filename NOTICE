@@ -1,0 +1,98 @@
+# NOTICE
+
+This project is licensed under the zlib licence, in [`LICENSE`](LICENSE),
+matching jlt-commons/raylib-jlt, raylib itself and SDL2. The whole graphics
+stack is zlib and there is no reason for this to be the exception.
+
+That licence covers the work in this repository that is ours to license. It
+does not, on its own, make the repository publishable: some of it is derived
+from a source that grants nothing. See "Open-source status" at the end, which
+is required reading before this repository is published, transferred to an
+organisation, or made public.
+
+## Carried unchanged
+
+`src/poc/raylib/*.cljc` and `test/poc/raylib/*.cljc` are byte-identical to
+their originals in jasalt/jolt-android-experiment at 6d2b291, and their
+sha256 is verified by `tools/extract-from-notebooks`.
+
+    https://github.com/jasalt/jolt-android-experiment
+    Copyright 2026 Jarkko Saltiola
+    MIT License
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+## Ported, and altered
+
+`src/raylib/scenes/*.cljc` are ports of examples from jlt-commons/raylib-jlt.
+Each is an altered version: the loop is inverted so the host owns it, geometry
+derives from the live screen instead of a fixed 800x450, randomness becomes a
+seeded LCG, and drawing moves to the caller. Every file names its original in
+its own docstring, as the zlib licence's "altered source versions must be
+plainly marked as such" asks.
+
+    https://github.com/jlt-commons/raylib-jlt
+    Copyright (c) 2026 Burin Choomnuan
+    zlib License
+
+## Linked
+
+Both are compiled into the app as static archives.
+
+    raylib 6.0    https://github.com/raysan5/raylib
+                  Copyright (c) 2013-2026 Ramon Santamaria (@raysan5)
+                  zlib/libpng License
+
+    SDL 2.32.10   https://github.com/libsdl-org/SDL
+                  Copyright (C) 1997-2025 Sam Lantinga
+                  zlib License
+
+## Build tooling, not redistributed
+
+    jolt          https://github.com/jolt-lang/jolt      Eclipse Public License
+    Chez Scheme   https://github.com/cisco/ChezScheme    Apache License 2.0
+
+## Open-source status: BLOCKED, and this is the reason
+
+`src/raylib/host.clj`, `link.clj`, `touch.clj`, `flappy.clj` and `gallery.clj`
+are substantially derived from statonjr/glimmer-ios-demo, whose notebooks this
+project's own `tools/extract-from-notebooks` reads:
+
+    https://github.com/statonjr/glimmer-ios-demo
+
+**That repository carries no licence file.** With no licence, the default is
+ordinary copyright: all rights reserved, and no permission to copy, modify or
+redistribute. So this project cannot be published, relicensed or moved to an
+organisation as it stands, however small the diff or generous the intent.
+
+Three ways forward, in the order they should be tried:
+
+1. **Ask.** A one-line request to add MIT or zlib upstream, which is the
+   convention across the rest of this stack, resolves it completely and costs
+   the author nothing. It is also the only option that keeps the attribution
+   honest.
+2. **Rewrite the derived files** from the public facts rather than from the
+   notebooks: SDL's own README-ios, raylib's headers, and Apple's docs. This is
+   real work and would need to be genuinely independent, not a paraphrase.
+3. **Stay private.** No obligation is breached by a private repository, and
+   this is the status quo.
+
+Until one of those is done, treat this repository as private and unpublishable.
+The presence of a LICENSE file does not change that: a licence grants what the
+grantor holds, and this is the one part we do not hold.
