@@ -18,7 +18,7 @@
   does no HighDPI translation of its own, so a window sized in points would
   render at a third of the resolution on this screen and every coordinate the
   scenes compute would be wrong by the same factor."
-  (:refer-clojure :exclude [run!])          ; run! is the entry point here, as in raylib-jlt
+  (:refer-clojure :exclude [run!])          ; this namespace defines its own run!
   (:require [jolt.ffi :as ffi]
             [raylib.objc :as u]
             [raylib.probe :as probe]))
@@ -84,9 +84,15 @@
 (def ^:private insets-l (ffi/layout [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]))
 
 (defn safe-area-insets
-  "[[UIApplication sharedApplication].windows firstObject].safeAreaInsets, in
-  points: {:top :left :bottom :right}. Ask from inside the loop — insets are
-  only real once the window has been laid out, i.e. after the first frame."
+  "The window's safe-area insets in points, as {:top :left :bottom :right}.
+
+  Four message sends, because there is no shorter path to them: the shared
+  application, its windows, the first of those, and its insets.
+
+  Call this from inside the loop and not before. UIKit computes insets during
+  layout, so a call made before the first frame gets zeros, and zeros are a
+  plausible answer on a device that genuinely has no notch. Asking once and
+  caching the first non-zero result is what the gallery does."
   []
   (let [win (u/objc-msg-send-0
               (u/objc-msg-send-0 (u/objc-msg-send-0 (u/cls "UIApplication") (u/sel "sharedApplication")) (u/sel "windows"))
@@ -103,7 +109,11 @@
 (ffi/defcfn get-touch-position    "GetTouchPosition"   [:int] [:by-value [:struct [[:x :float] [:y :float]]]])
 (def ^:private vec2-l (ffi/layout [:struct [[:x :float] [:y :float]]]))
 (defn touch-position
-  "[x y] of touch point `i`, through the by-value Vector2 return."
+  "Touch point `i` as [x y].
+
+  GetTouchPosition returns a Vector2 by value, two floats in registers, which
+  is a different FFI path from every scalar call here and worth having one user
+  of. GetTouchX and GetTouchY give the same numbers for point zero only."
   [i]
   (ffi/with-layout [v vec2-l]
     (get-touch-position v i)
@@ -118,7 +128,12 @@
 
 ;; --- the host ----------------------------------------------------------------
 (defn- display-points
-  "[w h] of display 0 in points, from SDL, before any window exists."
+  "The main display's size in points, before any window exists.
+
+  Needed because the window has to be created at pixel size and the pixel size
+  is this multiplied by the screen scale. The fallback is an iPhone-ish guess
+  rather than a crash: a wrong window size draws something, and something is
+  easier to diagnose from than a dead app."
   []
   (when (neg? (sdl-init SDL-INIT-VIDEO)) (println "host: SDL_Init failed:" (sdl-get-error)))
   (ffi/with-alloc [m 24]                    ; SDL_DisplayMode {u32 format; int w, h, refresh_rate; void *driverdata}
@@ -131,10 +146,17 @@
 (def ^:private sdl-version-l (ffi/layout [:struct [[:major :uint8] [:minor :uint8] [:patch :uint8]]]))
 
 (defn- view-framebuffer
-  "SDL's drawable FBO and colour renderbuffer for the current window, via
-  SDL_SysWMinfo (version @0, subsystem @4, uikit.framebuffer @16, colorbuffer @20).
-  Only the version is ours to write — SDL fills the rest — and it goes through a
-  layout, since jolt 0.8.0 swapped ffi/write's value and offset."
+  "SDL's drawable framebuffer and colour renderbuffer, as {:framebuffer :colorbuffer}.
+
+  SDL_GetWindowWMInfo is an in-out call: the caller writes the SDL version it
+  compiled against and SDL fills the rest, refusing outright if the version is
+  one it does not recognise. The offsets are SDL_SysWMinfo's own layout on
+  UIKit, version at 0, subsystem at 4, then the framebuffer and colorbuffer.
+
+  The version goes through a layout rather than a raw write because jolt 0.8.0
+  swapped ffi/write's value and offset arguments. Both are integers, so the two
+  spellings cannot be told apart at runtime: the wrong one writes a byte to the
+  wrong place and reports nothing."
   []
   (ffi/with-alloc [info 128]
     (ffi/write-field info sdl-version-l :major 2)
@@ -144,7 +166,10 @@
       {:framebuffer (ffi/read info :uint32 16) :colorbuffer (ffi/read info :uint32 20)}
       (do (println "host: SDL_GetWindowWMInfo failed:" (sdl-get-error)) {}))))
 
-(defonce ^:private app (atom nil))        ; {:title :init :frame :fps} — the callable is global, so this is how it finds the scene
+;; The scene, parked where the callback can reach it. SDL is handed a C
+;; function pointer, which carries no closure, so the callback finds its scene
+;; here rather than having been given one.
+(defonce ^:private app (atom nil))
 
 ;; --- the live seam (raylib.live, an nREPL) -----------------------------------
 ;; An nREPL eval runs on jolt.nrepl's accept thread, and raylib and SDL are
@@ -218,17 +243,26 @@
                    (/ (double count) seconds))))
 
 (defn- sdl-main
-  "SDL_main: the main thread, inside UIApplicationMain, event pump on. Sizes
-  the screen in pixels, then owns the loop for the life of the app."
+  "What SDL calls back on thread 0, and where the app lives from then on.
+
+  By the time this runs, UIApplicationMain is up and the run loop exists, which
+  is why the loop at the end can block: EndDrawing gives the run loop a turn
+  every frame. Everything before the loop is setup that must happen after
+  UIKit is running and before any drawing: size the window in pixels, hint SDL
+  toward Metal for its presentation surface, then hand raylib the window."
   [_argc _argv]
   (let [{:keys [title init frame fps] :or {fps 60}} @app
         [pw ph] (display-points)
         k       (screen-scale)
         w       (int (* pw k))
         h       (int (* ph k))]
-    (set-config-flags FLAG-WINDOW-HIGHDPI)       ; SDL_WINDOW_ALLOW_HIGHDPI: a full-resolution drawable
-    (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")   ; the software rasteriser's surface: present through Metal, never GLES
-    (init-window w h title)                      ; ...and a screen the same size, so raylib never scales
+    ;; A full-resolution drawable, and a window sized to match it, so raylib
+    ;; never scales anything: one raylib pixel is one screen pixel.
+    (set-config-flags FLAG-WINDOW-HIGHDPI)
+    ;; Present SDL's own surface through Metal. Left to itself SDL may pick a
+    ;; GLES path for it, which on this device is the slower of the two.
+    (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")
+    (init-window w h title)
     (set-target-fps fps)
     (let [{:keys [framebuffer colorbuffer] :as wm} (view-framebuffer)]
       (reset! probe/wm-info wm)
@@ -270,8 +304,15 @@
   (ffi/foreign-callable sdl-main [:int :pointer] :int :collect-safe))
 
 (defn run!
-  "Hand `scene` to UIKit and never return.
-  scene: {:title s, :init (fn [{:keys [width height scale]}] state), :frame (fn [state] state'), :fps n}"
+  "Hand `scene` to UIKit. Does not return.
+
+  SDL_UIKitRunApp calls UIApplicationMain, which owns the process from here.
+  The scene is parked in an atom rather than closed over because the callback
+  handed to SDL is a global C function pointer, and a C function pointer cannot
+  carry a closure.
+
+  scene is {:title, :init (fn [{:keys [width height scale inset-top]}] state),
+  :frame (fn [state] state'), :fps}."
   [scene]
   (reset! app scene)
   (println "host: entering SDL_UIKitRunApp")
