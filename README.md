@@ -116,6 +116,15 @@ Reads are free. Anything touching raylib goes through
 the next frame, because an eval lands on the nREPL thread and the toolkit is
 main-thread-affine.
 
+That gives you jolt's built-in ops: `clone`, `describe`, `eval`, `load-file`,
+`close`. Enough for a script or a prompt. For an editor, `CIDER=1 jolt live`
+builds `raylib.live-cider` under the `:cider` alias and adds completions,
+`info`, `eldoc`, the namespace browser, macroexpansion, apropos and the test
+ops, by composing [jolt-lang/nrepl](https://github.com/jolt-lang/nrepl) over
+the same handler. It is the project's only dependency and it is opt-in, which
+is why the paragraph above can still say there are none: 27 MB and no deps by
+default, 33 MB and three with it.
+
 ### Namespaces worth building
 
 | namespace | what it does |
@@ -125,6 +134,7 @@ main-thread-affine.
 | `raylib.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
 | `raylib.gallery` | the scene contract: cards, hit testing, Back, all three scenes |
 | `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
+| `raylib.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
 ## Layout
 

@@ -16,6 +16,8 @@
  ;; jlt-commons/raylib-jlt as a real dependency would mean dealing with its own
  ;; :jolt/native declaration; jolt's `:process true` is the door if the other
  ;; four hundred functions are ever wanted.
+ ;; The default build has no dependencies. See the :cider alias for the one
+ ;; optional exception, which is opt-in precisely so this line stays true.
  :deps {}
  :jolt/native []
 
@@ -28,7 +30,19 @@
 
  :aliases
  {:test {:extra-paths ["test"]
-         :main-opts ["-m" "raylib.test-runner"]}}
+         :main-opts ["-m" "raylib.test-runner"]}
+
+  ;; The cider-nrepl op set for raylib.live-cider: completions, info, eldoc,
+  ;; the namespace browser, macroexpansion, apropos, the test ops. Scoped to an
+  ;; alias so the default build stays dependency-free; jolt-lang/nrepl brings
+  ;; orchard, compliment and spec.alpha, and about six megabytes.
+  ;;
+  ;; Its own :jolt/native is {:name "libc (POSIX sockets)" :process true},
+  ;; which is the right shape for iOS: :process true resolves against the
+  ;; already-loaded image rather than dlopening a library that cannot exist in
+  ;; an .ipa.
+  :cider {:extra-deps {io.github.jolt-lang/nrepl {:git/tag "v0.1.1"
+                                                  :git/sha "9cc45ac"}}}}
 
  :tasks
  {;; the two static archives, per SDK. Slow the first time, cached after.

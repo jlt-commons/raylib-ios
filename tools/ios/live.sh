@@ -12,7 +12,13 @@ set -eu
 DEVICE_PORT=${DEVICE_PORT:-7888}
 LOCAL_PORT=${LOCAL_PORT:-7888}
 
-NS=raylib.live TARGET=device sh tools/ios/build.sh
+# CIDER=1 swaps in the middleware build, which needs the :cider alias because
+# that is where the dependency lives. The default has none.
+if [ "${CIDER:-0}" = 1 ]; then
+  NS=raylib.live-cider ALIAS=:cider TARGET=device sh tools/ios/build.sh
+else
+  NS=raylib.live TARGET=device sh tools/ios/build.sh
+fi
 DEVICE_PORT="$DEVICE_PORT" CONSOLE=${CONSOLE:-0} sh tools/ios/deploy.sh
 
 cat <<MSG
@@ -35,4 +41,8 @@ eval runs on the nREPL thread while the toolkit is main-thread-affine:
   tools/ios/nrepl-eval $LOCAL_PORT '(do (require (quote [raylib.host])) (raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30))))'
 
 Both ports override: DEVICE_PORT and LOCAL_PORT.
+
+Built-in ops here: clone, describe, eval, load-file, close. For an editor,
+CIDER=1 jolt live adds completions, info, eldoc, the namespace browser,
+macroexpansion, apropos and the test ops.
 MSG

@@ -58,6 +58,27 @@
            default-port))
     default-port))
 
+(defn start-nrepl!
+  "Start the nREPL, optionally composing `middleware` over jolt.nrepl's built-in
+  handler. nil means the built-in ops alone, which is what this namespace uses
+  and what keeps the default build free of dependencies.
+
+  A failure is reported and swallowed on purpose: losing the whole app because
+  a REPL could not bind would be a poor trade, and the gallery is still worth
+  looking at without one."
+  [middleware]
+  (let [p (port)]
+    (try
+      (if (seq middleware)
+        (jolt.nrepl/start p middleware)
+        (jolt.nrepl/start p))
+      (println "live: nREPL on the phone's 127.0.0.1:" p
+               (if (seq middleware) "(with middleware)" "(built-in ops)")
+               "- forward it with: jolt proxy")
+      (catch :default e
+        (println "live: jolt.nrepl/start failed:" (ex-message e))
+        (println "live: continuing without a REPL; the gallery still runs")))))
+
 (defn -main [& _]
   ;; Printed rather than assumed. jolt picks its socket constants and sockaddr
   ;; layout from os.name, and it reported "Linux" on iOS until 0.8.0 fixed it
@@ -67,11 +88,5 @@
   ;; that line ever comes back, that is why.
   (println "live: os.name" (pr-str (System/getProperty "os.name"))
            "os.arch" (pr-str (System/getProperty "os.arch")))
-  (let [p (port)]
-    (try
-      (jolt.nrepl/start p)
-      (println "live: nREPL on the phone's 127.0.0.1:" p "- forward it with: jolt proxy")
-      (catch :default e
-        (println "live: jolt.nrepl/start failed:" (ex-message e))
-        (println "live: continuing without a REPL; the gallery still runs"))))
+  (start-nrepl! nil)
   (gallery/-main))
