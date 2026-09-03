@@ -7,8 +7,11 @@ stack is zlib and there is no reason for this to be the exception.
 That licence covers the work in this repository that is ours to license. It
 does not, on its own, make the repository publishable: some of it is derived
 from a source that grants nothing. See "Open-source status" at the end, which
-is required reading before this repository is published, transferred to an
-organisation, or made public.
+is required reading before this repository is made public.
+
+Ownership is a separate question from publication. Transferring this repository
+between accounts or into an organisation is fine while it stays private, and
+does not touch anything below.
 
 ## Carried unchanged
 
@@ -124,6 +127,8 @@ MIT is a grant, not a trade: it lets him build on our work without obliging him
 to license his own back. It makes option 1 very likely to land. It is not a
 substitute for it.
 
-Until one of those is done, treat this repository as private and unpublishable.
+Option 1 was filed on 2026-09-03 as statonjr/glimmer-ios-demo#1, the first
+issue on that repository. Until it is answered, or option 2 is done, treat this
+repository as private and unpublishable.
 The presence of a LICENSE file does not change that: a licence grants what the
 grantor holds, and this is the one part we do not hold.
