@@ -60,7 +60,10 @@
 
 (let [[src dest] *command-line-args*
       src   (or src (str (fs/expand-home "~/dev/github--statonjr--glimmer-ios-demo")))
-      dest  (or dest (str (fs/expand-home "~/dev/raylib-ios")))
+      ;; this repo, found from the script rather than named: the tree moved
+      ;; once already (to ~/dev/jlt-commons/raylib-ios) and a hardcoded path
+      ;; would have quietly written the extraction back to the old location
+      dest  (or dest (str (fs/parent (fs/parent (fs/parent (fs/real-path *file*))))))
       force (= "1" (System/getenv "FORCE"))
       orgs  ["examples/flappy/README.org" "examples/gallery/README.org"]]
   (doseq [org orgs

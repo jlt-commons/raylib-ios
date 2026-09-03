@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key>        <string>io.jlt-commons.raylib-ios</string>
+  <key>CFBundleIdentifier</key>        <string>jlt-commons.raylib-ios</string>
   <key>CFBundleExecutable</key>        <string>RaylibIOS</string>
   <key>CFBundleName</key>              <string>RaylibIOS</string>
   <key>CFBundleDisplayName</key>       <string>raylib</string>
