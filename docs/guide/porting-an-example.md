@@ -83,6 +83,13 @@ Almost nothing, which was the surprise. Across five ports:
 most of the collection. Penrose needed rlgl immediate mode only because it fills
 polygons and raylib's shapes API has no call for that.
 
+<img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
+<img src="../images/boids.gif" width="220" alt="Boids">
+<img src="../images/fireworks.gif" width="220" alt="Fireworks">
+
+*Three of the five ports, running on the phone. None of them needed a single
+new raylib binding.*
+
 ## Then measure it, because the port is the easy half
 
 Two of the five did not hold 60 fps on first run, and neither for the reason

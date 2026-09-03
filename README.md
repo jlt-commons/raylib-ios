@@ -25,6 +25,17 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
 *Every one of these is a photograph of an iPhone 17 Pro, captured unattended by
 `tools/ios/capture.sh`. Click for full size.*
 
+<p>
+  <img src="docs/images/spirograph.gif" width="200" alt="Spirograph drawing itself">
+  <img src="docs/images/kaleidoscope.gif" width="200" alt="Kaleidoscope">
+  <img src="docs/images/fireworks.gif" width="200" alt="Fireworks">
+  <img src="docs/images/boids.gif" width="200" alt="Boids flocking">
+</p>
+
+*And moving, recorded off a live iPhone Mirroring window by
+`tools/ios/capture-gif.sh`. The device bezel is the mirror's, not a frame we
+drew.*
+
 Private for now.
 
 ## Where the code came from

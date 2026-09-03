@@ -55,6 +55,11 @@ lines through exactly the same FFI:
       (recur (inc i)))))
 ```
 
+<img src="../images/spirograph.gif" width="240" alt="Spirograph, after the fix">
+
+*Spirograph after the loop was rewritten: the curve draws itself at 55 fps
+where the lazy-sequence version managed 14 at the same point count.*
+
 | spirograph, points | 1008 | 1288 | 1552 | 1768 |
 | --- | --- | --- | --- | --- |
 | lazy sequence | 14 | - | - | - |
