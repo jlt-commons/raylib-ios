@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}raylib-ios: raylib and SDL2 on an iPhone, from Clojure{% endblock %}
+{% block body-class %}home{% endblock %}
+
+{% block content %}
+<header class="hero">
+  <div class="hero-inner">
+    <h1>raylib on an iPhone, from Clojure</h1>
+    <p class="tagline">
+      A gallery of seventeen scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
+      drawn by raylib 6.0 over SDL2, driven by <strong>Jolt</strong> (Clojure on
+      Chez Scheme) as threaded portable bytecode. No JIT, nothing generated at
+      run time, and no dependencies.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{site-base}}/guide/porting-an-example.html">Read the guide</a>
+    </div>
+  </div>
+</header>
+
+<section id="how" class="surface">
+  <div class="inner">
+    <h2>raylib has no iOS backend, and does not need one</h2>
+    <p>
+      raylib 6.0 ships platform layers for Android, GLFW, RGFW, SDL, Win32, DRM
+      and web. There is no <code>rcore_ios.c</code>, and writing one means a
+      UIWindow, a GLES layer, touch handling and a loop: several hundred lines
+      of Objective-C.
+    </p>
+    <p>
+      The shortcut is SDL. Built <code>PLATFORM=SDL</code> with
+      <code>GRAPHICS_API_OPENGL_ES2</code> against an SDL2 compiled for iOS,
+      <strong>SDL's own iOS support becomes the platform layer</strong>, which
+      collapses the whole problem to "build SDL". Both libraries then go into
+      the executable as static archives, because
+      <code>jolt build --target</code> emits the whole binary and Chez owns
+      <code>main</code>: there is no host process to <code>dlopen</code>
+      anything, and every <code>defcfn</code> resolves against the process
+      image at first call.
+    </p>
+  </div>
+</section>
+
+<section id="thread-zero">
+  <div class="inner">
+    <h2>Who owns thread 0</h2>
+    <p>
+      UIKit insists its window work happens on the main thread, so the whole
+      design turns on who owns it. Here the answer is our own executable, and
+      the loop is handed back to us on the thread UIKit wants.
+    </p>
+    <pre class="mermaid">
+flowchart LR
+  main["Chez owns main()<br/>thread 0"]
+  run["SDL_UIKitRunApp<br/>:blocking FFI call"]
+  uikit["UIApplicationMain<br/>SDLUIKitDelegate"]
+  cb["our :collect-safe callback<br/>= SDL_main"]
+  loop["the raylib loop<br/>InitWindow · BeginDrawing · EndDrawing"]
+  main --> run --> uikit -->|"postFinishLaunch, on thread 0"| cb --> loop
+  loop -->|"EndDrawing pumps CFRunLoop<br/>so a blocking loop is legal"| uikit
+    </pre>
+    <p>
+      A blocking <code>while</code> loop is normally wrong on iOS. It works
+      here only because <code>EndDrawing</code> reaches
+      <code>SDL_PumpEvents</code>, which spins the run loop, so UIKit gets its
+      turn every frame.
+    </p>
+  </div>
+</section>
+
+<section id="lessons" class="surface">
+  <div class="inner">
+    <h2>What the device taught us</h2>
+    <div class="feature-grid">
+      <div class="feat">
+        <h4>The FFI is not the bottleneck</h4>
+        <p>Penrose makes ~2400 FFI calls a frame at 59 fps, while a scene doing 1800 draws managed 18. The cost was <code>partition</code> and <code>map-indexed</code> in the draw loop, not the calls. Fixing that was <strong>3.5x</strong>.</p>
+      </div>
+      <div class="feat">
+        <h4>Allocation costs more than the call</h4>
+        <p>A helper returning <code>[x y]</code> allocates a vector per line. Removing a lazy sequence changed nothing until the allocation went too: 22 fps, then 47.</p>
+      </div>
+      <div class="feat">
+        <h4>Reading source is a hypothesis</h4>
+        <p>raylib's SDL platform binds no framebuffer, so it "must" draw into framebuffer 0 and show nothing. The device disagreed, and an upstream bug report was withdrawn before it was filed.</p>
+      </div>
+      <div class="feat">
+        <h4>Build --dev, or redefinition lies</h4>
+        <p>A release build inlines across call sites, so a var redefined over the nREPL updates what the REPL sees while the running loop keeps calling the original. Nothing announces the split.</p>
+      </div>
+      <div class="feat">
+        <h4>An nREPL, on the phone</h4>
+        <p>jolt's built-in server binds on iOS since <a href="https://github.com/jolt-lang/jolt/pull/829">jolt#829</a>. Read live scene state, queue work onto the main thread, and open a card without a finger.</p>
+      </div>
+      <div class="feat">
+        <h4>The simulator cannot show this</h4>
+        <p>From iOS 17.5 the simulator presents black for OpenGL ES. Pixels reach the framebuffer and nothing appears, so every picture here is hardware.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="scenes">
+  <div class="inner">
+    <h2>The gallery</h2>
+    <p>
+      Every scene is pure <code>.cljc</code> that runs on a build host with no
+      raylib, no SDL and no device, which is how they are tested. Three come
+      byte-identical from the
+      <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
+      experiment</a>, sha256 verified, and were written for a different platform
+      entirely, along with three more namespaces carrying the scene contract
+      itself. The other fourteen are ports from
+      <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
+    </p>
+    <div class="demo-grid">
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/spirograph.gif" alt="A hypotrochoid drawing itself in rainbow lines" loading="lazy" width="480">
+        <figcaption>spirograph &middot; 55 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/kaleidoscope.gif" alt="A stroke mirrored into six-fold symmetry" loading="lazy" width="480">
+        <figcaption>kaleidoscope &middot; 58 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/fireworks.gif" alt="Rockets bursting into falling sparks" loading="lazy" width="480">
+        <figcaption>fireworks &middot; 58 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/boids.gif" alt="Forty-five boids flocking" loading="lazy" width="480">
+        <figcaption>boids &middot; 52 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/flappy-bird.png">
+        <img src="{{site-base}}/images/flappy-bird.gif" alt="Flappy Bird, flapped by a loop inside the app" loading="lazy" width="480">
+        <figcaption>flappy-bird &middot; unchanged from Android</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/pendulum.gif" alt="A chaotic double pendulum tracing its path" loading="lazy" width="480">
+        <figcaption>double-pendulum &middot; 59 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/epicycles.gif" alt="Fourier epicycles drawing a square wave" loading="lazy" width="480">
+        <figcaption>fourier-epicycles &middot; 59 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/tree.gif" alt="A binary fractal tree swaying" loading="lazy" width="480">
+        <figcaption>fractal-tree &middot; 59 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/stars.gif" alt="A starfield flying toward the viewer" loading="lazy" width="480">
+        <figcaption>starfield &middot; 58 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/hilbert.png">
+        <img src="{{site-base}}/images/thumbs/hilbert.png" alt="A Hilbert space-filling curve" loading="lazy" width="480">
+        <figcaption>hilbert-curve &middot; 1023 lines at 60 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/lsystem.gif" alt="An L-system plant growing segment by segment" loading="lazy" width="480">
+        <figcaption>l-system &middot; 1488 segments at 59 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/flowfield.gif" alt="Particles following a drifting flow field" loading="lazy" width="480">
+        <figcaption>flow-field &middot; 54 fps, tuned down from 32</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/lorenz.gif" alt="The Lorenz attractor, camera orbiting a 450-point trail" loading="lazy" width="480">
+        <figcaption>lorenz &middot; 58 fps, and where the budget rule broke</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/tesseract.gif" alt="A rotating 4D hypercube projected to the screen" loading="lazy" width="480">
+        <figcaption>tesseract &middot; 32 edges, the cheapest scene here</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/penrose.png">
+        <img src="{{site-base}}/images/thumbs/penrose.png" alt="A Penrose P3 tiling by deflation" loading="lazy" width="480">
+        <figcaption>penrose &middot; 57 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/following-eyes.png">
+        <img src="{{site-base}}/images/thumbs/following-eyes.png" alt="Two eyes whose pupils follow a finger" loading="lazy" width="480">
+        <figcaption>following-eyes &middot; unchanged from Android</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/touch-trail.png">
+        <img src="{{site-base}}/images/thumbs/touch-trail.png" alt="A fading trail following the primary pointer" loading="lazy" width="480">
+        <figcaption>touch-trail &middot; unchanged from Android</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/gallery.png">
+        <img src="{{site-base}}/images/thumbs/gallery.png" alt="The category screen" loading="lazy" width="480">
+        <figcaption>the gallery &middot; two levels</figcaption>
+      </a>
+    </div>
+    <p>
+      generative 6 &middot; fractals 3 &middot; toys 5 &middot; games 1 &middot; three of them byte-identical to the
+      Android originals. <em>Every one came off the phone unattended, the moving
+      ones recorded from a live iPhone Mirroring window. Nobody touched the
+      device for any of them: Flappy Bird is flapped by a loop running inside
+      the app, started from the nREPL. The bezel is the mirror's own.</em>
+    </p>
+
+    <table>
+      <thead><tr><th>Scene</th><th>Per frame</th><th>fps</th></tr></thead>
+      <tbody>
+        <tr><td>Kaleidoscope</td><td>708 lines</td><td>58</td></tr>
+        <tr><td>Fireworks</td><td>~120 circles</td><td>58</td></tr>
+        <tr><td>Penrose</td><td>340 triangles, ~2400 FFI calls</td><td>57</td></tr>
+        <tr><td>Spirograph</td><td>~1000 lines</td><td>55</td></tr>
+        <tr><td>Boids</td><td>2025 distance tests</td><td>52</td></tr>
+        <tr><td>Flappy Bird, Following Eyes, Touch Trail</td><td>byte-identical from Android</td><td>58</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="quickstart" class="surface">
+  <div class="inner">
+    <h2>Quickstart</h2>
+    <pre><code class="sh">jolt test                                  # 23 tests on the host, no device needed
+SDK=device jolt deps                       # SDL 2.32.10 + raylib 6.0, static
+NS=raylib.gallery TARGET=device jolt build-app
+UDID=... CONSOLE=0 jolt deploy             # sign, install, launch detached
+
+DEV_BUILD=1 jolt live                      # the same, with an nREPL you can redefine into
+jolt proxy                                 # forward it over USB</code></pre>
+    <p>
+      Needs jolt 0.8.0+, Chez Scheme 10.4.1 on <code>PATH</code> as
+      <code>chez</code>, Xcode, cmake, and a paired iPhone. No private
+      repositories, and the default build has no dependencies at all.
+    </p>
+  </div>
+</section>
+{% endblock %}

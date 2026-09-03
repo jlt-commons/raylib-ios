@@ -1,0 +1,26 @@
+;; Configuration for the documentation site, read by the jlt-commons
+;; docs-engine (https://github.com/jlt-commons/docs-engine).
+;;
+;; Build it locally from a docs-engine checkout with `bb build <this repo>`,
+;; or `bb serve <this repo>` to preview. CI builds and publishes it from
+;; .github/workflows/site.yml, which calls the shared workflow in
+;; jlt-commons/ci-builds.
+{;; :base-path is what makes this a project site rather than an org one. The
+ ;; site is served at https://jlt-commons.github.io/raylib-ios/, so every URL
+ ;; the engine emits needs that prefix. Leave it out and the pages still
+ ;; render, but each one loads the ORGANIZATION site's stylesheet and every
+ ;; image 404s.
+ :base-path   "/raylib-ios"
+
+ :title       "raylib-ios"
+ :description "raylib 6.0 and SDL2 on an iPhone, driven from Clojure on Chez Scheme via Jolt. Seventeen scenes at 52 to 60 fps as threaded portable bytecode, with no JIT and nothing generated at run time."
+
+ ;; docs/images holds the GIFs and stills, referenced from the homepage and
+ ;; the guides. Without this the pages render with every image broken, and the
+ ;; engine only warns about a missing asset dir, so docs/check-site.sh turns
+ ;; that into an error.
+ :asset-dirs  ["images"]
+
+ ;; Relative to docs/templates/. Drop this line and the engine renders a
+ ;; generic homepage from docs/guide/index.md instead.
+ :home-template "home.html"}

@@ -7,3 +7,4 @@
 .nrepl-port
 # built bundle: the plist is copied in, the binary is compiled, nothing is source
 RaylibIOS.app
+_site/
