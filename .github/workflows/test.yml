@@ -57,9 +57,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Pinned, because the distro version and a developer's brew version
+      # disagree about which bashisms to flag. An unpinned checker that is
+      # green locally and red here costs a round trip to find out why, and
+      # the first time it happened the finding was real: `-nt` in deploy.sh,
+      # which 0.9.0 flags and 0.11.0 does not.
       - name: Shellcheck tools/ios
+        env:
+          SHELLCHECK_VERSION: v0.9.0
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          # -S warning: the scripts are POSIX sh and use some deliberate
-          # word splitting, which style-level checks object to.
+          curl -sSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | tar -xJf - --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          shellcheck --version
+          # -S warning: the scripts are POSIX sh and use some deliberate word
+          # splitting, which style-level checks object to.
           shellcheck -S warning tools/ios/*.sh

@@ -44,6 +44,7 @@ trap 'rm -rf "$T"' EXIT INT TERM
 # A glob, not $(ls ...): the Xcode directory name has a space in it and word
 # splitting would cut every path in two.
 PROFILE=${PROFILE:-}
+PROFILE_MTIME=0
 if [ -z "$PROFILE" ]; then
   for p in "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"/*.mobileprovision \
            "$HOME/.config/appstore-connect"/*.mobileprovision; do
@@ -53,7 +54,17 @@ if [ -z "$PROFILE" ]; then
     gta=$(plutil -extract Entitlements.get-task-allow raw "$T/prof-scan.plist" 2>/dev/null || true)
     case "$appid" in
       *".$BUNDLE_ID"|*".*")
-        if [ "$gta" = true ] && { [ -z "$PROFILE" ] || [ "$p" -nt "$PROFILE" ]; }; then PROFILE="$p"; fi ;;
+        # Newest wins, compared by mtime in seconds. `-nt` would read better
+        # but it is a bashism, and this file is #!/bin/sh: it happens to work
+        # because macOS /bin/sh is bash in POSIX mode, and would break the day
+        # anything ran it under dash. stat -f is BSD, which is fine here since
+        # every other line of this script is macOS-only anyway.
+        if [ "$gta" = true ]; then
+          pm=$(stat -f %m "$p" 2>/dev/null || echo 0)
+          if [ -z "$PROFILE" ] || [ "$pm" -gt "$PROFILE_MTIME" ]; then
+            PROFILE="$p"; PROFILE_MTIME="$pm"
+          fi
+        fi ;;
     esac
   done
 fi
