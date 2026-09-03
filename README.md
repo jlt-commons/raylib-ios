@@ -213,6 +213,21 @@ computes the window's rate from the frame times it already sums, which needs
 nothing from raylib and cannot drift. Scenes that draw `GetFPS` every frame,
 which is `raylib.flappy` and `raylib.touch`, were always fine.
 
+Before and after on the same phone, both readings taken on the gallery's card
+screen so the comparison holds one thing constant:
+
+| window | `GetFPS`, once per 300 frames | the window's own rate |
+|---|---|---|
+| 300 | 1757 | 49.6 |
+| 600 | 887 | 58.8 |
+| 900 | 590 | 58.8 |
+| 1200 | 441 | 58.8 |
+| 1800 | 295 | 58.8 |
+
+Mean frame time sat at 17.01 ms across both runs, so 58.8 is the real number.
+The first window reads low rather than high now, which is correct: a 966 ms
+`InitWindow` lands inside it.
+
 The one fair complaint is upstream and small: `raylib.h` documents `GetFPS`
 as "Get current FPS" and never mentions the requirement, so calling it from a
 timer or a summary gives a plausible wrong number rather than an obviously
