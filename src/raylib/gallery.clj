@@ -11,9 +11,14 @@
             [poc.raylib.touch-trail :as trail]
             [raylib.flappy :as flappy-draw]
             [raylib.host :as rl]
+            [raylib.scenes.boids :as boids]
+            [raylib.scenes.fireworks :as fw]
+            [raylib.scenes.kaleidoscope :as kal]
+            [raylib.scenes.penrose :as pen]
             [raylib.scenes.spirograph :as spiro]))
 
-(def scenes [(eyes/scene) (trail/scene) (flappy/scene) (spiro/scene)])
+(def scenes [(eyes/scene) (trail/scene) (flappy/scene)
+             (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -29,9 +34,12 @@
 ;; argument. Hand it category ids and it lays out categories; hand it the ids
 ;; in a category and it lays out those. Same untouched function, twice.
 (def categories
-  [{:id :generative :title "Generative" :scenes [:spirograph]}
-   {:id :toys       :title "Toys"       :scenes [:following-eyes :touch-trail]}
-   {:id :games      :title "Games"      :scenes [:flappy-bird]}])
+  [{:id :generative :title "Generative"
+    :scenes [:spirograph :kaleidoscope :fireworks :penrose]}
+   {:id :toys :title "Toys"
+    :scenes [:following-eyes :touch-trail :boids]}
+   {:id :games :title "Games"
+    :scenes [:flappy-bird]}])
 
 (def ^:private category-ids (mapv :id categories))
 
@@ -105,6 +113,49 @@
         (rl/draw-circle (int ex) (int ey) (double eye-radius) WHITE)
         (rl/draw-circle-lines (int ex) (int ey) (double eye-radius) rl/DARKGRAY)
         (rl/draw-circle (int px) (int py) (double pupil-radius) rl/DARKGRAY)))))
+
+(defmethod draw-scene! :kaleidoscope [_ {:keys [trail]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 12 12 20 255))
+  (doseq [[[x1 y1] [x2 y2] c] (kal/segments (kal/dimensions m) trail)]
+    (rl/draw-line (int x1) (int y1) (int x2) (int y2) (color c))))
+
+(defmethod draw-scene! :fireworks [_ {:keys [rockets parts]} {:keys [m]}]
+  (let [{:keys [rocket-radius particle-radius]} (fw/dimensions m)]
+    (rl/clear-background (rl/rgba 0 0 0 255))
+    (doseq [{:keys [x y color]} rockets]
+      (let [[r g b] color]
+        (rl/draw-circle (int x) (int y) (double rocket-radius) (rl/rgba r g b 255))))
+    (doseq [{:keys [x y life color]} parts]
+      (let [[r g b] color]
+        (rl/draw-circle (int x) (int y) (double particle-radius)
+                        (rl/rgba r g b (int (* 255 (max 0.0 life)))))))))
+
+(defmethod draw-scene! :boids [_ {:keys [flock]} {:keys [m]}]
+  (let [dims (boids/dimensions m)
+        body (:body dims)
+        wing (rl/rgba 120 200 255 255)]
+    (rl/clear-background (rl/rgba 20 20 30 255))
+    (doseq [b flock]
+      (let [[hx hy] (boids/heading b dims)]
+        (rl/draw-line (int (:x b)) (int (:y b)) (int hx) (int hy) wing)
+        (rl/draw-circle (int (:x b)) (int (:y b)) (double body) rl/SKYBLUE)))))
+
+(defmethod draw-scene! :penrose [_ {:keys [tris]} _]
+  (rl/clear-background (rl/rgba 18 18 24 255))
+  ;; one rlgl batch for every fill, then the edges as ordinary lines
+  (rl/rl-begin rl/RL-TRIANGLES)
+  (doseq [[k [ax ay] [bx by] [cx cy]] tris]
+    (let [[r g b a] (if (zero? k) pen/colour-thin pen/colour-thick)]
+      (rl/rl-color-4ub r g b a)
+      (rl/rl-vertex-2f (float ax) (float ay))
+      (rl/rl-vertex-2f (float bx) (float by))
+      (rl/rl-vertex-2f (float cx) (float cy))))
+  (rl/rl-end)
+  (let [edge (color pen/colour-edge)]
+    (doseq [[_ [ax ay] [bx by] [cx cy]] tris]
+      (rl/draw-line (int ax) (int ay) (int bx) (int by) edge)
+      (rl/draw-line (int bx) (int by) (int cx) (int cy) edge)
+      (rl/draw-line (int cx) (int cy) (int ax) (int ay) edge))))
 
 (defmethod draw-scene! :spirograph [_ {:keys [points]} _]
   (rl/clear-background (rl/rgba 0 0 0 255))

@@ -45,6 +45,14 @@
 (ffi/defcfn get-frame-time      "GetFrameTime"      [] :float)
 (ffi/defcfn get-fps             "GetFPS"            [] :int)
 (ffi/defcfn measure-text        "MeasureText"       [:string :int] :int)
+
+;; rlgl immediate mode, for filling polygons raylib's shapes API has no call
+;; for. All four are scalar, so they need none of the by-value machinery.
+(ffi/defcfn rl-begin            "rlBegin"           [:int] :void)
+(ffi/defcfn rl-end              "rlEnd"             [] :void)
+(ffi/defcfn rl-vertex-2f        "rlVertex2f"        [:float :float] :void)
+(ffi/defcfn rl-color-4ub        "rlColor4ub"        [:uint8 :uint8 :uint8 :uint8] :void)
+(def RL-TRIANGLES 0x0004)
 (def FLAG-WINDOW-HIGHDPI 0x2000)
 
 ;; There is deliberately no safe-area-top here. SDL_GetDisplayUsableBounds
