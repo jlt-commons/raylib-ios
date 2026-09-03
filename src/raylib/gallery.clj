@@ -13,7 +13,9 @@
             [raylib.host :as rl]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.epicycles :as epi]
+            [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.pendulum :as pend]
@@ -24,7 +26,8 @@
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
-             (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)])
+             (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
+             (lsys/scene) (flow/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -41,9 +44,9 @@
 ;; in a category and it lays out those. Same untouched function, twice.
 (def categories
   [{:id :generative :title "Generative"
-    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles]}
+    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield]}
    {:id :fractals :title "Fractals"
-    :scenes [:hilbert :tree]}
+    :scenes [:hilbert :tree :lsystem]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars]}
    {:id :games :title "Games"
@@ -192,6 +195,33 @@
       (rl/draw-line (int ax) (int ay) (int bx) (int by) edge)
       (rl/draw-line (int bx) (int by) (int cx) (int cy) edge)
       (rl/draw-line (int cx) (int cy) (int ax) (int ay) edge))))
+
+(defmethod draw-scene! :lsystem [_ {:keys [segments frame]} _]
+  (rl/clear-background (rl/rgba 0 0 0 255))
+  (let [n (lsys/shown frame (count segments))
+        green (rl/rgba 0 228 48 255)]
+    (loop [i 0]
+      (when (< i n)
+        (let [s (nth segments i)]
+          (rl/draw-line (int (nth s 0)) (int (nth s 1)) (int (nth s 2)) (int (nth s 3)) green))
+        (recur (inc i))))))
+
+(defmethod draw-scene! :flowfield [_ {:keys [parts t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 0 0 0 255))
+  (let [n (count parts)]
+    (loop [i 0]
+      (when (< i n)
+        (let [p (nth parts i)
+              trail (:trail p)
+              tn (count trail)
+              [cr cg cb ca] (flow/trail-colour (:angle p))
+              packed (rl/rgba cr cg cb ca)]
+          (loop [j 1]
+            (when (< j tn)
+              (let [a (nth trail (dec j)) b (nth trail j)]
+                (rl/draw-line (int (nth a 0)) (int (nth a 1)) (int (nth b 0)) (int (nth b 1)) packed))
+              (recur (inc j)))))
+        (recur (inc i))))))
 
 (defmethod draw-scene! :hilbert [_ {:keys [points colours]} _]
   (rl/clear-background (rl/rgba 12 12 20 255))

@@ -23,6 +23,21 @@ Five scenes were ported in an afternoon and measured. Two were slow:
 | hilbert | 1023 lines, colours precomputed | 60 |
 | tree | 511 branches, rebuilt each frame for the sway | 59 |
 | stars | 220 circles | 58 |
+| l-system | 1488 static segments, one colour | 59 |
+| flow-field | 90 particles, ~630 segments | 54 |
+
+The last two rows together make the point better than the prose does. The
+L-system draws 1488 segments at 59 fps; the flow field draws roughly 630 and
+managed 32. Segment count is not the variable. What separates them is that the
+L-system's geometry is a vector computed once and its colour is a constant,
+while the flow field steps 130 particles through trigonometry and rebuilds a
+trail vector for each, every frame.
+
+Tuning it took two rounds of the same lesson. The draw loop recomputed each
+particle's field angle for its colour when the step had just computed it;
+carrying the angle on the particle took it from 32 fps to 39. The rest was the
+stepping itself, so the count came down: measured by re-entering the scene at
+each setting, 130 gives 39, 90 gives 54 and 60 gives 59.
 
 Hilbert is the one worth staring at. It draws MORE lines than spirograph and
 runs faster, 1023 at 60 against roughly 1000 at 55, because its curve and its
