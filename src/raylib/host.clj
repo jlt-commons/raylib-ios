@@ -44,16 +44,16 @@
 (ffi/defcfn get-frame-time      "GetFrameTime"      [] :float)
 (ffi/defcfn get-fps             "GetFPS"            [] :int)
 (ffi/defcfn measure-text        "MeasureText"       [:string :int] :int)
-(ffi/defcfn sdl-get-display-usable-bounds "SDL_GetDisplayUsableBounds" [:int :pointer] :int)   ; iOS: the safe area
 (def FLAG-WINDOW-HIGHDPI 0x2000)
 
-(defn- safe-area-top
-  "The status bar / Dynamic Island inset in points, from SDL's usable bounds
-  (an SDL_Rect {int x, y, w, h}; y is the top inset). 0 if SDL cannot say —
-  which it cannot before the window has been laid out (see safe-area-insets)."
-  []
-  (ffi/with-alloc [r 16]
-    (if (zero? (sdl-get-display-usable-bounds 0 r)) (ffi/read r :int 4) 0)))
+;; There is deliberately no safe-area-top here. SDL_GetDisplayUsableBounds
+;; looks like the right call and cannot answer on iOS: it returns
+;; uiscreen.bounds, which knows nothing of safe areas, so its y is always 0.
+;; Measured, on a phone whose real inset is 62 pt: the host printed 0 pt from
+;; SDL while the gallery got 62.0 pt = 186 px by asking UIKit on its first
+;; frame. So :inset-top is handed out as 0 and a scene that needs the inset
+;; asks safe-area-insets itself, from inside the loop, because the insets are
+;; only real once the window has been laid out.
 
 ;; UIEdgeInsets {double top, left, bottom, right}: a four-double HFA, returned in
 ;; registers — the by-value return milestone 0 proved through libffi.
@@ -167,6 +167,11 @@
 (defonce fps-every-frame? (atom false))
 (defonce last-fps (atom nil))
 
+;; Whether to record pre-swap every frame. Off by default: it is two
+;; glGetIntegerv calls, which are synchronous driver queries, in the hot loop
+;; for a value nothing reads unless someone is debugging the drawable binding.
+(defonce record-pre-swap? (atom false))
+
 ;; GL_FRAMEBUFFER_COMPLETE. Anything else means the currently bound framebuffer
 ;; is not a usable render target.
 (def GL-FRAMEBUFFER-COMPLETE 0x8CD5)
@@ -261,9 +266,9 @@
           (sdl-gl-get-drawable-size (sdl-gl-get-current-window) dw dh)
           (println "host:" pw "x" ph "points × scale" k "→ screen" (get-screen-width) "x" (get-screen-height)
                    "drawable" (ffi/read dw :int 0) "x" (ffi/read dh :int 0) "fbo" framebuffer
-                   "safe-area top" (safe-area-top) "pt")))
+                   "(safe area: ask UIKit from inside the loop, not SDL)")))
       ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
-      (loop [state (init {:width w :height h :scale k :inset-top (int (* k (safe-area-top)))}) n 0 sum 0.0 worst 0.0]
+      (loop [state (init {:width w :height h :scale k :inset-top 0}) n 0 sum 0.0 worst 0.0]
         (begin-drawing)
         (when (and framebuffer @bind-drawable?) (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
         (drain-pending!)                        ; main thread, inside the frame
@@ -271,32 +276,18 @@
           (reset! current-state state')
           (when (and colorbuffer @bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
           (when @fps-every-frame? (reset! last-fps (get-fps)))
-          (reset! pre-swap {:framebuffer (gl-int GL-FRAMEBUFFER-BINDING)
-                            :renderbuffer (gl-int GL-RENDERBUFFER-BINDING)})
+          (when @record-pre-swap?
+            (reset! pre-swap {:framebuffer (gl-int GL-FRAMEBUFFER-BINDING)
+                              :renderbuffer (gl-int GL-RENDERBUFFER-BINDING)}))
           (end-drawing)
           (let [dt    (get-frame-time)
                 n     (inc n)
                 sum   (+ sum dt)
                 worst (max worst dt)]
-            ;; fps from this window's own frame times, NOT from GetFPS.
-            ;;
-            ;; raylib's GetFPS is a stateful sampler: each call advances a
-            ;; 30-slot ring by one and writes GetFrameTime()/30 into it, then
-            ;; returns 1/sum-of-ring. That is only a frame rate if it is called
-            ;; every frame, which is how DrawFPS uses it and the only way
-            ;; raylib itself ever calls it. Called once per 300 frames, as this
-            ;; summary used to, n calls fill n slots and it returns
-            ;; 1/(n * frame-time/30) -- so it read 1757, then 887, 590, 441,
-            ;; and decayed toward the truth over the 30 calls it takes to wrap.
-            ;; Measured: that model fits 18 consecutive readings to within
-            ;; 0.76%, and the same binary with Flappy Bird open (which draws
-            ;; GetFPS every frame) reported a steady 59 from the first window.
-            ;;
-            ;; The header says only "Get current FPS" and does not mention the
-            ;; requirement, which is worth an upstream documentation note.
-            ;;
+            ;; fps from this window's own frame times, never from GetFPS:
             ;; sum is 300 frame times in seconds, so 300/sum is exactly the
-            ;; window's frame rate and needs nothing from raylib.
+            ;; window's rate. GetFPS is a per-frame sampler and reading it from
+            ;; a 300-frame summary returns nonsense; see the README.
             (when (zero? (mod n 300))
               (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
                                n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (/ 300.0 sum))))

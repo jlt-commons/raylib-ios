@@ -268,13 +268,18 @@ simulator target.
 
 Two related things about iOS itself, both of which look like rendering bugs:
 
-- **iOS has no default framebuffer.** SDL's `README-ios` requires the
-  drawable FBO bound while rendering and the colour renderbuffer bound at
-  swap. raylib's SDL platform binds neither, so it draws into framebuffer 0,
-  which the simulator accepts and a device rejects. `raylib.host` gets both
-  ids from `SDL_SysWMinfo` and binds them every frame. `rcore_desktop_sdl.c`
-  is one `SDL_GetWindowWMInfo` away from doing this itself, which is worth an
-  upstream issue.
+- **iOS has no default framebuffer, and raylib turns out to cope anyway.**
+  SDL's `README-ios` requires the drawable FBO bound while rendering and the
+  colour renderbuffer bound at swap, and `rcore_desktop_sdl.c` binds neither.
+  The obvious conclusion, which the notebooks drew and this project believed
+  for a day, is that raylib therefore draws into framebuffer 0 and a device
+  shows nothing. It does not. Measured on hardware, both bindings are already
+  correct at swap time whether or not `raylib.host` binds anything, because
+  SDL's own swap path leaves the drawable bound and the binding survives
+  between frames. `raylib.host` binds them anyway, which is a no-op today and
+  cheap insurance against an SDL or raylib that stops doing so. The full
+  measurement, and why the wrong conclusion was so easy to reach, is in
+  [`docs/upstream-findings.md`](docs/upstream-findings.md).
 - **The console is a leash.** `devicectl ... --console` streams stdout, and
   ending that session signals the app: SDL posts `SDL_QUIT`, raylib sets
   `shouldClose`, the loop closes the window, and SDL's delegate deliberately
