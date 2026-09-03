@@ -110,12 +110,8 @@ untouched.
 Carried over from `statonjr/glimmer-ios-demo`, which found them. Listed so they
 are not rediscovered here.
 
-- **The SDL platform never binds SDL's drawable framebuffer.** iOS has no
-  framebuffer 0. SDL's `README-ios` requires `uikit.framebuffer` bound while
-  rendering and `uikit.colorbuffer` at swap, both from `SDL_SysWMinfo`.
-  `rcore_desktop_sdl.c` draws into 0, which the simulator silently accepts and
-  a device rejects. One `SDL_GetWindowWMInfo` after `SDL_GL_CreateContext` and
-  a bind per frame is the whole fix.
+- **The SDL platform never binds SDL's drawable framebuffer.** REFUTED on
+  hardware, 2026-09-03, before it was filed. See below.
 - **`CUSTOMIZE_BUILD` reads `#define SUPPORT_X 0` as ON.** The parser keys on
   the `#define` and ignores the value, so `SUPPORT_CUSTOM_FRAME_CONTROL` and
   `SUPPORT_BUSY_WAIT_LOOP` flip on for anyone who customises anything.
@@ -137,3 +133,57 @@ Called once per 300 frames from this project's host summary it returned 1757,
 then 887, 590, 441 and on down to 98 across ninety seconds, while
 `GetFrameTime` held at 17.02 ms. The model `1/(n * frame-time/30)` fits all
 eighteen readings to within 0.76% with no free parameters. See the README.
+
+## Refuted: raylib does NOT draw into framebuffer 0 on iOS
+
+**Status: not filed, because it is not true.** Recorded because this project
+carried a workaround for it, and because the refutation cost less than the
+report would have.
+
+The notebooks report that raylib's SDL platform never binds SDL's drawable
+framebuffer, so it draws into framebuffer 0, which a device rejects. The code
+reading is correct: `rcore_desktop_sdl.c` contains no `glBindFramebuffer`, no
+`glBindRenderbuffer` and no use of the uikit union, at 6.0 and at master
+`9b2efc45` alike. Its one `SDL_GetWindowWMInfo` call is `GetWindowHandle`,
+fetching a native window pointer, and it reads the `cocoa` union member under
+`__APPLE__` rather than `uikit`.
+
+The conclusion drawn from that reading does not survive contact with a device.
+
+Measured on an iPhone 17 Pro, iOS 26.6.1, SDL 2.32.10, over the app's own
+nREPL, by reading `GL_FRAMEBUFFER_BINDING` and `GL_RENDERBUFFER_BINDING` in the
+frame, immediately before `EndDrawing` calls `SDL_GL_SwapWindow`:
+
+| build | host binding | at swap: framebuffer | at swap: renderbuffer |
+|---|---|---|---|
+| raylib master `9b2efc45` | never binds | 1 | 1 |
+| raylib master `9b2efc45` | binds every frame | 1 | 1 |
+| raylib 6.0 | never binds | 1 | 1 |
+
+SDL reports its drawable as `{:framebuffer 1, :colorbuffer 1}`, so every row is
+already correct and this project's per-frame binding changes nothing. Both of
+`README-ios`'s requirements are satisfied without it: SDL's own swap path leaves
+the drawable bound, and the binding persists frame to frame.
+
+One real difference between versions turned up on the way. Immediately after
+`InitWindow`, before any frame runs, master leaves framebuffer 1 bound and 6.0
+leaves 0. By swap time both read 1, so at most this costs 6.0 a single startup
+frame rendered nowhere, which is invisible in practice.
+
+**Why the notebooks concluded otherwise, most likely.** They were debugging a
+black screen with four independent causes at once, one of which was that the
+iOS simulator has not displayed OpenGL ES since 17.5 and never would have
+regardless. The binding went in among several changes, was harmless, and the
+device runs that followed all carried it. Nothing isolated it.
+
+**The lesson worth keeping**, since it nearly produced a wrong bug report on
+someone else's project: a correct reading of source code is a hypothesis about
+runtime behaviour, not a measurement of it. The tell was cheap and was there to
+be taken all along, which is that the workaround could simply be turned off.
+
+`raylib.host` keeps `bind-drawable?`, defaulting on and settable from launch
+with `RAYLIB_BIND_DRAWABLE=0`, plus `pre-swap` and `initial-framebuffer`. The
+binding is a no-op today and costs two GL calls a frame. It stays because it is
+what `README-ios` actually requires, so a future SDL or raylib that stops
+leaving the drawable bound would break silently without it, and the probes are
+how that gets re-checked in one command.
