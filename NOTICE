@@ -70,28 +70,59 @@ Both are compiled into the app as static archives.
 
 ## Open-source status: BLOCKED, and this is the reason
 
-`src/raylib/host.clj`, `link.clj`, `touch.clj`, `flappy.clj` and `gallery.clj`
-are substantially derived from statonjr/glimmer-ios-demo, whose notebooks this
-project's own `tools/extract-from-notebooks` reads:
+Four files are substantially derived from statonjr/glimmer-ios-demo, whose
+notebooks this project's own `tools/extract-from-notebooks` reads:
 
     https://github.com/statonjr/glimmer-ios-demo
+    verified at 5c7eeb8, 2026-09-03
 
-**That repository carries no licence file.** With no licence, the default is
+**That repository carries no licence file**, at any path, on that ref.
+
+Measured, so the size of the problem is known rather than guessed. Counting
+substantive lines, comments and blank lines excluded:
+
+| our file | lines | also in the demo | of those, also in your MIT glitter-uikit |
+|---|---:|---:|---:|
+| `src/raylib/host.clj`    | 170 | 130 |  0 |
+| `src/raylib/gallery.clj` | 315 |  83 |  0 |
+| `src/raylib/touch.clj`   |  35 |  35 |  0 |
+| `src/raylib/link.clj`    |  16 |  16 |  1 |
+| `src/raylib/probe.clj`   |  53 |   2 |  1 |
+| `src/raylib/objc.clj`    |  32 |  13 | 13 |
+
+The last two rows are already clear. `objc.clj` shares only lines that are also
+in glitter-uikit's own `ffi.clj`, which is MIT and ours, so its provenance runs
+straight to that rather than through the demo. `probe.clj` was written here.
+`src/raylib/scenes/*.cljc` and `src/poc/**` are clean too, being MIT from jasalt
+and zlib from raylib-jlt.
+
+That leaves **264 lines across four files** as the whole of the problem. With no licence, the default is
 ordinary copyright: all rights reserved, and no permission to copy, modify or
 redistribute. So this project cannot be published, relicensed or moved to an
 organisation as it stands, however small the diff or generous the intent.
 
 Three ways forward, in the order they should be tried:
 
-1. **Ask.** A one-line request to add MIT or zlib upstream, which is the
-   convention across the rest of this stack, resolves it completely and costs
-   the author nothing. It is also the only option that keeps the attribution
-   honest.
-2. **Rewrite the derived files** from the public facts rather than from the
-   notebooks: SDL's own README-ios, raylib's headers, and Apple's docs. This is
-   real work and would need to be genuinely independent, not a paraphrase.
+1. **Ask.** A request to add MIT or zlib upstream resolves it completely, costs
+   the author nothing, and is the only option that keeps the attribution
+   honest. The demo is itself built on glitter and glitter-uikit, both MIT and
+   both ours, and it says so warmly throughout its README. Someone writing a
+   demo of your libraries is about as likely to say yes as anyone gets. A draft
+   of the request is in `docs/announcements/licence-request.md`.
+2. **Rewrite those four files** from the public facts rather than from the
+   notebooks: SDL's `docs/README-ios.md`, raylib's headers, Apple's docs, and
+   this project's own device measurements. 264 lines, and the two smallest are
+   near-mechanical, `link.clj` being four `defcfn` declarations of published SDL
+   symbols. `host.clj` is the real work, though we now understand that loop
+   better than the notebooks do, having fixed its frame timing and refuted its
+   framebuffer claim on hardware.
 3. **Stay private.** No obligation is breached by a private repository, and
    this is the status quo.
+
+Note that the demo's own use of glitter-uikit does not itself settle this.
+MIT is a grant, not a trade: it lets him build on our work without obliging him
+to license his own back. It makes option 1 very likely to land. It is not a
+substitute for it.
 
 Until one of those is done, treat this repository as private and unpublishable.
 The presence of a LICENSE file does not change that: a licence grants what the
