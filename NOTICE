@@ -110,8 +110,8 @@ Three ways forward, in the order they should be tried:
    the author nothing, and is the only option that keeps the attribution
    honest. The demo is itself built on glitter and glitter-uikit, both MIT and
    both ours, and it says so warmly throughout its README. Someone writing a
-   demo of your libraries is about as likely to say yes as anyone gets. A draft
-   of the request is in `docs/announcements/licence-request.md`.
+   demo of your libraries is about as likely to say yes as anyone gets. It was sent on
+   2026-09-03 as statonjr/glimmer-ios-demo#1.
 2. **Rewrite those four files** from the public facts rather than from the
    notebooks: SDL's `docs/README-ios.md`, raylib's headers, Apple's docs, and
    this project's own device measurements. 264 lines, and the two smallest are
