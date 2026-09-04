@@ -9,7 +9,7 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of twenty-four scenes (Following Eyes, Touch Trail and
+What runs today: a gallery of twenty-five scenes (Following Eyes, Touch Trail and
 Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
 at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
@@ -59,6 +59,7 @@ off the device. Click for full size.*
   <img src="docs/images/logoanim.gif" width="200" alt="raylib's logo assembling itself">
   <img src="docs/images/life.gif" width="200" alt="Conway's Game of Life">
   <img src="docs/images/automata.gif" width="200" alt="Elementary cellular automata scrolling">
+  <img src="docs/images/easings.gif" width="200" alt="Fifteen easing curves plotted and running together">
 </p>
 
 *And moving, recorded off a live iPhone Mirroring window. The device bezel is

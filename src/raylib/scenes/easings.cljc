@@ -26,9 +26,14 @@
         cols 3
         rows (int (Math/ceil (/ (count ez/curves) (double cols))))
         pad (* 0.02 w)
+        ;; The host draws its Back button over the top-left of whatever a scene
+        ;; put there, and the first cell's label went straight underneath it.
+        ;; Nothing in the contract stops a scene using that corner, so a scene
+        ;; that wants a label there has to leave the room itself.
+        top-margin (* 0.045 h)
         cw (/ (- w (* pad (inc cols))) cols)
-        ch (/ (- h (* pad (inc rows)) (* 0.04 h)) rows)]
-    {:w w :h h :cols cols :rows rows :pad pad
+        ch (/ (- h top-margin (* pad (inc rows)) (* 0.02 h)) rows)]
+    {:w w :h h :cols cols :rows rows :pad pad :top-margin top-margin
      :cell-w cw :cell-h ch
      ;; the plot sits inside its cell with headroom, since two curves overshoot
      :inset-y (* 0.26 ch)
@@ -36,9 +41,9 @@
 
 (defn cell-origin
   "Top-left of cell `i`, reading across then down."
-  [{:keys [cols pad cell-w cell-h]} i]
+  [{:keys [cols pad cell-w cell-h top-margin]} i]
   [(+ pad (* (mod i cols) (+ cell-w pad)))
-   (+ pad (* (quot i cols) (+ cell-h pad)))])
+   (+ top-margin pad (* (quot i cols) (+ cell-h pad)))])
 
 (defn progress
   "Where the shared clock is, in [0,1], with a pause at each end so the

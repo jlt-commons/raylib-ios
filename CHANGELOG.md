@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`easings`, the twenty-fifth scene.** All fifteen easing curves plotted at
+  once, each running a dot on a shared clock so the only differences are the
+  curves. raylib-jlt splits this across three examples; a phone screen holds
+  the lot, and seeing them together is the point.
+- **`raylib.easings`**, the curve library, shared rather than part of the scene
+  for the same reason the upstream examples share one header. Keeps raylib's
+  `(t b c d)` signature deliberately.
 - **Seven more scenes, twenty-four in all.** `life` and `automata`, then
   `colorwheel` and `unitcircle`, then `clock`, `piechart` and `logoanim`. All
   ports from raylib-jlt, and all of them needed resizing for a phone rather
@@ -20,6 +27,11 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **`bounce-in` was inconsistent at a zero duration.** It is defined by
+  reflecting `bounce-out`, and the reflection inverts that degenerate case:
+  every other curve reads `d=0` as finished and returns `b+c` where `bounce-in`
+  returned `b`. A caller cannot know which curve it is holding, so it is
+  special-cased.
 - **Scenes drew under the Dynamic Island and the home indicator.** The insets
   had been read since the beginning and only `:top` was used, and only for the
   gallery's own cards. A scene is now handed metrics whose screen IS the safe

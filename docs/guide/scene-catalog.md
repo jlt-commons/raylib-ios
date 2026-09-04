@@ -1,8 +1,8 @@
 # The scenes
 
-Twenty-four, in four categories. Three come byte-identical from
+Twenty-five, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other twenty-one are ports from
+with their sha256 verified, and the other twenty-two are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -47,6 +47,7 @@ that were tuned to get there.
 | Clock | 42 rectangles | 59 | libc `time()` through the FFI |
 | Pie Chart | 186 vertices | 58 | segments sized per wedge |
 | raylib Logo | 4 rectangles and a word | 58 | nothing eased, on purpose |
+| Easings | 405 lines and 15 dots | 58 | all fifteen curves on one clock |
 
 ## Games
 
