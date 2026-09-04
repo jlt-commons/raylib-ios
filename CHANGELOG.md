@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`gradient`**, thirty-eight in all. The original draws one vertical band and
+  calls itself a check that two by-value Colors survive one FFI call, which does
+  not apply here since colours cross packed into a uint. So it grew into what the
+  technique is actually for: raylib spends three entry points on this shape, V, H
+  and Ex, and one rlgl quad with a colour per vertex covers all three, because a
+  vertical gradient is the four-corner case with the top pair equal. Four bands,
+  the last one turning so the interpolation is visible as motion.
 - **Three more, thirty-seven in all.** `clockgrid`, `sector` and `palette`, all
   from raylib-jlt and all reusing the rlgl helpers added for the analog clock
   rather than needing new FFI.

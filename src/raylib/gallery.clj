@@ -28,6 +28,7 @@
             [raylib.scenes.clockgrid :as cgrid]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.palette :as pal]
+            [raylib.scenes.gradient :as grad]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -62,7 +63,8 @@
              (ease/scene)
              (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
-             (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)])
+             (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)
+             (grad/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -87,7 +89,7 @@
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
-             :analog :clockgrid :sector :palette]}
+             :analog :clockgrid :sector :palette :gradient]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -1196,3 +1198,19 @@
         (rl/draw-text (str r " " g " " b)
                       (int (+ x (* 0.06 w))) (int (+ y swatch-h (* 0.12 label-size)))
                       (max 14 (int (* 0.8 label-size))) (rl/rgba 150 150 160 255))))))
+
+(defmethod draw-scene! :gradient [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 18 18 24 255))
+  (let [{:keys [label-size] :as d} (grad/dimensions m)
+        labels ["vertical, top pair equal"
+                "horizontal, left pair equal"
+                "four corners, all different"
+                "and turning, so it is per pixel"]]
+    (dotimes [i grad/bands]
+      (let [[x y w h] (grad/band-rect d i)
+            [tl tr br bl] (grad/corners i t)
+            col (fn [hue] (let [[r g b] (grad/hsv->rgb hue)] (rl/rgba r g b 255)))]
+        (rl/draw-gradient-quad x y w h (col tl) (col tr) (col br) (col bl))
+        (rl/draw-text (nth labels i)
+                      (int (+ x (* 0.03 w))) (int (+ y (* 0.04 h)))
+                      label-size (rl/rgba 255 255 255 220))))))

@@ -202,6 +202,30 @@
         (rl-vertex-2f (float x1o) (float y1o))))
     (rl-end)))
 
+(defn draw-gradient-quad
+  "A rectangle with an independent colour at each corner.
+
+  raylib spends three entry points on this: DrawRectangleGradientV,
+  GradientH and GradientEx, the first two taking two by-value Colors and the
+  third taking four. One rlgl quad with a colour per vertex covers all three,
+  because a vertical gradient is just the four-corner case with the top pair
+  equal.
+
+  Winding matters here for the reason draw-ring documents. The naive corner
+  order tl, tr, br gives a positive cross product and is culled; tl, br, tr is
+  the same triangle wound so it survives."
+  [x y w h c-tl c-tr c-br c-bl]
+  (let [x0 (double x) y0 (double y)
+        x1 (+ x0 (double w)) y1 (+ y0 (double h))
+        emit (fn [colour vx vy]
+               (let [[r g b a] (unpack colour)]
+                 (rl-color-4ub r g b a)
+                 (rl-vertex-2f (float vx) (float vy))))]
+    (rl-begin RL-TRIANGLES)
+    (emit c-tl x0 y0) (emit c-br x1 y1) (emit c-tr x1 y0)
+    (emit c-tl x0 y0) (emit c-bl x0 y1) (emit c-br x1 y1)
+    (rl-end)))
+
 (defn draw-line-ex
   "A line `thick` pixels wide, as one rlgl quad.
 

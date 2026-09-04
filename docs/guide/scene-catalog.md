@@ -1,8 +1,8 @@
 # The scenes
 
-Thirty-seven, in four categories. Three come byte-identical from
+Thirty-eight, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other thirty-four are ports from
+with their sha256 verified, and the other thirty-five are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -59,6 +59,7 @@ that were tuned to get there.
 | Clock of Clocks | 144 bezels, 288 hands | 59 | the time spelled by little clock faces |
 | Circle Sector | one sector, 1-36 segments | 58 | raylib's own segment floor, demonstrated |
 | Colours | 25 swatches | 58 | every colour raylib names |
+| Gradients | 4 quads, 8 vertices | 58 | one rlgl quad covers raylib's three calls |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games
