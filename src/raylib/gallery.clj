@@ -20,6 +20,9 @@
             [raylib.scenes.angles :as ang]
             [raylib.scenes.balls :as balls]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.bullets :as bull]
+            [raylib.scenes.collision :as coll]
+            [raylib.scenes.dashed :as dash]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -52,7 +55,8 @@
              (wheel/scene) (circle/scene)
              (clock/scene) (pie/scene) (logo/scene)
              (ease/scene)
-             (ang/scene) (writ/scene) (balls/scene) (seqn/scene)])
+             (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
+             (bull/scene) (coll/scene) (dash/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -70,13 +74,13 @@
 (def categories
   [{:id :generative :title "Generative"
     :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield
-             :lorenz :life]}
+             :lorenz :life :bullets]}
    {:id :fractals :title "Fractals"
     :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
-             :angles :writing :balls :sequence]}
+             :angles :writing :balls :sequence :collision :dashed]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -483,6 +487,26 @@
    :width  (- w left right)
    :height (- h top bottom)})
 
+(defn- into-safe-region
+  "The pointer, expressed in the coordinates the scene believes it is drawing in.
+
+  A scene is handed the safe region as its whole screen and the host translates
+  its drawing into place, so a scene's y of 0 is the screen's y of `top`. The
+  pointer has to make the same journey or the two disagree: an untranslated
+  touch at screen y 1500 reaches a scene that thinks its screen starts at 0, and
+  whatever it draws there appears 186 pixels below the finger that asked for it.
+
+  This is `below-the-safe-area` run backwards. That function moves rectangles
+  the host computed down into the safe region; this moves a point the hardware
+  reported up out of it.
+
+  Verified on device before the fix: a tap at screen [600 1500] arrived at the
+  scene as [600 1500] with a top inset of 186."
+  [input {:keys [x y]}]
+  (if-let [[px py] (get-in input [:pointer :position])]
+    (assoc-in input [:pointer :position] [(- px x) (- py y)])
+    input))
+
 (defn- visible-ids
   "The ids this level lays out: the categories at the top, or one category's
   scenes inside it. In :scene mode nothing but the Back target is read from the
@@ -591,7 +615,7 @@
                         (within? (:back layout) point))
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
         input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
-        scene-input (assoc input :metrics scene-m)
+        scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
         gstate (-> (if opening?
                      (gallery/open-scene registry gstate hit scene-input)
                      (gallery/run-frame registry gstate scene-input))
@@ -933,3 +957,37 @@
                            (int (- bw 2))
                            (int height)
                            (rl/rgba r g b 255))))))
+
+(defmethod draw-scene! :bullets [_ {:keys [bullets]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 15 15 30 255))
+  (let [d (bull/dimensions m)
+        gold (rl/rgba 255 203 0 255)
+        r (:radius d)]
+    (doseq [b bullets]
+      (rl/draw-circle (int (:x b)) (int (:y b)) r gold))
+    (rl/draw-circle (int (:cx d)) (int (:cy d)) (* 2.4 r) (rl/rgba 230 41 55 255))))
+
+(defmethod draw-scene! :collision [_ {:keys [x target touching?]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (coll/dimensions m)
+        a (coll/slider-box d x)
+        b (coll/finger-box d target)
+        box! (fn [[bx by bw bh] c]
+               (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) c))]
+    (box! a (rl/rgba 102 191 255 255))
+    (box! b (rl/rgba 255 203 0 255))
+    (when-let [ov (coll/intersection a b)]
+      (box! ov (rl/rgba 230 41 55 255)))
+    (rl/draw-text (if touching? "dragging" "drag a finger over the blue box")
+                  (int (* 0.06 (:w d))) (int (* 0.88 (:h d)))
+                  (max 20 (int (* 0.035 (:w d)))) (rl/rgba 80 80 80 255))))
+
+(defmethod draw-scene! :dashed [_ {:keys [target]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (dash/dimensions m)
+        maroon (rl/rgba 190 33 55 255)]
+    (doseq [seg (dash/dashes d target)]
+      (stroke! (int (nth seg 0)) (int (nth seg 1))
+               (int (nth seg 2)) (int (nth seg 3)) maroon))
+    (rl/draw-circle (int (:cx d)) (int (:cy d)) (:hub d) (rl/rgba 80 80 80 255))
+    (rl/draw-circle (int (first target)) (int (second target)) (* 0.6 (:hub d)) maroon)))

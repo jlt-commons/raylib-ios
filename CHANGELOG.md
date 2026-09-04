@@ -6,6 +6,31 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Three more, thirty-two in all.** `bullets` (a three-armed spiral of
+  straight lines), `collision` (an overlap that follows a finger) and `dashed`
+  (a dashed line to wherever you touch). The last two are the first scenes here
+  that read the pointer for themselves.
+
+### Fixed
+
+- **The pointer now arrives in the coordinates a scene draws in.** Scenes are
+  handed the safe region as their whole screen and the host translates their
+  drawing into place, but the touch coordinates were still being passed through
+  measured from the top of the physical screen. A tap at screen y 1500 reached
+  the scene as 1500 rather than 1314, so anything drawn under a finger appeared
+  186 pixels below it. The gallery's own hit-testing was never affected, since
+  it compares a screen point against a layout already moved into screen
+  coordinates, which is why this survived until a scene first wanted a finger.
+  See [the safe area](docs/guide/the-safe-area.md).
+
+### Changed
+
+- **`bullets` flies at 8 rather than 4.** A faster bullet spends fewer frames on
+  screen, so the settled count halves from 693 to 349 and the scene goes from 38
+  to 59 fps. The cost was never the drawing: emptying the draw method entirely
+  moved 700 bullets from 35 to 43 fps and swapping circles for squares moved it
+  to 39, so it is `advance` rebuilding one map per bullet per frame that pays.
+
 - **Four more, twenty-nine in all.** `angles` (a ring of spokes and one that
   turns), `writing` (a message typing itself), `balls` (gravity and bouncing)
   and `sequence` (a shuffled permutation of bar heights).

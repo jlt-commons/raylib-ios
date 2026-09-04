@@ -66,6 +66,31 @@ clearing to its own background colour clears only the safe region, and the bands
 above and below keep whatever the gallery drew there. That is the behaviour you
 want and it is not obvious from the name.
 
+**The pointer has to make the same journey.** Moving the drawing is only half
+of it. A scene told its screen is the safe region believes its own y of 0 is the
+top of that region, but the touch coordinates raylib reports are still measured
+from the top of the physical screen. Leave them alone and the two disagree by
+exactly the inset: a tap at screen y 1500 arrives at a scene that thinks its
+screen starts at 0, so whatever it draws under the finger appears 186 pixels
+below it.
+
+So the input gets the mirror of what the layout gets. `below-the-safe-area`
+moves rectangles the host computed down into the region, and `into-safe-region`
+moves a point the hardware reported up out of it:
+
+```clojure
+(defn- into-safe-region [input {:keys [x y]}]
+  (if-let [[px py] (get-in input [:pointer :position])]
+    (assoc-in input [:pointer :position] [(- px x) (- py y)])
+    input))
+```
+
+This one hid for a while, because for a long time no scene read the pointer at
+all. The gallery's own hit-testing was never affected: it compares a screen
+point against a layout already moved into screen coordinates, so both sides were
+consistently wrong together and cancelled out. The bug only became reachable
+when a scene first wanted a finger for itself.
+
 ## What it exposed
 
 Sizing the automaton against the safe region immediately showed a second bug the
@@ -86,5 +111,9 @@ The pieces are small and none of them are specific to this project:
   answer.
 - Give the drawing code a region rather than a screen.
 - Translate and clip around it.
+- Translate the pointer the other way, so input and output agree.
 
-The whole thing is about forty lines across `raylib.host` and `raylib.gallery`.
+The whole thing is about sixty lines across `raylib.host` and `raylib.gallery`:
+45 in `safe-region`, `below-the-safe-area`, `into-safe-region` and
+`safe-area-pixels`, five one-line FFI bindings for the matrix stack and the
+scissor, and the handful of call sites that use them.

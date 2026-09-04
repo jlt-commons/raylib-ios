@@ -42,6 +42,9 @@
                      raylib.scenes.angles-test
                      raylib.scenes.automata-test
                      raylib.scenes.balls-test
+                     raylib.scenes.bullets-test
+                     raylib.scenes.collision-test
+                     raylib.scenes.dashed-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test

@@ -1,8 +1,8 @@
 # The scenes
 
-Twenty-nine, in four categories. Three come byte-identical from
+Thirty-two, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other twenty-six are ports from
+with their sha256 verified, and the other twenty-nine are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -22,6 +22,7 @@ that were tuned to get there.
 | Flow Field | 90 particles, 8-point trails | 54 | the first port the budget bit |
 | Lorenz | 450 lines, re-projected each frame | 58 | see the sweep in [performance](performance-on-a-phone.html) |
 | Life | 1470 rectangles falling to ~670 | 59 | reseeds itself when the board stalls |
+| Bullet Spiral | ~350 circles | 59 | the count is bounded by how fast a bullet leaves |
 
 ## Fractals
 
@@ -37,7 +38,7 @@ that were tuned to get there.
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
 | Following Eyes | 6 circles | 59 | **byte-identical** from the Android experiment |
-| Touch Trail | ~40 circles | 59 | **byte-identical**; the only scene that wants a finger |
+| Touch Trail | ~40 circles | 59 | **byte-identical**; the first scene here that wanted a finger |
 | Boids | 2025 distance tests, 90 draws | 52 | the cheapest drawing and the dearest thinking |
 | Double Pendulum | ~200 trail points | 59 | chaotic, so it never repeats |
 | Starfield | ~300 points | 58 | seeded |
@@ -52,6 +53,8 @@ that were tuned to get there.
 | Writing | a few lines of text | 58 | the only scene that animates text |
 | Ball Physics | 9 circles | 58 | restarts when everything settles |
 | Random Sequence | 24 rectangles | 57 | a permutation, not independent draws |
+| Collision Area | 3 rectangles | 59 | follows a finger, and drifts without one |
+| Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games
 
@@ -71,7 +74,7 @@ they were written against never mentions a platform: a scene is `:init`,
 lives in `raylib.gallery`'s drawing methods instead.
 
 That is the whole argument for the split, and it is the reason the other
-twenty-one ports were mechanical rather than rewrites. See
+twenty-four ports were mechanical rather than rewrites. See
 [porting an example](porting-an-example.html) for what a port actually involves.
 
 ## Adding one

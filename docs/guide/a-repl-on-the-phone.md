@@ -122,6 +122,33 @@ DEV_BUILD=1 UDID=<udid> sh tools/ios/live.sh
 The cost is negligible. A `--dev` build held a mean frame time of 17.05 ms
 against release's 17.02.
 
+What makes this genuinely dangerous is that it is selective, so some of what you
+redefine really does take effect and you learn to trust the session. A
+`defmethod` works on a release build, because dispatch is a lookup in a table at
+call time and a new method replaces the entry. A `def` holding a literal does
+not, because it was folded into its callers when they were compiled.
+
+Sitting next to each other in one session, that asymmetry is very hard to see:
+
+```clojure
+;; this took: the scene visibly changed, and the frame rate with it
+(defmethod draw-scene! :bullets [_ {:keys [bullets]} {:keys [m]}] ...)
+
+;; this did not, on a release build
+(in-ns 'raylib.scenes.bullets)
+(def speed 8.0)
+
+;; and here is the convincing wrong answer
+raylib.scenes.bullets/speed                        ;=> 8.0
+(mapv :vx (raylib.scenes.bullets/emit origin 0.0)) ;=> [4.0 -2.0 -2.0]
+```
+
+The var says 8.0. `emit` still uses 4.0. A sweep over four values of `speed`
+built on that read measured the same unchanged scene four times and produced a
+flat line, which looked like a real result rather than a broken probe. The tell
+was reading back a value the var should have determined, rather than the var
+itself: check the effect, never the definition.
+
 ## What it is not
 
 This is a development tool and not a shipping feature. App Store rule 2.5.2
