@@ -7,7 +7,7 @@
   <div class="hero-inner">
     <h1>raylib on an iPhone, from Clojure</h1>
     <p class="tagline">
-      A gallery of thirty-two scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
+      A gallery of thirty-four scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
       drawn by raylib 6.0 over SDL2, driven by <strong>Jolt</strong> (Clojure on
       Chez Scheme) as threaded portable bytecode. No JIT, nothing generated at
       run time, and no dependencies.
@@ -110,7 +110,7 @@ flowchart LR
       <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
       experiment</a>, sha256 verified, and were written for a different platform
       entirely, along with three more namespaces carrying the scene contract
-      itself. The other twenty-nine are ports from
+      itself. The other thirty-one are ports from
       <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
     </p>
     <div class="demo-grid">
@@ -211,6 +211,14 @@ flowchart LR
         <figcaption>random sequence &middot; a permutation, not draws</figcaption>
       </a>
       <a class="demo" href="{{site-base}}/guide/scene-catalog.html">
+        <img src="{{site-base}}/images/analog.gif" alt="An analog clock face with bezel, sixty ticks and three sweeping hands" loading="lazy" width="480">
+        <figcaption>analog &middot; rlgl stands in for DrawRing</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/multitouch.png">
+        <img src="{{site-base}}/images/thumbs/multitouch.png" alt="Four fingers on the screen, each drawn in its own colour with its raylib id" loading="lazy" width="480">
+        <figcaption>multitouch &middot; four real fingers, four ids</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/scene-catalog.html">
         <img src="{{site-base}}/images/bullets.gif" alt="A three-armed spiral of gold bullets leaving a red emitter" loading="lazy" width="480">
         <figcaption>bullets &middot; straight lines from a turning source</figcaption>
       </a>
@@ -243,8 +251,12 @@ flowchart LR
         <figcaption>touch-trail &middot; unchanged from Android</figcaption>
       </a>
       <a class="demo" href="{{site-base}}/images/gallery.png">
-        <img src="{{site-base}}/images/thumbs/gallery.png" alt="The category screen" loading="lazy" width="480">
-        <figcaption>the gallery &middot; two levels</figcaption>
+        <img src="{{site-base}}/images/thumbs/gallery.png" alt="The category screen, showing Generative, Fractals, Toys and Games" loading="lazy" width="480">
+        <figcaption>the gallery &middot; four categories</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/images/gallery-scenes.png">
+        <img src="{{site-base}}/images/thumbs/gallery-scenes.png" alt="The scene list inside Toys, twenty cards in two columns" loading="lazy" width="480">
+        <figcaption>and inside one &middot; twenty scenes under Toys</figcaption>
       </a>
     </div>
     <p>

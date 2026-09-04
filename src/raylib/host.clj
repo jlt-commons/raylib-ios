@@ -156,6 +156,67 @@
     (let [tm (c-localtime t)]
       [(ffi/read tm :int 8) (ffi/read tm :int 4) (ffi/read tm :int 0)])))
 
+(defn- unpack
+  "The four bytes of a packed colour, for the rlgl calls that take them apart."
+  [c]
+  [(bit-and c 0xff) (bit-and (bit-shift-right c 8) 0xff)
+   (bit-and (bit-shift-right c 16) 0xff) (bit-and (bit-shift-right c 24) 0xff)])
+
+(defn draw-ring
+  "A filled annulus from `inner` to `outer` over [start-deg, end-deg].
+
+  raylib's own DrawRing takes its centre as a Vector2 by value, and so does
+  DrawLineEx below. Rather than add two more by-value paths to the FFI, both are
+  built here out of the rlgl primitives already bound for the colour wheel, which
+  is exactly what raylib-jlt does upstream and for the same reason.
+
+  Angles are degrees, zero pointing up and increasing clockwise, which is the
+  convention a clock face wants."
+  [cx cy inner outer start-deg end-deg segments colour]
+  (let [[r g b a] (unpack colour)
+        span (- (double end-deg) start-deg)
+        pt (fn [deg rad]
+             (let [t (Math/toRadians (double deg))]
+               [(+ cx (* rad (Math/sin t))) (- cy (* rad (Math/cos t)))]))]
+    (rl-begin RL-TRIANGLES)
+    (rl-color-4ub r g b a)
+    (dotimes [k segments]
+      (let [d0 (+ start-deg (* span (/ (double k) segments)))
+            d1 (+ start-deg (* span (/ (double (inc k)) segments)))
+            [x0i y0i] (pt d0 inner) [x0o y0o] (pt d0 outer)
+            [x1i y1i] (pt d1 inner) [x1o y1o] (pt d1 outer)]
+        ;; two front-wound triangles per segment
+        (rl-vertex-2f (float x0i) (float y0i))
+        (rl-vertex-2f (float x0o) (float y0o))
+        (rl-vertex-2f (float x1o) (float y1o))
+        (rl-vertex-2f (float x0i) (float y0i))
+        (rl-vertex-2f (float x1o) (float y1o))
+        (rl-vertex-2f (float x1i) (float y1i))))
+    (rl-end)))
+
+(defn draw-line-ex
+  "A line `thick` pixels wide, as one rlgl quad.
+
+  draw-line is a hairline at this pixel density, which is why the gallery has a
+  stroke! that draws three offset copies. A clock hand wants real width rather
+  than three lines, so this offsets perpendicular to the direction instead."
+  [x1 y1 x2 y2 thick colour]
+  (let [[r g b a] (unpack colour)
+        dx (- (double x2) x1) dy (- (double y2) y1)
+        len (Math/sqrt (+ (* dx dx) (* dy dy)))]
+    (when (pos? len)
+      (let [h (/ (double thick) 2.0)
+            px (* h (/ dy len)) py (* h (/ (- dx) len))]
+        (rl-begin RL-TRIANGLES)
+        (rl-color-4ub r g b a)
+        (rl-vertex-2f (float (+ x1 px)) (float (+ y1 py)))
+        (rl-vertex-2f (float (- x1 px)) (float (- y1 py)))
+        (rl-vertex-2f (float (- x2 px)) (float (- y2 py)))
+        (rl-vertex-2f (float (+ x1 px)) (float (+ y1 py)))
+        (rl-vertex-2f (float (- x2 px)) (float (- y2 py)))
+        (rl-vertex-2f (float (+ x2 px)) (float (+ y2 py)))
+        (rl-end)))))
+
 (defn rgba [r g b a] (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left a 24)))
 (def RAYWHITE  (rgba 245 245 245 255))
 (def LIGHTGRAY (rgba 200 200 200 255))

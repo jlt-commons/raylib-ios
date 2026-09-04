@@ -6,6 +6,44 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Two more, thirty-four in all.** `multitouch` and `analog`, both from
+  raylib-jlt.
+- **`multitouch` does what its original documented itself as unable to do.**
+  The desktop example reads point zero through the scalar `GetTouchX` and
+  `GetTouchY` pair, because `GetTouchPosition` returns a Vector2 by value and
+  the desktop binding set had no path for it. Its docstring calls that the
+  honest limit. A phone is the machine the example was written about, we already
+  bind the by-value return, so this draws every finger with its own id, colour
+  and trail. Trails are keyed by touch id rather than list index: raylib does
+  not promise ids are 0..n-1, and when a middle finger lifts the survivors shift
+  down an index, which would make two fingers swap trails.
+
+  Colours come from a slot rather than from the id, which real hardware forced.
+  iOS derives touch ids from object pointers, so they are 8-byte aligned: four
+  fingers reported 809313472, 809313920, 809314368 and 809317952 in one run and
+  809133248, 809134144, 809136832, 809137728 in another, and 163292352 onward
+  after a relaunch put them in a different address range. Every one divisible by
+  8. `(mod id 8)` sent all four to the same entry and every finger drew in the
+  same blue. No hash fixes it either. With eight colours and four fingers even a
+  perfectly uniform hash puts them in distinct slots only 8/8 x 7/8 x 6/8 x 5/8
+  of the time, which is 41%, and a murmur3 finalizer measured exactly that. So
+  the lowest free slot is assigned instead, which is exact rather than
+  probabilistic for up to eight simultaneous touches.
+- **`raylib.host/draw-ring` and `draw-line-ex`**, built from the rlgl primitives
+  already bound for the colour wheel rather than as new FFI. raylib's own
+  `DrawRing` and `DrawLineEx` take their points as by-value Vector2, and
+  raylib-jlt solves it the same way upstream for the same reason.
+
+### Fixed
+
+- **The analog clock's second hand jittered backward mid-second.** Its
+  sub-second fraction accumulated frame deltas and wrapped on its own schedule,
+  which drifts against the clock it subdivides. Measured on device: at second 12
+  the fraction ran .60 .68 .75 .81 .88 .95 and then wrapped to .02 while the
+  second was still 12, so the hand jumped back 5.6 degrees and forward again at
+  the tick. It is now re-phased to zero whenever the second changes, and the
+  test asserts the hand never moves backward across a run of ticks.
+
 - **Three more, thirty-two in all.** `bullets` (a three-armed spiral of
   straight lines), `collision` (an overlap that follows a finger) and `dashed`
   (a dashed line to wherever you touch). The last two are the first scenes here
@@ -18,10 +56,14 @@ Notable changes, newest first. Dates are the day the work landed.
   drawing into place, but the touch coordinates were still being passed through
   measured from the top of the physical screen. A tap at screen y 1500 reached
   the scene as 1500 rather than 1314, so anything drawn under a finger appeared
-  186 pixels below it. The gallery's own hit-testing was never affected, since
-  it compares a screen point against a layout already moved into screen
-  coordinates, which is why this survived until a scene first wanted a finger.
-  See [the safe area](docs/guide/the-safe-area.md).
+  186 pixels below it.
+
+  This was a regression the safe-area change introduced nine commits earlier the
+  same day, not a latent bug. `touch-trail` and `following-eyes` have read the
+  pointer since the first commit here, and both were silently broken by it. The
+  gallery's own hit-testing was never affected, since it compares a screen point
+  against a layout already moved into screen coordinates, so the app kept
+  feeling fine. See [the safe area](docs/guide/the-safe-area.md).
 
 ### Changed
 

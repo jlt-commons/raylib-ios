@@ -121,6 +121,61 @@ picture through ninety degrees, and the maths is untouched: what changed is
 which axis carries time, and therefore which coordinate of the pen the trace
 records. Worth expecting one of these per handful of ports.
 
+## Sometimes the phone can do what the original could not
+
+Most ports lose something to the smaller screen. `multitouch` is the one that
+gains, and it is worth knowing the shape of that case because it is easy to port
+the limitation along with the code.
+
+The desktop original says plainly what it cannot do. `GetTouchPosition` returns
+a Vector2 by value, the desktop binding set had no path for that, so it reads
+point zero through the scalar `GetTouchX` and `GetTouchY` pair. Its own docstring
+calls this the honest limit: the ids of every point visible, the coordinates of
+only the first. Transcribing it faithfully would have reproduced a workaround for
+a problem this project does not have.
+
+So read the original's docstrings for what they concede, not only for what they
+describe.
+
+## What only a real device will tell you
+
+The multi-finger path cannot be exercised from a REPL. `tap!` synthesises exactly
+one point by construction, so every synthetic test passes on a code path that
+has never seen two fingers. It took a person putting four on the glass.
+
+That found a bug no amount of local testing would have. Colours were keyed off
+the raylib touch id, `(mod id 8)` into an eight-entry palette. iOS derives those
+ids from object pointers, so every one is 8-byte aligned. Two separate runs
+reported:
+
+```
+809313472  809313920  809314368  809317952     stride 448
+809133248  809134144  809136832  809137728     stride 896
+163292352  163292800  163294592                after a relaunch
+```
+
+Every value divisible by 8, so all four fingers landed on slot 0 and drew in the
+same blue. Shifting the alignment away does not help, because the strides are
+themselves multiples of 8.
+
+The third run is the useful one for deciding what to rely on. It sits in a
+different address range because the app had restarted, so neither the magnitude
+nor the spacing survives a relaunch. The alignment is the only invariant, and it
+is the one that broke things.
+
+The instructive part is what happened next. The obvious fix is a better hash, and
+a tuned one scored 100% on synthetic strides, which turned out to measure the
+regularity of the test inputs rather than the quality of the hash. A proper
+murmur3 finalizer then scored a flat 41% at every stride, and that number is the
+answer: 8/8 x 7/8 x 6/8 x 5/8 is 41%, the chance four items land in four
+different buckets out of eight. The hash was already ideal and still collided
+most of the time, because with four fingers and eight colours collisions are the
+birthday problem, not a hashing defect.
+
+Assigning the lowest unused slot is exact for up to eight simultaneous touches.
+No hash needed. When a measurement comes out at exactly the theoretical value,
+that usually means the approach is finished rather than that the tuning is.
+
 ## Wiring it in
 
 Three edits, all in `raylib.gallery`:

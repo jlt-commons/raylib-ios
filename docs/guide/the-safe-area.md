@@ -34,11 +34,13 @@ SDL cannot help here, incidentally. `SDL_GetDisplayUsableBounds` looks like
 exactly the right call and returns `uiscreen.bounds`, which knows nothing about
 safe areas. Measured on a phone whose real inset is 62 points, SDL reported 0.
 
-## The fix, without touching nineteen draw methods
+## The fix, without touching every draw method
 
 The obvious approach is to pass the insets to every scene and have each one
-offset its own drawing. That is nineteen edits, nineteen chances to get an
-offset wrong, and every future scene inherits the obligation.
+offset its own drawing. That was nineteen edits when this was written and is
+thirty-four now, which is the argument rather than a footnote to it: the count
+only ever grows, every one is a chance to get an offset wrong, and every future
+scene inherits the obligation.
 
 rlgl already has the machinery. raylib's 2D shape calls go through its immediate
 mode, so the current MODELVIEW matrix applies to them:
@@ -85,11 +87,22 @@ moves a point the hardware reported up out of it:
     input))
 ```
 
-This one hid for a while, because for a long time no scene read the pointer at
-all. The gallery's own hit-testing was never affected: it compares a screen
-point against a layout already moved into screen coordinates, so both sides were
-consistently wrong together and cancelled out. The bug only became reachable
-when a scene first wanted a finger for itself.
+This was a regression introduced by the safe-area fix itself, which is worth
+being precise about because the comfortable version of the story is wrong.
+
+`touch-trail` and `following-eyes` have read the pointer since the first commit
+in this repo. Moving scene drawing into the safe region without moving the
+pointer with it broke both of them, and they stayed broken for nine commits on
+the same day before three new touch scenes made it obvious. Nobody re-ran the
+two scenes that already depended on the thing being changed.
+
+The gallery's own hit-testing was never affected, which is why the app kept
+feeling fine. It compares a screen point against a layout already moved into
+screen coordinates, so both sides were wrong together and cancelled out.
+
+A fix that moves a coordinate system has to move everything expressed in it. The
+tell here was that the change touched output and left input alone, and there was
+no test that put a finger somewhere and asserted what got drawn there.
 
 ## What it exposed
 

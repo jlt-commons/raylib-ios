@@ -1,8 +1,8 @@
 # The scenes
 
-Thirty-two, in four categories. Three come byte-identical from
+Thirty-four, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other twenty-nine are ports from
+with their sha256 verified, and the other thirty-one are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -54,6 +54,8 @@ that were tuned to get there.
 | Ball Physics | 9 circles | 58 | restarts when everything settles |
 | Random Sequence | 24 rectangles | 57 | a permutation, not independent draws |
 | Collision Area | 3 rectangles | 59 | follows a finger, and drifts without one |
+| Multitouch | a circle and trail per finger | 58 | every point, not just point zero |
+| Analog Clock | a ring, 60 ticks, 3 hands | 59 | rlgl stands in for the by-value Vector2 calls |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games
@@ -73,8 +75,10 @@ they were written against never mentions a platform: a scene is `:init`,
 `:update`, `:draw` and `:dispose` over immutable state, and every raylib call
 lives in `raylib.gallery`'s drawing methods instead.
 
-That is the whole argument for the split, and it is the reason the other
-twenty-four ports were mechanical rather than rewrites. See
+That is the whole argument for the split, and it is the reason most of the
+ports were transcription rather than rewrites. Not all of them: several needed
+resizing for a phone, and `multitouch` does something its original could not.
+See
 [porting an example](porting-an-example.html) for what a port actually involves.
 
 ## Adding one

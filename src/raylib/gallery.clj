@@ -23,6 +23,8 @@
             [raylib.scenes.bullets :as bull]
             [raylib.scenes.collision :as coll]
             [raylib.scenes.dashed :as dash]
+            [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.analog :as analog]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -56,7 +58,8 @@
              (clock/scene) (pie/scene) (logo/scene)
              (ease/scene)
              (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
-             (bull/scene) (coll/scene) (dash/scene)])
+             (bull/scene) (coll/scene) (dash/scene) (multi/scene)
+             (analog/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -80,7 +83,8 @@
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
-             :angles :writing :balls :sequence :collision :dashed]}
+             :angles :writing :balls :sequence :collision :dashed :multitouch
+             :analog]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -170,23 +174,46 @@
 (defn- raw-sample
   "A frame's input, from a queued tap if one is waiting and from the screen
   otherwise. A tap wins because it exists to drive the app with no finger
-  present, and taking both would double-count the press."
+  present, and taking both would double-count the press.
+
+  Returns `[raw tap]`. The tap comes back out because this is the only place it
+  is consumed, and `touch-points` needs to know whether the frame was synthetic
+  without reading the atom a second time and finding it already emptied."
   [previous-count]
   (let [tap (first (swap-vals! pending-tap (constantly nil)))
         w   (rl/get-screen-width)
         h   (rl/get-screen-height)]
-    (merge {:screen-width w :screen-height h
-            ;; no HighDPI translation to do: the window is created at pixel
-            ;; size, so the render surface and the screen are the same numbers
-            :render-width w :render-height h
-            :back? false}
-           ;; Each sampler reports :down? from the count it already read. An
-           ;; earlier draft derived it here with a second GetTouchPointCount
-           ;; call, which polls the hardware twice in one frame and can
-           ;; disagree with itself when a finger lifts between the two.
-           (if tap
-             (sample-synthetic tap previous-count)
-             (sample-device previous-count)))))
+    [(merge {:screen-width w :screen-height h
+             ;; no HighDPI translation to do: the window is created at pixel
+             ;; size, so the render surface and the screen are the same numbers
+             :render-width w :render-height h
+             :back? false}
+            ;; Each sampler reports :down? from the count it already read. An
+            ;; earlier draft derived it here with a second GetTouchPointCount
+            ;; call, which polls the hardware twice in one frame and can
+            ;; disagree with itself when a finger lifts between the two.
+            (if tap
+              (sample-synthetic tap previous-count)
+              (sample-device previous-count)))
+     tap]))
+
+(defn- touch-points
+  "Every active touch as [x y], in screen pixels.
+
+  This sits beside `:touches` rather than inside it. The Android contract in
+  `poc.raylib.diagnostics` reports `:all-coordinates-available? false` and gives
+  coordinates for point zero only, which was honest on the platform it was
+  written for: it has GetTouchX and GetTouchY and no binding for the by-value
+  Vector2 that GetTouchPosition returns. That file is one of the six verified
+  byte-identical against the notebooks, so the extra data goes in a key of our
+  own and the contract keeps its word.
+
+  A synthetic tap reports itself as the one point, so `tap!` drives this the
+  same way it drives everything else."
+  [tap]
+  (if tap
+    [[(double (first tap)) (double (second tap))]]
+    (mapv rl/touch-position (range (rl/get-touch-point-count)))))
 
 ;; --- drawing: the owner-affine half of the contract
 (defmulti draw-scene! (fn [id _state _env] id))
@@ -503,9 +530,15 @@
   Verified on device before the fix: a tap at screen [600 1500] arrived at the
   scene as [600 1500] with a top inset of 186."
   [input {:keys [x y]}]
-  (if-let [[px py] (get-in input [:pointer :position])]
-    (assoc-in input [:pointer :position] [(- px x) (- py y)])
-    input))
+  (cond-> input
+    (get-in input [:pointer :position])
+    (update-in [:pointer :position]
+               (fn [[px py]] [(- px x) (- py y)]))
+    ;; :touch-points makes the same journey. Missing this is the bug the
+    ;; pointer already had, one scene later.
+    (seq (:touch-points input))
+    (update :touch-points
+            (fn [pts] (mapv (fn [[px py]] [(- px x) (- py y)]) pts)))))
 
 (defn- visible-ids
   "The ids this level lays out: the categories at the top, or one category's
@@ -596,7 +629,16 @@
   [{:keys [k insets touches gstate category] :as s}]
   (let [insets (resolve-insets k insets)
         top    (:top insets 0)
-        input  (diag/normalize-input (raw-sample touches))
+        [raw tap] (raw-sample touches)
+        input  (assoc (diag/normalize-input raw)
+                      :touch-points (touch-points tap)
+                      ;; The wall clock, for scenes that sweep between its
+                      ;; ticks. It has to be the same clock the seconds come
+                      ;; from: a sub-second fraction accumulated from frame
+                      ;; deltas drifts out of phase with it and the hand jumps
+                      ;; backward mid-second. Both go here rather than into
+                      ;; diag/normalize-input, which is verified byte-identical.
+                      :local-time (rl/local-time))
         m      (:metrics input)
         safe   (safe-region (:screen m) insets)
         ;; A scene is told it has the safe region and nothing else, so its own
@@ -991,3 +1033,70 @@
                (int (nth seg 2)) (int (nth seg 3)) maroon))
     (rl/draw-circle (int (:cx d)) (int (:cy d)) (:hub d) (rl/rgba 80 80 80 255))
     (rl/draw-circle (int (first target)) (int (second target)) (* 0.6 (:hub d)) maroon)))
+
+(defmethod draw-scene! :multitouch [_ {:keys [trails live peak colours]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [label-size count-size touch-radius dot-radius centre-radius label-lift]}
+        (multi/dimensions m)
+        n (count live)]
+    ;; Trails first so the live circles sit on top of their own history.
+    (doseq [[id trail] trails]
+      (let [[r g b] (multi/colour-for (get colours id))
+            len (count trail)]
+        (dotimes [i len]
+          (let [[x y] (nth trail i)
+                a (int (* 150 (/ (double (inc i)) len)))]
+            (rl/draw-circle (int x) (int y) (float dot-radius) (rl/rgba r g b a))))))
+    (doseq [[id [x y]] live]
+      (let [[r g b] (multi/colour-for (get colours id))
+            ix (int x) iy (int y)]
+        (rl/draw-circle ix iy (float touch-radius) (rl/rgba r g b 70))
+        (rl/draw-circle-lines ix iy (float touch-radius) (rl/rgba r g b 255))
+        (rl/draw-circle ix iy (float centre-radius) (rl/rgba r g b 255))
+        (rl/draw-text (str "id " id) (- ix (int (* 2.2 label-size))) (- iy (int label-lift))
+                      label-size (rl/rgba r g b 255))))
+    ;; Bottom left, for the third time in this file: the host owns the top left
+    ;; for Back, and the first version of every one of these labels sat under it.
+    (let [[sw sh] (:screen m)
+          x (int (* 0.04 sw))
+          y0 (int (- sh (* 0.055 sh) (* 2 (+ label-size 10)) count-size))]
+      (rl/draw-text (str n " touch " (if (= 1 n) "point" "points"))
+                    x y0 count-size rl/DARKGRAY)
+      (rl/draw-text (if (zero? n)
+                      "put fingers on the glass"
+                      (str "most at once so far: " peak))
+                    x (+ y0 count-size 10) label-size (rl/rgba 130 130 130 255))
+      ;; A phone reports every point. The desktop example this came from could
+      ;; only ever draw one, and said so.
+      (rl/draw-text (str "all " n " positions read, not just point 0")
+                    x (+ y0 count-size 10 label-size 10) label-size
+                    (rl/rgba 130 130 130 255)))))
+
+(defmethod draw-scene! :analog [_ {:keys [frac]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 24 26 33 255))
+  ;; Read here, not in the scene, for the reason the digital clock gives above.
+  (let [now (rl/local-time)
+        [h mi s] now
+        {:keys [cx cy r label-size] :as d} (analog/dimensions m)
+        {:keys [hour minute second]} (analog/hand-angles now frac)
+        pale (rl/rgba 235 235 245 255)
+        red (rl/rgba 235 90 90 255)
+        hand (fn [ang len thick colour]
+               (let [[x y] (analog/polar cx cy len ang)]
+                 (rl/draw-line-ex cx cy x y thick colour)))]
+    (rl/draw-ring cx cy (- r (* r 0.05)) r 0 360 120 (rl/rgba 210 212 222 255))
+    (doseq [[x0 y0 x1 y1 long?] (analog/ticks d)]
+      (rl/draw-line-ex x0 y0 x1 y1 (if long? (* r 0.017) (* r 0.006))
+                       (rl/rgba 150 155 165 255)))
+    (hand hour   (* r 0.50) (* r 0.045) pale)
+    (hand minute (* r 0.72) (* r 0.028) pale)
+    (hand second (* r 0.84) (* r 0.012) red)
+    (rl/draw-circle (int cx) (int cy) (float (* r 0.045)) red)
+    ;; Bottom left, same reason the automaton's rule label is there: the host
+    ;; owns the top left for Back, and the first version of this sat under it.
+    (let [[sw sh] (:screen m)]
+      (rl/draw-text (str (when (< h 10) "0") h ":"
+                         (when (< mi 10) "0") mi ":"
+                         (when (< s 10) "0") s)
+                    (int (* 0.04 sw)) (int (- sh (* 0.055 sh)))
+                    label-size rl/RAYWHITE))))
