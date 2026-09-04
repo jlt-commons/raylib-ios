@@ -25,6 +25,8 @@
             [raylib.scenes.dashed :as dash]
             [raylib.scenes.multitouch :as multi]
             [raylib.scenes.analog :as analog]
+            [raylib.scenes.clockgrid :as cgrid]
+            [raylib.scenes.sector :as sector]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -59,7 +61,7 @@
              (ease/scene)
              (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
-             (analog/scene)])
+             (analog/scene) (cgrid/scene) (sector/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -84,7 +86,7 @@
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
-             :analog]}
+             :analog :clockgrid :sector]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -1100,3 +1102,52 @@
                          (when (< s 10) "0") s)
                     (int (* 0.04 sw)) (int (- sh (* 0.055 sh)))
                     label-size rl/RAYWHITE))))
+
+(defmethod draw-scene! :clockgrid [_ {:keys [current]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 8 12 28 255))
+  ;; 288 hands a frame, each an rlgl quad. The bezels are drawn as rings rather
+  ;; than skipped because without them the hands read as loose strokes instead
+  ;; of clock faces, which is the whole joke of the scene.
+  (let [{:keys [x0 y0 step radius hand row-step pair-w]} (cgrid/dimensions m)
+        hands (rl/rgba 255 249 196 255)
+        bezel (rl/rgba 42 48 74 255)
+        inner (* radius 0.86)]
+    (dotimes [d 6]
+      (let [pair (quot d 2)
+            side (mod d 2)
+            ox (+ x0 (* side pair-w))
+            oy (+ y0 (* pair row-step))
+            grid (nth current d)]
+        (dotimes [i cgrid/cells]
+          (let [cx (+ ox (* (mod i cgrid/cols) step) radius)
+                cy (+ oy (* (quot i cgrid/cols) step) radius)
+                [a b] (nth grid i)]
+            (rl/draw-ring cx cy inner radius 0 360 20 bezel)
+            (doseq [deg [a b]]
+              (let [t (Math/toRadians (double deg))]
+                (rl/draw-line-ex cx cy
+                                 (+ cx (* hand (Math/cos t)))
+                                 (+ cy (* hand (Math/sin t)))
+                                 (* radius 0.16) hands)))))))))
+
+(defmethod draw-scene! :sector [_ {:keys [start-angle end-angle requested]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [cx cy radius label-size w h]} (sector/dimensions m)
+        {:keys [segments floor mode]} (sector/resolve-segments start-angle end-angle requested)
+        auto? (= :auto mode)]
+    ;; A sector is a ring with no hole, so draw-ring covers it. raylib's own
+    ;; DrawCircleSector takes its centre as a by-value Vector2, which is the
+    ;; same reason draw-ring exists at all.
+    (rl/draw-ring cx cy 0.0 radius start-angle end-angle segments
+                  (rl/rgba 190 33 55 90))
+    (rl/draw-ring cx cy (* radius 0.97) radius start-angle end-angle segments
+                  (rl/rgba 190 33 55 255))
+    (let [x (int (* 0.06 w))
+          y0 (int (- h (* 0.30 h)))
+          line (fn [i s c] (rl/draw-text s x (+ y0 (* i (+ label-size 12))) label-size c))]
+      (line 0 (str "arc " (int (- end-angle start-angle)) " degrees") rl/DARKGRAY)
+      (line 1 (str "asked for " requested " segments") rl/DARKGRAY)
+      (line 2 (str "floor is " floor " (one per 90 degrees)") (rl/rgba 130 130 130 255))
+      (line 3 (if auto? (str "AUTO: drawing " segments)
+                        (str "drawing " segments " as asked"))
+            (if auto? (rl/rgba 190 33 55 255) (rl/rgba 0 130 60 255))))))

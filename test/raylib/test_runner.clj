@@ -47,6 +47,8 @@
                      raylib.scenes.dashed-test
                      raylib.scenes.multitouch-test
                      raylib.scenes.analog-test
+                     raylib.scenes.clockgrid-test
+                     raylib.scenes.sector-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
