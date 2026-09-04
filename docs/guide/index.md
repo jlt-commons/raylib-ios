@@ -77,7 +77,7 @@ contract itself. They were written for a different platform and run here
 untouched. The other twenty-one are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
-## The two guides
+## The guides
 
 **[Performance on a phone](performance-on-a-phone.html)** is the one to read
 first. It starts with a wrong guess, that the FFI boundary was the cost, and
@@ -93,6 +93,28 @@ raylib-jlt example that owns its own loop and turning it into a scene that does
 not. Inverting the loop, replacing `GetRandomValue` with a seeded generator so
 a scene replays identically, deriving geometry from the live screen instead of a
 fixed 800x450, and moving drawing to the caller.
+
+**[Building the archives](building-the-archives.html)** is the part that has to
+work before anything else does: cross-compiling raylib and SDL2 for iOS, and the
+four CMake traps that each cost a debugging session. One of them makes raylib
+report a frame rate of zero while time keeps advancing.
+
+**[A REPL on the phone](a-repl-on-the-phone.html)** is how most of the
+measurements here were taken, from an editor against a running app on a device.
+It also covers the two traps that make it lie: forwarding onto the wrong
+process, and a release build where redefinition updates what the REPL sees and
+not what the loop calls.
+
+**[The safe area](the-safe-area.html)** is the Dynamic Island and the home
+indicator, and how scenes came to respect them without any scene changing.
+rlgl's matrix stack does the work.
+
+**[Filling shapes with rlgl](rlgl-immediate-mode.html)** is the escape hatch for
+the two scenes that fill rather than outline, and why raylib's own shapes API
+cannot draw a triangle with a different colour at each corner.
+
+**[The scenes](scene-catalog.html)** lists all twenty-four with what each costs
+per frame and what it measured.
 
 ## Getting it running
 

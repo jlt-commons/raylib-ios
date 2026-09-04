@@ -372,6 +372,12 @@ Two related things about iOS itself, both of which look like rendering bugs:
   does not exit, so a black window is left behind. Use `CONSOLE=0` to launch
   detached once you want to play rather than debug.
 
+## Contributing
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md). The most useful contribution is another
+scene, and the second most useful is a correction to something in `docs/guide/`
+that turns out not to be true.
+
 ## Licence
 
 [zlib](LICENSE), matching
