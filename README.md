@@ -9,7 +9,7 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of three scenes (Following Eyes, Touch Trail and
+What runs today: a gallery of twenty-four scenes (Following Eyes, Touch Trail and
 Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
 at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
@@ -52,6 +52,13 @@ off the device. Click for full size.*
 <p>
   <img src="docs/images/colorwheel.gif" width="200" alt="An HSV colour wheel, drawn as an rlgl triangle fan">
   <img src="docs/images/unitcircle.gif" width="200" alt="Sine and cosine traced from a rotating radius">
+  <img src="docs/images/clock.gif" width="200" alt="A seven-segment clock showing the time">
+</p>
+<p>
+  <img src="docs/images/piechart.gif" width="200" alt="A rotating pie chart">
+  <img src="docs/images/logoanim.gif" width="200" alt="raylib's logo assembling itself">
+  <img src="docs/images/life.gif" width="200" alt="Conway's Game of Life">
+  <img src="docs/images/automata.gif" width="200" alt="Elementary cellular automata scrolling">
 </p>
 
 *And moving, recorded off a live iPhone Mirroring window. The device bezel is
@@ -183,7 +190,7 @@ default, 33 MB and three with it.
 | `raylib.link` | one call into each archive, no window. Proves the link, the frameworks and the export trie |
 | `raylib.touch` | scalar touch polling, press edges, a marker under the finger |
 | `raylib.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
-| `raylib.gallery` | the scene contract: cards, hit testing, Back, all three scenes |
+| `raylib.gallery` | the scene contract: cards, hit testing, Back, every scene's drawing |
 | `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
 | `raylib.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 

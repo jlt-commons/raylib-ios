@@ -43,7 +43,8 @@ done
 
 # The homepage links every scene, and the two most recent are the ones most
 # likely to be forgotten when the grid is edited.
-for img in lorenz.gif tesseract.gif; do
+for img in lorenz.gif tesseract.gif life.gif automata.gif colorwheel.gif \
+           unitcircle.gif clock.gif piechart.gif logoanim.gif; do
   grep -q "$img" "$out/index.html" || { echo "homepage does not show $img"; exit 1; }
   test -f "$out/images/$img"       || { echo "missing image: $img"; exit 1; }
 done

@@ -7,7 +7,7 @@
   <div class="hero-inner">
     <h1>raylib on an iPhone, from Clojure</h1>
     <p class="tagline">
-      A gallery of seventeen scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
+      A gallery of twenty-four scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
       drawn by raylib 6.0 over SDL2, driven by <strong>Jolt</strong> (Clojure on
       Chez Scheme) as threaded portable bytecode. No JIT, nothing generated at
       run time, and no dependencies.
@@ -110,7 +110,7 @@ flowchart LR
       <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
       experiment</a>, sha256 verified, and were written for a different platform
       entirely, along with three more namespaces carrying the scene contract
-      itself. The other fourteen are ports from
+      itself. The other twenty-one are ports from
       <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
     </p>
     <div class="demo-grid">
@@ -169,6 +169,34 @@ flowchart LR
       <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
         <img src="{{site-base}}/images/tesseract.gif" alt="A rotating 4D hypercube projected to the screen" loading="lazy" width="480">
         <figcaption>tesseract &middot; 32 edges, the cheapest scene here</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/life.gif" alt="Conway's Game of Life on a 48 by 93 grid" loading="lazy" width="480">
+        <figcaption>life &middot; 1470 rectangles at 59 fps</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/performance-on-a-phone.html">
+        <img src="{{site-base}}/images/automata.gif" alt="Elementary cellular automata scrolling down the screen" loading="lazy" width="480">
+        <figcaption>automata &middot; 2551 rectangles, and the budget rule rewritten</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/colorwheel.gif" alt="An HSV colour wheel drawn as an rlgl triangle fan" loading="lazy" width="480">
+        <figcaption>colour wheel &middot; the one scene that fills</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/unitcircle.gif" alt="Sine and cosine traced from a rotating radius" loading="lazy" width="480">
+        <figcaption>sine &amp; cosine &middot; the projections, and their traces</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/clock.gif" alt="A seven-segment clock showing the time" loading="lazy" width="480">
+        <figcaption>clock &middot; libc time, through the FFI</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/piechart.gif" alt="A rotating pie chart" loading="lazy" width="480">
+        <figcaption>pie chart &middot; 62 triangles, sized per wedge</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/logoanim.gif" alt="raylib's logo assembling itself" loading="lazy" width="480">
+        <figcaption>raylib logo &middot; nothing eased, on purpose</figcaption>
       </a>
       <a class="demo" href="{{site-base}}/images/penrose.png">
         <img src="{{site-base}}/images/thumbs/penrose.png" alt="A Penrose P3 tiling by deflation" loading="lazy" width="480">

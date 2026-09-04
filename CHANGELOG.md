@@ -2,6 +2,51 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-09-04
+
+### Added
+
+- **Seven more scenes, twenty-four in all.** `life` and `automata`, then
+  `colorwheel` and `unitcircle`, then `clock`, `piechart` and `logoanim`. All
+  ports from raylib-jlt, and all of them needed resizing for a phone rather
+  than transcribing.
+- **libc for wall-clock time.** raylib's `GetTime` counts seconds since
+  `InitWindow`, which is the wrong clock for a scene that shows the time, so
+  the host binds `time()` and `localtime()`. Both resolve in libSystem, which
+  is already in the process, so no extra linking. Verified against the Mac's
+  own clock to the second.
+- **rlgl's matrix stack and scissor rectangle**, which is how scenes came to
+  respect the safe area without any of them changing.
+
+### Fixed
+
+- **Scenes drew under the Dynamic Island and the home indicator.** The insets
+  had been read since the beginning and only `:top` was used, and only for the
+  gallery's own cards. A scene is now handed metrics whose screen IS the safe
+  region, and the host translates and clips it into place. No scene knows a
+  safe area exists.
+- **`unitcircle` crashed on its own first frame**, asking for element 0 of an
+  empty trace. Every test in that file called `advance` first, so none had seen
+  the state the scene actually starts in.
+- **The automaton covered 39% of the display.** Cell width and row height were
+  one number, and a cell wide enough to draw quickly is too wide to need many
+  rows. They are chosen separately now.
+- **Hairline strokes.** A one-pixel line reads fine in the 800-pixel window
+  these examples were written for and disappears on a 1206-pixel screen.
+
+### Measured
+
+- **A filled rectangle is much cheaper than the guide assumed.** The automaton
+  draws 2551 of them a frame at 58 fps, against the "roughly a thousand
+  primitives" figure that came from lines and circles. Both new grid scenes had
+  been tuned down twice against a ceiling they were never near.
+- Every scene added here holds 57 to 59 fps on an iPhone 17 Pro.
+
+### Changed
+
+- The capture tooling moved to b12n-screen-grab's `contrib/ios-device` and
+  `contrib/montage`, so the next iOS project does not write it a third time.
+
 ## 2026-09-03 (later)
 
 ### Added
