@@ -18,6 +18,7 @@
             [raylib.host :as rl]
             [raylib.scenes.automata :as auto]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.colorwheel :as wheel]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
@@ -31,13 +32,15 @@
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.tesseract :as tess]
+            [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.tree :as tree]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
              (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
              (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
-             (life/scene) (auto/scene)])
+             (life/scene) (auto/scene)
+             (wheel/scene) (circle/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -59,7 +62,8 @@
    {:id :fractals :title "Fractals"
     :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
-    :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract]}
+    :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
+             :colorwheel :unitcircle]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -679,3 +683,56 @@
                     ;; dark ink: the background here is RAYWHITE, and the
                     ;; first version of this label was near-white on it
                     30 (rl/rgba 80 80 80 255)))))
+
+(defmethod draw-scene! :colorwheel [_ {:keys [offset]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 20 20 28 255))
+  ;; The only place this project uses rlgl immediate mode. raylib's shapes API
+  ;; cannot draw a triangle with a different colour at each corner, and the
+  ;; gradient around the rim is exactly that.
+  (let [dims (wheel/dimensions m)
+        cx (double (:cx dims))
+        cy (double (:cy dims))]
+    (rl/rl-begin rl/RL-TRIANGLES)
+    (loop [i 0]
+      (when (< i wheel/slices)
+        (let [sl (wheel/slice dims offset i)
+              [r0 g0 b0] (wheel/hsv->rgb (nth sl 2))
+              [r1 g1 b1] (wheel/hsv->rgb (nth sl 5))]
+          (rl/rl-color-4ub r0 g0 b0 255)
+          (rl/rl-vertex-2f (double (nth sl 0)) (double (nth sl 1)))
+          (rl/rl-color-4ub 255 255 255 255)
+          (rl/rl-vertex-2f cx cy)
+          (rl/rl-color-4ub r1 g1 b1 255)
+          (rl/rl-vertex-2f (double (nth sl 3)) (double (nth sl 4))))
+        (recur (inc i))))
+    (rl/rl-end)))
+
+(defmethod draw-scene! :unitcircle [_ {:keys [angle trace]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (circle/dimensions m)
+        cx (int (:cx d)) cy (int (:cy d)) r (:radius d)
+        [px py] (circle/point-at d angle)
+        px (int px) py (int py)
+        grey (rl/rgba 200 200 200 255)
+        blue (rl/rgba 0 121 241 255)
+        green (rl/rgba 0 158 47 255)
+        maroon (rl/rgba 190 33 55 255)]
+    ;; the circle and its axes
+    (rl/draw-circle-lines cx cy r grey)
+    (rl/draw-line (int (- cx r)) cy (int (+ cx r)) cy grey)
+    (rl/draw-line cx (int (- cy r)) cx (int (+ cy r)) grey)
+    ;; the two projections of the radius, and the radius itself
+    (rl/draw-line px py px cy blue)
+    (rl/draw-line px cy cx cy green)
+    (rl/draw-line cx cy px py maroon)
+    (rl/draw-circle px py (* 0.02 (min (:w d) (:h d))) maroon)
+    ;; and the same two values traced over time, underneath
+    (doseq [[pick colour centre] [[first blue 0.28] [second green 0.72]]]
+      (let [pts (circle/wave-points d trace pick centre)
+            n (count pts)]
+        (loop [i 1]
+          (when (< i n)
+            (let [a (nth pts (dec i)) b (nth pts i)]
+              (rl/draw-line (int (nth a 0)) (int (nth a 1))
+                            (int (nth b 0)) (int (nth b 1)) colour))
+            (recur (inc i))))))))

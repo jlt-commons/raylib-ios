@@ -31,9 +31,11 @@
 (defn -main [& _]
   (let [namespaces '[raylib.scenes.kaleidoscope-test
                      raylib.scenes.automata-test
+                     raylib.scenes.colorwheel-test
                      raylib.scenes.life-test
                      raylib.scenes.lorenz-test
                      raylib.scenes.tesseract-test
+                     raylib.scenes.unitcircle-test
                      poc.raylib.flappy-bird-test
                      poc.raylib.gallery-test
                      poc.raylib.gallery-ui-test
