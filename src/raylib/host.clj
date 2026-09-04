@@ -59,6 +59,12 @@
 (ffi/defcfn get-fps             "GetFPS"            [] :int)
 (ffi/defcfn measure-text        "MeasureText"       [:string :int] :int)
 
+;; libc, for wall-clock time. raylib's GetTime counts seconds since InitWindow,
+;; which is the wrong clock for a scene that wants to show what time it is.
+;; Both resolve in libSystem, which is already in the process.
+(ffi/defcfn c-time              "time"              [:pointer] :int64)
+(ffi/defcfn c-localtime         "localtime"         [:pointer] :pointer)
+
 ;; rlgl immediate mode, for filling polygons raylib's shapes API has no call
 ;; for. All four are scalar, so they need none of the by-value machinery.
 (ffi/defcfn rl-begin            "rlBegin"           [:int] :void)
@@ -135,6 +141,20 @@
   (ffi/with-layout [v vec2-l]
     (get-touch-position v i)
     [(ffi/read-field v vec2-l :x) (ffi/read-field v vec2-l :y)]))
+
+(defn local-time
+  "Wall-clock local time as [hour minute second].
+
+  time() fills a time_t, localtime() turns it into a struct tm in libc's own
+  static storage, and the first three ints of that struct are seconds, minutes
+  and hours in that order. Reading fields by offset rather than through a
+  layout because the struct's tail differs between platforms and only its head
+  is wanted."
+  []
+  (ffi/with-alloc [t 8]
+    (c-time t)
+    (let [tm (c-localtime t)]
+      [(ffi/read tm :int 8) (ffi/read tm :int 4) (ffi/read tm :int 0)])))
 
 (defn rgba [r g b a] (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left a 24)))
 (def RAYWHITE  (rgba 245 245 245 255))

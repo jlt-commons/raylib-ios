@@ -18,16 +18,19 @@
             [raylib.host :as rl]
             [raylib.scenes.automata :as auto]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
             [raylib.scenes.life :as life]
+            [raylib.scenes.logoanim :as logo]
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.pendulum :as pend]
+            [raylib.scenes.piechart :as pie]
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.stars :as stars]
@@ -40,7 +43,8 @@
              (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
              (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
              (life/scene) (auto/scene)
-             (wheel/scene) (circle/scene)])
+             (wheel/scene) (circle/scene)
+             (clock/scene) (pie/scene) (logo/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -63,7 +67,7 @@
     :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
-             :colorwheel :unitcircle]}
+             :colorwheel :unitcircle :clock :piechart :logoanim]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -752,3 +756,91 @@
               (stroke! (int (nth a 0)) (int (nth a 1))
                        (int (nth b 0)) (int (nth b 1)) colour))
             (recur (inc i))))))))
+
+(defmethod draw-scene! :clock [_ _ {:keys [m]}]
+  (rl/clear-background (rl/rgba 16 20 18 255))
+  ;; The time is read here rather than in the scene, so the pure half stays
+  ;; testable without a clock and this stays the only namespace that talks to
+  ;; anything outside the process.
+  (let [[_ _ ss :as now] (rl/local-time)
+        d (clock/dimensions m)
+        on (rl/rgba 80 230 120 255)
+        off (rl/rgba 28 44 34 255)
+        pairs (clock/digit-pairs now)]
+    (dotimes [row 3]
+      (let [y (clock/row-origin d row)
+            [tens units] (nth pairs row)]
+        (doseq [[digit x] [[tens (:x0 d)] [units (:x1 d)]]]
+          (let [lit (get clock/lit-segments digit)]
+            (doseq [[seg r] (clock/segment-rects d x y)]
+              (rl/draw-rectangle (int (nth r 0)) (int (nth r 1))
+                                 (int (nth r 2)) (int (nth r 3))
+                                 (if (contains? lit seg) on off)))))))
+    ;; the separator between rows, blinking on even seconds
+    (let [c (if (even? ss) on off)
+          dot (* 0.9 (:thick d))]
+      (dotimes [row 2]
+        (let [y (+ (clock/row-origin d row) (:row-h d) (* 0.25 (:gap d)))]
+          (rl/draw-rectangle (int (- (* 0.5 (:w d)) (* 0.5 dot))) (int y)
+                             (int dot) (int dot) c))))))
+
+(defmethod draw-scene! :piechart [_ {:keys [base]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (pie/dimensions m)
+        cx (double (:cx d)) cy (double (:cy d))]
+    ;; Same triangle fan as the colour wheel, one run per wedge. Flat colour
+    ;; this time, so all three vertices carry it.
+    (rl/rl-begin rl/RL-TRIANGLES)
+    (doseq [wedge (pie/arcs base)]
+      (let [[r g b] (:colour wedge)]
+        (doseq [t (pie/triangles d wedge)]
+          (rl/rl-color-4ub r g b 255)
+          (rl/rl-vertex-2f (double (nth t 0)) (double (nth t 1)))
+          (rl/rl-color-4ub r g b 255)
+          (rl/rl-vertex-2f cx cy)
+          (rl/rl-color-4ub r g b 255)
+          (rl/rl-vertex-2f (double (nth t 2)) (double (nth t 3))))))
+    (rl/rl-end)
+    ;; legend, under the chart
+    (let [size (int (* 0.30 (:swatch d)))]
+      (doseq [[i wedge] (map-indexed vector (pie/arcs 0.0))]
+        (let [[r g b] (:colour wedge)
+              y (+ (:legend-y d) (* i (:legend-step d)))
+              sw (int (:swatch d))]
+          (rl/draw-rectangle (int (:legend-x d)) (int y) sw sw (rl/rgba r g b 255))
+          (rl/draw-text (str (:label wedge) "  " (pie/percent (:value wedge)) "%")
+                        (int (+ (:legend-x d) (* 1.5 sw))) (int (+ y (* 0.25 sw)))
+                        (max 20 size) (rl/rgba 80 80 80 255)))))))
+
+(defmethod draw-scene! :logoanim [_ {:keys [stage counter top left bottom right letters alpha]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [{:keys [x y side scale border]} (logo/dimensions m)
+        u (fn [units] (* units scale))
+        ink (fn [a] (rl/rgba 0 0 0 (int (* 255 (max 0.0 (min 1.0 a))))))
+        black (ink 1.0)]
+    (case stage
+      0 (when (logo/blink-on? counter)
+          (rl/draw-rectangle (int x) (int y) (int border) (int border) black))
+
+      (1 2) (do
+              (rl/draw-rectangle (int x) (int y) (int (u top)) (int border) black)
+              (rl/draw-rectangle (int x) (int y) (int border) (int (u left)) black)
+              (when (= stage 2)
+                (rl/draw-rectangle (int (+ x side (- border))) (int y)
+                                   (int border) (int (u right)) black)
+                (rl/draw-rectangle (int (- (+ x side) (u bottom))) (int (+ y side (- border)))
+                                   (int (u bottom)) (int border) black)))
+
+      3 (let [c (ink alpha)]
+          (rl/draw-rectangle (int x) (int y) (int side) (int border) c)
+          (rl/draw-rectangle (int x) (int y) (int border) (int side) c)
+          (rl/draw-rectangle (int (+ x side (- border))) (int y) (int border) (int side) c)
+          (rl/draw-rectangle (int x) (int (+ y side (- border))) (int side) (int border) c)
+          (let [txt (logo/visible-word letters)
+                size (int (* 0.20 side))]
+            (when (seq txt)
+              (rl/draw-text txt
+                            (int (- (+ x side) (rl/measure-text txt size) (u 20)))
+                            (int (- (+ y side) size (u 26)))
+                            size c))))
+      nil)))
