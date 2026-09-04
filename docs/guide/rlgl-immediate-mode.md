@@ -86,6 +86,37 @@ use it: `DrawRectangle` is one call where the equivalent here is `rlBegin`, six
 vertices and `rlEnd`. If it cannot, because you need per-vertex colour or an arc
 raylib has no call for, this is the escape hatch and it is a small one.
 
+## Winding is not cosmetic, and getting it wrong is silent
+
+rlgl culls back faces. A triangle wound the wrong way round is discarded before
+it reaches the screen, with no error and no warning, so the symptom is simply
+that nothing appears.
+
+That is a hard bug to read, because it looks exactly like a geometry mistake.
+`draw-ring` here shipped with the wrong winding and drew nothing at all in the
+two scenes that used it. The analog clock went out without the bezel it was
+written to have, and a screenshot of its sixty tick marks was mistaken for the
+missing ring, so the function was reported as working for a day.
+
+The check is the sign of the cross product of a triangle's first two edges:
+
+```
+v1 = p2 - p1
+v2 = p3 - p1
+cross = v1.x * v2.y - v1.y * v2.x
+```
+
+In this project's screen coordinates, with y growing downward, the triangles
+that survive have a **negative** cross. `draw-line-ex` produces -2hL for a
+horizontal line and always drew. `draw-ring` produced +8000 for its first
+segment and never did. Swapping two vertices in each triangle fixed both
+callers at once.
+
+If an rlgl shape does not appear, check the winding before the arithmetic. The
+arithmetic tends to be right, because it is the part you can reason about from a
+diagram, and the winding is the part that has no visible symptom until it is
+wrong.
+
 ## Cost
 
 Cheaper than it looks. The colour wheel is 540 vertices a frame and holds 59 fps;

@@ -185,13 +185,21 @@
             d1 (+ start-deg (* span (/ (double (inc k)) segments)))
             [x0i y0i] (pt d0 inner) [x0o y0o] (pt d0 outer)
             [x1i y1i] (pt d1 inner) [x1o y1o] (pt d1 outer)]
-        ;; two front-wound triangles per segment
+        ;; Two triangles per segment, wound to match draw-line-ex below.
+        ;;
+        ;; The winding is not cosmetic. rlgl culls back faces, so a triangle
+        ;; wound the wrong way is silently discarded: no error, no warning, and
+        ;; nothing on screen. The first version of this function had the
+        ;; opposite winding and drew absolutely nothing for two scenes, which
+        ;; looked like a geometry bug rather than an orientation one. The tell
+        ;; is the sign of the cross product of the first two edges, which
+        ;; draw-line-ex gets negative and this originally got positive.
         (rl-vertex-2f (float x0i) (float y0i))
+        (rl-vertex-2f (float x1o) (float y1o))
         (rl-vertex-2f (float x0o) (float y0o))
-        (rl-vertex-2f (float x1o) (float y1o))
         (rl-vertex-2f (float x0i) (float y0i))
-        (rl-vertex-2f (float x1o) (float y1o))
-        (rl-vertex-2f (float x1i) (float y1i))))
+        (rl-vertex-2f (float x1i) (float y1i))
+        (rl-vertex-2f (float x1o) (float y1o))))
     (rl-end)))
 
 (defn draw-line-ex

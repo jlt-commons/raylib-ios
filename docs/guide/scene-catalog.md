@@ -55,7 +55,7 @@ that were tuned to get there.
 | Random Sequence | 24 rectangles | 57 | a permutation, not independent draws |
 | Collision Area | 3 rectangles | 59 | follows a finger, and drifts without one |
 | Multitouch | a circle and trail per finger | 58 | every point, not just point zero |
-| Analog Clock | a ring, 60 ticks, 3 hands | 59 | rlgl stands in for the by-value Vector2 calls |
+| Analog Clock | a bezel, 60 ticks, 3 hands | 59 | rlgl stands in for the by-value Vector2 calls |
 | Clock of Clocks | 144 bezels, 288 hands | 59 | the time spelled by little clock faces |
 | Circle Sector | one sector, 1-36 segments | 58 | raylib's own segment floor, demonstrated |
 | Colours | 25 swatches | 58 | every colour raylib names |

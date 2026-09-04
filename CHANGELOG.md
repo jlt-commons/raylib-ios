@@ -26,6 +26,15 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **`draw-ring` had never drawn anything, in either scene that called it.** Its
+  triangles were wound the wrong way round, and rlgl culls back faces, so every
+  one was silently discarded: no error, no warning, nothing on screen. The
+  analog clock shipped yesterday without the bezel it was supposed to have, and
+  I reported it as working after mistaking its tick marks for the ring in a
+  screenshot. The tell is the sign of the cross product of a triangle's first
+  two edges, which the working `draw-line-ex` gets negative and `draw-ring` got
+  positive. Reversing the winding fixed both scenes at once.
+
 - **The clock of clocks ran at 6 fps, and getting it to 59 took three drafts.**
   The bezels were `draw-ring` at 20 segments, which is 120 vertices each and
   about 17,000 FFI calls a frame for 144 of them. `DrawCircleLines` draws the
