@@ -30,6 +30,8 @@
 
 (defn -main [& _]
   (let [namespaces '[raylib.scenes.kaleidoscope-test
+                     raylib.scenes.automata-test
+                     raylib.scenes.life-test
                      raylib.scenes.lorenz-test
                      raylib.scenes.tesseract-test
                      poc.raylib.flappy-bird-test

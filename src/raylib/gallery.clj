@@ -16,10 +16,12 @@
             [poc.raylib.touch-trail :as trail]
             [raylib.flappy :as flappy-draw]
             [raylib.host :as rl]
+            [raylib.scenes.automata :as auto]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.life :as life]
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.fireworks :as fw]
@@ -34,7 +36,8 @@
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
              (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
-             (lsys/scene) (flow/scene) (lor/scene) (tess/scene)])
+             (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
+             (life/scene) (auto/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -52,9 +55,9 @@
 (def categories
   [{:id :generative :title "Generative"
     :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield
-             :lorenz]}
+             :lorenz :life]}
    {:id :fractals :title "Fractals"
-    :scenes [:hilbert :tree :lsystem]}
+    :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract]}
    {:id :games :title "Games"
@@ -611,3 +614,34 @@
                         (int (nth q 0)) (int (nth q 1))
                         (rl/rgba r g b 255)))
         (recur (inc k))))))
+
+(defmethod draw-scene! :life [_ {:keys [live]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 8 10 16 255))
+  (let [{:keys [cell]} (life/dimensions m)
+        size (max 1 (dec cell))
+        lime (rl/rgba 0 228 48 255)]
+    ;; One rectangle per live cell, straight off the set. There is no ordering
+    ;; to respect, so this does not need an indexed loop the way a trail does.
+    (doseq [c live]
+      (rl/draw-rectangle (* (nth c 0) cell) (* (nth c 1) cell) size size lime))))
+
+(defmethod draw-scene! :automata [_ {:keys [window] :as state} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [{:keys [px]} (auto/dimensions m)
+        ink (rl/rgba 20 30 60 255)
+        rows (count window)]
+    ;; Runs, not cells: each [start length] is one rectangle covering however
+    ;; many adjacent live cells it found. See the namespace docstring.
+    (loop [r 0]
+      (when (< r rows)
+        (let [y (* r px)
+              rr (nth window r)
+              n (count rr)]
+          (loop [i 0]
+            (when (< i n)
+              (let [run (nth rr i)]
+                (rl/draw-rectangle (* (nth run 0) px) y (* (nth run 1) px) px ink))
+              (recur (inc i)))))
+        (recur (inc r))))
+    (rl/draw-text (str "rule " (auto/rule-of state)) (int (* 0.04 (first (:screen m))))
+                  (int (* 0.02 (second (:screen m)))) 28 (rl/rgba 80 80 80 255))))
