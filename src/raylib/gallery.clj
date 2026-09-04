@@ -1122,7 +1122,11 @@
   ;; So the batch stays and the vector goes. One begin, one colour, one end, and
   ;; the vertices emitted straight from the loop with nothing allocated between.
   (let [{:keys [x0 y0 step radius hand row-step pair-w]} (cgrid/dimensions m)
-        bezel (rl/rgba 42 48 74 255)
+        ;; Bright enough to actually see. The first value was 42 48 74 on an
+        ;; 8 12 28 ground, which at one pixel wide vanished entirely and left
+        ;; the digits reading as loose dashes rather than as clock faces, which
+        ;; is the whole idea of the scene.
+        bezel (rl/rgba 74 88 140 255)
         half (* radius 0.08)]
     (dotimes [d 6]
       (let [pair (quot d 2) side (mod d 2)
