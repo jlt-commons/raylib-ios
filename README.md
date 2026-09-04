@@ -367,10 +367,11 @@ Two related things about iOS itself, both of which look like rendering bugs:
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt), raylib and SDL2. The
 whole stack is zlib.
 
-Third-party code and attribution are in [`NOTICE`](NOTICE), and it is worth
-reading before you fork. The short version: four namespaces contain material
-from a repository that carries no licence file, published here while a request
-for one is pending, so the zlib licence above does not cover those parts.
+Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces
+began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),
+which is MIT, and three scenes plus the scene contract come byte-identical from
+[jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment),
+also MIT. Both notices are reproduced there.
 
 ## Attribution
 
