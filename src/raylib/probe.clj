@@ -24,6 +24,11 @@
 (ffi/defcfn rl-get-active-framebuffer  "rlGetActiveFramebuffer"   [] :uint)
 (ffi/defcfn gl-check-framebuffer-status "glCheckFramebufferStatus" [:uint] :uint)
 (ffi/defcfn gl-get-integerv             "glGetIntegerv"            [:uint :pointer] :void)
+;; Declared here rather than used from raylib.host, so this namespace stays a
+;; leaf. host requires probe, and a defcfn is only a symbol lookup at first
+;; call, so a second declaration of the same function costs nothing and buys an
+;; acyclic dependency.
+(ffi/defcfn get-fps                     "GetFPS"                   [] :int)
 (ffi/defcfn gl-bind-framebuffer         "glBindFramebuffer"        [:uint :uint] :void)
 
 (def GL-FRAMEBUFFER 0x8D40)
@@ -77,6 +82,24 @@
 (defonce last-fps (atom nil))
 
 ;; --- the report --------------------------------------------------------------
+(defn sample-frame!
+  "Everything the loop records per frame, in one call, so the loop reads as the
+  loop and not as a list of diagnostics.
+
+  Both samples are off by default. The framebuffer pair costs two glGetIntegerv
+  round trips and only matters while someone is asking a question about
+  binding. GetFPS costs a call, but the reason it is gated is different and
+  worth knowing: it is a stateful sampler, and calling it advances a ring. A
+  scene that draws its own fps is already calling it every frame, so turning
+  this on as well changes what that scene reports. Off, nothing here touches
+  it, and last-fps is whatever the last enabled window left."
+  []
+  (when @fps-every-frame?
+    (reset! last-fps (get-fps)))
+  (when @record-pre-swap?
+    (reset! pre-swap {:framebuffer  (gl-int GL-FRAMEBUFFER-BINDING)
+                      :renderbuffer (gl-int GL-RENDERBUFFER-BINDING)})))
+
 (defn framebuffer-report
   "What GL makes of framebuffer 0 versus SDL's drawable, on this device.
 

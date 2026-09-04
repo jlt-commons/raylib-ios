@@ -1,11 +1,24 @@
 (ns raylib.host
-  "The iOS owner loop for raylib (RAY-018's shape). run! hands the app to
-  SDL_UIKitRunApp; a :collect-safe SDL_main then owns InitWindow and the
-  while loop — per frame: BeginDrawing, bind SDL's drawable FBO (iOS has no
-  framebuffer 0), (frame state) -> state', bind the colour renderbuffer,
-  EndDrawing. The screen is sized in PIXELS (UIScreen scale × points), since
-  raylib's SDL platform does not do HighDPI itself."
-  (:refer-clojure :exclude [run!])          ; run! is the entry point here, as in raylib-jlt
+  "The loop that owns thread 0, and the raylib surface this project calls.
+
+  There is no host process here. jolt emits a whole executable and Chez owns
+  main, so raylib and SDL2 are static archives in the same binary and every
+  defcfn below resolves against the process image the first time it is called.
+
+  Startup is one handoff. run! calls SDL_UIKitRunApp and never returns; SDL
+  runs UIApplicationMain, and its delegate calls back into sdl-main on thread
+  0. The loop then lives there for the life of the app.
+
+  A blocking loop is normally wrong on iOS, because it starves the run loop
+  that delivers touches and lifecycle events. It works here because EndDrawing
+  reaches SDL_PollEvent, which at a zero timeout pumps, and on UIKit the pump
+  is CFRunLoopRunInMode. The loop and the run loop take turns, once a frame.
+
+  The window is created in PIXELS rather than points. raylib's SDL platform
+  does no HighDPI translation of its own, so a window sized in points would
+  render at a third of the resolution on this screen and every coordinate the
+  scenes compute would be wrong by the same factor."
+  (:refer-clojure :exclude [run!])          ; this namespace defines its own run!
   (:require [jolt.ffi :as ffi]
             [raylib.objc :as u]
             [raylib.probe :as probe]))
@@ -71,9 +84,15 @@
 (def ^:private insets-l (ffi/layout [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]))
 
 (defn safe-area-insets
-  "[[UIApplication sharedApplication].windows firstObject].safeAreaInsets, in
-  points: {:top :left :bottom :right}. Ask from inside the loop — insets are
-  only real once the window has been laid out, i.e. after the first frame."
+  "The window's safe-area insets in points, as {:top :left :bottom :right}.
+
+  Four message sends, because there is no shorter path to them: the shared
+  application, its windows, the first of those, and its insets.
+
+  Call this from inside the loop and not before. UIKit computes insets during
+  layout, so a call made before the first frame gets zeros, and zeros are a
+  plausible answer on a device that genuinely has no notch. Asking once and
+  caching the first non-zero result is what the gallery does."
   []
   (let [win (u/objc-msg-send-0
               (u/objc-msg-send-0 (u/objc-msg-send-0 (u/cls "UIApplication") (u/sel "sharedApplication")) (u/sel "windows"))
@@ -90,7 +109,11 @@
 (ffi/defcfn get-touch-position    "GetTouchPosition"   [:int] [:by-value [:struct [[:x :float] [:y :float]]]])
 (def ^:private vec2-l (ffi/layout [:struct [[:x :float] [:y :float]]]))
 (defn touch-position
-  "[x y] of touch point `i`, through the by-value Vector2 return."
+  "Touch point `i` as [x y].
+
+  GetTouchPosition returns a Vector2 by value, two floats in registers, which
+  is a different FFI path from every scalar call here and worth having one user
+  of. GetTouchX and GetTouchY give the same numbers for point zero only."
   [i]
   (ffi/with-layout [v vec2-l]
     (get-touch-position v i)
@@ -105,7 +128,12 @@
 
 ;; --- the host ----------------------------------------------------------------
 (defn- display-points
-  "[w h] of display 0 in points, from SDL, before any window exists."
+  "The main display's size in points, before any window exists.
+
+  Needed because the window has to be created at pixel size and the pixel size
+  is this multiplied by the screen scale. The fallback is an iPhone-ish guess
+  rather than a crash: a wrong window size draws something, and something is
+  easier to diagnose from than a dead app."
   []
   (when (neg? (sdl-init SDL-INIT-VIDEO)) (println "host: SDL_Init failed:" (sdl-get-error)))
   (ffi/with-alloc [m 24]                    ; SDL_DisplayMode {u32 format; int w, h, refresh_rate; void *driverdata}
@@ -118,10 +146,17 @@
 (def ^:private sdl-version-l (ffi/layout [:struct [[:major :uint8] [:minor :uint8] [:patch :uint8]]]))
 
 (defn- view-framebuffer
-  "SDL's drawable FBO and colour renderbuffer for the current window, via
-  SDL_SysWMinfo (version @0, subsystem @4, uikit.framebuffer @16, colorbuffer @20).
-  Only the version is ours to write — SDL fills the rest — and it goes through a
-  layout, since jolt 0.8.0 swapped ffi/write's value and offset."
+  "SDL's drawable framebuffer and colour renderbuffer, as {:framebuffer :colorbuffer}.
+
+  SDL_GetWindowWMInfo is an in-out call: the caller writes the SDL version it
+  compiled against and SDL fills the rest, refusing outright if the version is
+  one it does not recognise. The offsets are SDL_SysWMinfo's own layout on
+  UIKit, version at 0, subsystem at 4, then the framebuffer and colorbuffer.
+
+  The version goes through a layout rather than a raw write because jolt 0.8.0
+  swapped ffi/write's value and offset arguments. Both are integers, so the two
+  spellings cannot be told apart at runtime: the wrong one writes a byte to the
+  wrong place and reports nothing."
   []
   (ffi/with-alloc [info 128]
     (ffi/write-field info sdl-version-l :major 2)
@@ -131,7 +166,10 @@
       {:framebuffer (ffi/read info :uint32 16) :colorbuffer (ffi/read info :uint32 20)}
       (do (println "host: SDL_GetWindowWMInfo failed:" (sdl-get-error)) {}))))
 
-(defonce ^:private app (atom nil))        ; {:title :init :frame :fps} — the callable is global, so this is how it finds the scene
+;; The scene, parked where the callback can reach it. SDL is handed a C
+;; function pointer, which carries no closure, so the callback finds its scene
+;; here rather than having been given one.
+(defonce ^:private app (atom nil))
 
 ;; --- the live seam (raylib.live, an nREPL) -----------------------------------
 ;; An nREPL eval runs on jolt.nrepl's accept thread, and raylib and SDL are
@@ -176,18 +214,55 @@
       (try (f)
            (catch :default e (println "host: queued work failed:" (ex-message e)))))))
 
+(def ^:private window-frames
+  "Frames per timing report. Long enough that one slow frame does not dominate
+  the mean, short enough to notice a scene degrading while you watch it."
+  300)
+
+(defn- fresh-window [] {:count 0 :seconds 0.0 :worst 0.0})
+
+(defn- accumulate [{:keys [count seconds worst]} dt]
+  {:count (inc count) :seconds (+ seconds dt) :worst (max worst dt)})
+
+(defn- report-window!
+  "Print the window's own numbers.
+
+  The frame rate is computed here rather than read from GetFPS, and that is not
+  a preference. GetFPS is a sampler: each call advances a 30-slot ring by one
+  and returns the reciprocal of its sum, so it is a frame rate only if you call
+  it every frame. Called once per window it returns a plausible number that is
+  wrong by two orders of magnitude and decays slowly toward the truth. This
+  project reported that as a raylib bug for an afternoon. `seconds` is the sum
+  of this window's own frame times, so frames divided by it is exactly the rate
+  over exactly that window, and it owes raylib nothing."
+  [total {:keys [count seconds worst]}]
+  (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
+                   total
+                   (* 1000.0 (/ seconds count))
+                   (* 1000.0 worst)
+                   (/ (double count) seconds))))
+
 (defn- sdl-main
-  "SDL_main: the main thread, inside UIApplicationMain, event pump on. Sizes
-  the screen in pixels, then owns the loop for the life of the app."
+  "What SDL calls back on thread 0, and where the app lives from then on.
+
+  By the time this runs, UIApplicationMain is up and the run loop exists, which
+  is why the loop at the end can block: EndDrawing gives the run loop a turn
+  every frame. Everything before the loop is setup that must happen after
+  UIKit is running and before any drawing: size the window in pixels, hint SDL
+  toward Metal for its presentation surface, then hand raylib the window."
   [_argc _argv]
   (let [{:keys [title init frame fps] :or {fps 60}} @app
         [pw ph] (display-points)
         k       (screen-scale)
         w       (int (* pw k))
         h       (int (* ph k))]
-    (set-config-flags FLAG-WINDOW-HIGHDPI)       ; SDL_WINDOW_ALLOW_HIGHDPI: a full-resolution drawable
-    (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")   ; the software rasteriser's surface: present through Metal, never GLES
-    (init-window w h title)                      ; ...and a screen the same size, so raylib never scales
+    ;; A full-resolution drawable, and a window sized to match it, so raylib
+    ;; never scales anything: one raylib pixel is one screen pixel.
+    (set-config-flags FLAG-WINDOW-HIGHDPI)
+    ;; Present SDL's own surface through Metal. Left to itself SDL may pick a
+    ;; GLES path for it, which on this device is the slower of the two.
+    (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")
+    (init-window w h title)
     (set-target-fps fps)
     (let [{:keys [framebuffer colorbuffer] :as wm} (view-framebuffer)]
       (reset! probe/wm-info wm)
@@ -201,40 +276,43 @@
                    "drawable" (ffi/read dw :int 0) "x" (ffi/read dh :int 0) "fbo" framebuffer
                    "(safe area: ask UIKit from inside the loop, not SDL)")))
       ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
-      (loop [state (init {:width w :height h :scale k :inset-top 0}) n 0 sum 0.0 worst 0.0]
+      (loop [state (init {:width w :height h :scale k :inset-top 0})
+             frames 0
+             window (fresh-window)]
         (begin-drawing)
-        (when (and framebuffer @probe/bind-drawable?) (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
-        (drain-pending!)                        ; main thread, inside the frame
+        (when (and framebuffer @probe/bind-drawable?)
+          (gl-bind-framebuffer GL-FRAMEBUFFER framebuffer))
+        ;; queued work runs on the main thread and inside the frame, which is
+        ;; the only place it is safe to touch raylib from outside the loop
+        (drain-pending!)
         (let [state' (frame state)]
           (reset! current-state state')
-          (when (and colorbuffer @probe/bind-drawable?) (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
-          (when @probe/fps-every-frame? (reset! probe/last-fps (get-fps)))
-          (when @probe/record-pre-swap?
-            (reset! probe/pre-swap
-                    {:framebuffer  (probe/gl-int probe/GL-FRAMEBUFFER-BINDING)
-                     :renderbuffer (probe/gl-int probe/GL-RENDERBUFFER-BINDING)}))
+          (when (and colorbuffer @probe/bind-drawable?)
+            (gl-bind-renderbuffer GL-RENDERBUFFER colorbuffer))
+          (probe/sample-frame!)
           (end-drawing)
-          (let [dt    (get-frame-time)
-                n     (inc n)
-                sum   (+ sum dt)
-                worst (max worst dt)]
-            ;; fps from this window's own frame times, never from GetFPS:
-            ;; sum is 300 frame times in seconds, so 300/sum is exactly the
-            ;; window's rate. GetFPS is a per-frame sampler and reading it from
-            ;; a 300-frame summary returns nonsense; see the README.
-            (when (zero? (mod n 300))
-              (println (format "host: %d frames, mean %.2f ms, worst %.1f ms, %.1f fps"
-                               n (* 1000.0 (/ sum 300)) (* 1000.0 worst) (/ 300.0 sum))))
+          (let [frames  (inc frames)
+                window' (accumulate window (get-frame-time))]
             (if (pos? (window-should-close))
               (do (close-window) 0)
-              (recur state' n (if (zero? (mod n 300)) 0.0 sum) (if (zero? (mod n 300)) 0.0 worst)))))))))
+              (if (= window-frames (:count window'))
+                (do (report-window! frames window')
+                    (recur state' frames (fresh-window)))
+                (recur state' frames window')))))))))
 
 (defonce ^:private sdl-main-cb
   (ffi/foreign-callable sdl-main [:int :pointer] :int :collect-safe))
 
 (defn run!
-  "Hand `scene` to UIKit and never return.
-  scene: {:title s, :init (fn [{:keys [width height scale]}] state), :frame (fn [state] state'), :fps n}"
+  "Hand `scene` to UIKit. Does not return.
+
+  SDL_UIKitRunApp calls UIApplicationMain, which owns the process from here.
+  The scene is parked in an atom rather than closed over because the callback
+  handed to SDL is a global C function pointer, and a C function pointer cannot
+  carry a closure.
+
+  scene is {:title, :init (fn [{:keys [width height scale inset-top]}] state),
+  :frame (fn [state] state'), :fps}."
   [scene]
   (reset! app scene)
   (println "host: entering SDL_UIKitRunApp")
