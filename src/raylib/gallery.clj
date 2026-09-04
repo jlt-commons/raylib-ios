@@ -20,6 +20,8 @@
             [raylib.scenes.boids :as boids]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
+            [raylib.easings :as ez]
+            [raylib.scenes.easings :as ease]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.hilbert :as hil]
@@ -44,7 +46,8 @@
              (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
              (life/scene) (auto/scene)
              (wheel/scene) (circle/scene)
-             (clock/scene) (pie/scene) (logo/scene)])
+             (clock/scene) (pie/scene) (logo/scene)
+             (ease/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -67,7 +70,7 @@
     :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
-             :colorwheel :unitcircle :clock :piechart :logoanim]}
+             :colorwheel :unitcircle :clock :piechart :logoanim :easings]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -844,3 +847,29 @@
                             (int (- (+ y side) size (u 26)))
                             size c))))
       nil)))
+
+(defmethod draw-scene! :easings [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (ease/dimensions m)
+        p (ease/progress t)
+        grey (rl/rgba 190 190 190 255)
+        ink (rl/rgba 40 60 110 255)
+        mark (rl/rgba 190 33 55 255)
+        label (max 16 (int (* 0.13 (:cell-h d))))]
+    (doseq [[i [nm f]] (map-indexed vector ez/curves)]
+      (let [[ox oy] (ease/cell-origin d i)
+            pts (ease/plot d f ox oy)
+            n (count pts)]
+        ;; the cell's floor, so an overshoot is visibly below or above a line
+        (rl/draw-line (int ox) (int (+ oy (:cell-h d) (- (:inset-y d))))
+                      (int (+ ox (:cell-w d))) (int (+ oy (:cell-h d) (- (:inset-y d))))
+                      grey)
+        (rl/draw-text nm (int ox) (int oy) label (rl/rgba 90 90 90 255))
+        (loop [k 1]
+          (when (< k n)
+            (let [a (nth pts (dec k)) b (nth pts k)]
+              (rl/draw-line (int (nth a 0)) (int (nth a 1))
+                            (int (nth b 0)) (int (nth b 1)) ink))
+            (recur (inc k))))
+        (let [[dx dy] (ease/dot d f ox oy p)]
+          (rl/draw-circle (int dx) (int dy) (* 0.022 (:cell-w d)) mark))))))
