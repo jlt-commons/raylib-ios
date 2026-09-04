@@ -437,24 +437,34 @@
 (defn- init [{:keys [scale inset-top]}]
   ;; :category nil is the top level, showing categories. Set, it is that
   ;; category's scene list. The pure gstate is unaware of either.
-  {:k scale :top inset-top :touches 0 :category nil
+  {:k scale :insets {:top inset-top} :touches 0 :category nil
    :gstate gallery/initial-gallery-state})
 
-(defn- resolve-inset
-  "The top safe-area inset in pixels, asked once and then kept.
+(defn- resolve-insets
+  "All four safe-area insets in pixels, asked once and then kept.
 
   UIKit cannot answer before the window has been laid out, so the first frame
-  gets zero and the answer arrives on some later one. Caching it in the state
-  is not an optimisation: asking every frame would be an Objective-C message
-  send through four objects per frame for a number that never changes."
-  [k top]
-  (if (pos? top)
-    top
-    (let [{points :top} (rl/safe-area-insets)
-          px (int (* k points))]
-      (when (pos? px)
-        (println (format "gallery: safe-area top %.1f pt = %d px" points px)))
+  gets zeros and the answer arrives on some later one. Caching is not an
+  optimisation: asking every frame would be four Objective-C message sends for
+  numbers that never change while the app is upright.
+
+  All four, not just the top. The status bar is the obvious one, but the home
+  indicator sits over the bottom 102 pixels of this screen and a scene that
+  fills the display draws underneath it."
+  [k insets]
+  (if (pos? (:top insets 0))
+    insets
+    (let [px (rl/safe-area-pixels k)]
+      (when (pos? (:top px 0))
+        (println (format "gallery: safe area %s px" (pr-str px))))
       px)))
+
+(defn- safe-region
+  "Where a scene may draw, in screen pixels."
+  [[w h] {:keys [top bottom left right] :or {top 0 bottom 0 left 0 right 0}}]
+  {:x left :y top
+   :width  (- w left right)
+   :height (- h top bottom)})
 
 (defn- visible-ids
   "The ids this level lays out: the categories at the top, or one category's
@@ -513,13 +523,23 @@
   "Three things can be on screen: a running scene, one category's scenes, or
   the categories. The first two carry a Back target and the last does not,
   because there is nowhere above it."
-  [{:keys [mode active-scene-id scene-state]} category layout k m top]
+  [{:keys [mode active-scene-id scene-state]} category layout k m top safe]
   (let [p (ui/live-presentation)
         accent (color (:accent p))]
     (cond
       (= :scene mode)
-      (do (draw-scene! active-scene-id scene-state {:k k :m m})
-          (draw-back! layout accent))
+      (do
+        ;; The scene drew its geometry for the safe region starting at 0,0, so
+        ;; it is translated into place here and clipped to it. Scissor as well
+        ;; as translate, because a scene that overshoots its own bounds would
+        ;; otherwise paint over the status bar it was moved clear of.
+        (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe))
+        (rl/rl-push-matrix)
+        (rl/rl-translatef (float (:x safe)) (float (:y safe)) 0.0)
+        (draw-scene! active-scene-id scene-state {:k k :m m})
+        (rl/rl-pop-matrix)
+        (rl/end-scissor-mode)
+        (draw-back! layout accent))
 
       category
       (do (draw-gallery! layout p top (title-of category) "Choose a scene")
@@ -532,10 +552,17 @@
   "One frame: sample, decide where the press goes, advance the pure gallery,
   draw. The state carried between frames is the touch count, the cached inset,
   which category is open, and the pure state itself."
-  [{:keys [k top touches gstate category] :as s}]
-  (let [top    (resolve-inset k top)
+  [{:keys [k insets touches gstate category] :as s}]
+  (let [insets (resolve-insets k insets)
+        top    (:top insets 0)
         input  (diag/normalize-input (raw-sample touches))
         m      (:metrics input)
+        safe   (safe-region (:screen m) insets)
+        ;; A scene is told it has the safe region and nothing else, so its own
+        ;; geometry is computed for the space it will actually get. The host
+        ;; then translates it into place at draw time, which is why no scene
+        ;; has to know a safe area exists.
+        scene-m (assoc m :screen [(:width safe) (:height safe)])
         layout (below-the-safe-area m (diag/layout m) top (visible-ids category))
         press? (= :press (get-in input [:pointer :phase]))
         point  (get-in input [:pointer :position])
@@ -547,13 +574,14 @@
                         (within? (:back layout) point))
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
         input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
+        scene-input (assoc input :metrics scene-m)
         gstate (-> (if opening?
-                     (gallery/open-scene registry gstate hit input)
-                     (gallery/run-frame registry gstate input))
+                     (gallery/open-scene registry gstate hit scene-input)
+                     (gallery/run-frame registry gstate scene-input))
                    drain-events!
                    ignore-close)]
-    (render! gstate category' layout k m top)
-    (assoc s :top top
+    (render! gstate category' layout k scene-m top safe)
+    (assoc s :insets insets
              :category category'
              :touches (get-in input [:touches :count])
              :gstate gstate)))
@@ -627,21 +655,27 @@
 
 (defmethod draw-scene! :automata [_ {:keys [window] :as state} {:keys [m]}]
   (rl/clear-background (rl/rgba 245 245 245 255))
-  (let [{:keys [px]} (auto/dimensions m)
+  (let [{:keys [px row-h]} (auto/dimensions m)
         ink (rl/rgba 20 30 60 255)
         rows (count window)]
     ;; Runs, not cells: each [start length] is one rectangle covering however
     ;; many adjacent live cells it found. See the namespace docstring.
     (loop [r 0]
       (when (< r rows)
-        (let [y (* r px)
+        (let [y (* r row-h)
               rr (nth window r)
               n (count rr)]
           (loop [i 0]
             (when (< i n)
               (let [run (nth rr i)]
-                (rl/draw-rectangle (* (nth run 0) px) y (* (nth run 1) px) px ink))
+                (rl/draw-rectangle (* (nth run 0) px) y (* (nth run 1) px) row-h ink))
               (recur (inc i)))))
         (recur (inc r))))
-    (rl/draw-text (str "rule " (auto/rule-of state)) (int (* 0.04 (first (:screen m))))
-                  (int (* 0.02 (second (:screen m)))) 28 (rl/rgba 80 80 80 255))))
+    ;; Bottom left, because the top left is where the host puts the Back button
+    ;; and the first version of this label sat underneath it.
+    (let [[sw sh] (:screen m)]
+      (rl/draw-text (str "rule " (auto/rule-of state))
+                    (int (* 0.04 sw)) (int (- sh (* 0.055 sh)))
+                    ;; dark ink: the background here is RAYWHITE, and the
+                    ;; first version of this label was near-white on it
+                    30 (rl/rgba 80 80 80 255)))))

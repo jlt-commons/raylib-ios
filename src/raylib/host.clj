@@ -65,6 +65,16 @@
 (ffi/defcfn rl-end              "rlEnd"             [] :void)
 (ffi/defcfn rl-vertex-2f        "rlVertex2f"        [:float :float] :void)
 (ffi/defcfn rl-color-4ub        "rlColor4ub"        [:uint8 :uint8 :uint8 :uint8] :void)
+
+;; The matrix stack and the scissor rectangle, which together let the host put
+;; a scene somewhere other than the whole screen without the scene knowing.
+;; raylib's 2D shape calls go through rlgl immediate mode, so the current
+;; MODELVIEW matrix applies to them.
+(ffi/defcfn rl-push-matrix      "rlPushMatrix"      [] :void)
+(ffi/defcfn rl-pop-matrix       "rlPopMatrix"       [] :void)
+(ffi/defcfn rl-translatef       "rlTranslatef"      [:float :float :float] :void)
+(ffi/defcfn begin-scissor-mode  "BeginScissorMode"  [:int :int :int :int] :void)
+(ffi/defcfn end-scissor-mode    "EndScissorMode"    [] :void)
 (def RL-TRIANGLES 0x0004)
 (def FLAG-WINDOW-HIGHDPI 0x2000)
 
@@ -100,6 +110,13 @@
     (ffi/with-layout [i insets-l]
       (msg-0-insets i win (u/sel "safeAreaInsets"))
       (into {} (for [f [:top :left :bottom :right]] [f (ffi/read-field i insets-l f)])))))
+
+(defn safe-area-pixels
+  "The insets in PIXELS, which is what everything that draws works in. UIKit
+  answers in points, and this screen is three of those to the pixel."
+  [scale]
+  (let [pts (safe-area-insets)]
+    (into {} (for [[edge v] pts] [edge (int (* scale v))]))))
 
 ;; --- raylib: touch (RAY-010's scalar surface, plus the by-value Vector2) ----
 (ffi/defcfn get-touch-point-count "GetTouchPointCount" [] :int)

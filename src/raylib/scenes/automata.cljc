@@ -31,20 +31,33 @@
 (def generations-per-rule 400)
 (def ticks-per-generation 2)
 
-;; Sized against the draw budget, not the screen. At 132 columns and a
-;; 150-row window the triangle is 7932 live cells, which run-encodes to 3968
-;; rectangles: a fine picture and about triple what
-;; docs/guide/performance-on-a-phone.md says fits in a frame. These numbers put
-;; it near 1500, and the automaton is still wide enough to read.
+;; Sized against the draw budget, not the screen. At 132 columns and a 150-row
+;; window the triangle is 7932 live cells, which run-encodes to 3968 rectangles:
+;; a fine picture and about triple what docs/guide/performance-on-a-phone.md
+;; says fits in a frame. These numbers keep it wide enough to read while filling
+;; the display.
 (def target-cols 90)
-(def window-rows 70)
+(def window-rows 110)
 
-(defn dimensions [metrics]
+(defn dimensions
+  "Cell width and row height are chosen separately.
+
+  Width comes from the column count, which is what decides whether the
+  automaton is legible: 92 columns is enough to read rule 30 and few enough to
+  draw. Height is then whatever fills the space, which on this screen makes a
+  row about 1.6 times taller than a cell is wide.
+
+  Making them equal was the first attempt and left the pattern occupying the
+  top 39% of the display with white below it, because a square cell wide enough
+  to draw quickly is also too wide to need many rows."
+  [metrics]
   (let [[w h] (:screen metrics)
-        px (max 4 (quot w target-cols))]
+        px (max 4 (quot w target-cols))
+        rows (min window-rows (quot h 8))]
     {:px px
      :cols (quot w px)
-     :rows (min window-rows (quot h px))}))
+     :rows rows
+     :row-h (max 1 (quot h rows))}))
 
 (defn next-row
   "One generation. The neighbourhood, read as a three-bit number, picks which

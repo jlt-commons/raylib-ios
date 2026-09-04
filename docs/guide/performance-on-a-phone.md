@@ -152,6 +152,20 @@ So roughly a thousand primitives a frame is comfortable, and the scenes that
 push past it carry a knob: `trail-length`, `max-points`, `default-deflations`,
 `default-count`. Each is a plain `def`, which matters for the next section.
 
+**A filled rectangle is cheaper than a line.** That thousand came from scenes
+drawing lines and circles, and it turns out to understate what `DrawRectangle`
+will take. The cellular automaton draws 2551 of them a frame and holds 58 fps,
+which is two and a half times the figure above.
+
+| scene | per frame | fps |
+| --- | --- | --- |
+| life, 48x93 grid | 1470 rectangles | 59 |
+| automata, rule 30 | 2551 rectangles | 58 |
+
+Worth knowing before sizing a grid down to fit a budget it is not actually in.
+Both of those were tuned twice on the assumption that a thousand was the
+ceiling, and both had room.
+
 ## When a thousand primitives is the wrong budget
 
 Lorenz broke the rule above and it took a sweep to see why. It draws 450 lines,
