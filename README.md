@@ -49,6 +49,10 @@ off the device. Click for full size.*
   <img src="docs/images/lorenz.gif" width="200" alt="The Lorenz attractor, camera orbiting">
   <img src="docs/images/tesseract.gif" width="200" alt="A rotating 4D hypercube">
 </p>
+<p>
+  <img src="docs/images/colorwheel.gif" width="200" alt="An HSV colour wheel, drawn as an rlgl triangle fan">
+  <img src="docs/images/unitcircle.gif" width="200" alt="Sine and cosine traced from a rotating radius">
+</p>
 
 *And moving, recorded off a live iPhone Mirroring window. The device bezel is
 the mirror's, not a frame we drew. Nobody touched the phone for any of them,

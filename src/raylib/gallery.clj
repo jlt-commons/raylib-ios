@@ -707,6 +707,22 @@
         (recur (inc i))))
     (rl/rl-end)))
 
+(defn- stroke!
+  "A line a few pixels wide, drawn as offset copies of a one-pixel one.
+
+  raylib has DrawLineEx for this and it takes two Vector2 by value, which is a
+  different and more expensive FFI path than every other call here. At three
+  copies per line and a handful of lines per frame, this is cheaper than the
+  binding would be.
+
+  It matters because a one-pixel line is a hairline on a 1206-pixel-wide screen.
+  The examples these scenes come from were written for an 800-pixel window,
+  where the same line is half again as thick relative to everything else."
+  [x1 y1 x2 y2 colour]
+  (rl/draw-line x1 y1 x2 y2 colour)
+  (rl/draw-line (inc x1) y1 (inc x2) y2 colour)
+  (rl/draw-line x1 (inc y1) x2 (inc y2) colour))
+
 (defmethod draw-scene! :unitcircle [_ {:keys [angle trace]} {:keys [m]}]
   (rl/clear-background (rl/rgba 245 245 245 255))
   (let [d (circle/dimensions m)
@@ -722,9 +738,9 @@
     (rl/draw-line (int (- cx r)) cy (int (+ cx r)) cy grey)
     (rl/draw-line cx (int (- cy r)) cx (int (+ cy r)) grey)
     ;; the two projections of the radius, and the radius itself
-    (rl/draw-line px py px cy blue)
-    (rl/draw-line px cy cx cy green)
-    (rl/draw-line cx cy px py maroon)
+    (stroke! px py px cy blue)
+    (stroke! px cy cx cy green)
+    (stroke! cx cy px py maroon)
     (rl/draw-circle px py (* 0.02 (min (:w d) (:h d))) maroon)
     ;; and the same two values traced over time, underneath
     (doseq [[pick colour centre] [[first blue 0.28] [second green 0.72]]]
@@ -733,6 +749,6 @@
         (loop [i 1]
           (when (< i n)
             (let [a (nth pts (dec i)) b (nth pts i)]
-              (rl/draw-line (int (nth a 0)) (int (nth a 1))
-                            (int (nth b 0)) (int (nth b 1)) colour))
+              (stroke! (int (nth a 0)) (int (nth a 1))
+                       (int (nth b 0)) (int (nth b 1)) colour))
             (recur (inc i))))))))

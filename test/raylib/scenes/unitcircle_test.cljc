@@ -34,6 +34,18 @@
         (is (close? (Math/sin a) s))
         (is (close? (Math/cos a) c))))))
 
+(deftest the-first-frame-has-an-empty-trace
+  (testing "init leaves the trace empty, and the very next frame draws it. This
+            crashed on the device with an index out of bounds, because the wave
+            asked for element 0 of an empty vector. Every other test in this
+            file runs advance first, so none of them saw the state the scene
+            actually starts in."
+    (is (= [] (u/wave-points dims [] first 0.28)))
+    (is (= [] (u/wave-points dims [] second 0.72))))
+  (testing "and one sample gives one point, not a segment"
+    (let [one (nth (iterate u/advance {:angle 0.0 :trace []}) 1)]
+      (is (= 1 (count (u/wave-points dims (:trace one) first 0.28)))))))
+
 (deftest the-trace-fills-before-it-scrolls
   (testing "a short run has a short trace rather than a padded one"
     (let [run (nth (iterate u/advance {:angle 0.0 :trace []}) 10)]

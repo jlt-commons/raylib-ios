@@ -57,12 +57,16 @@
   caller draws segments between consecutive entries rather than working out any
   geometry itself."
   [{:keys [w trace-top trace-height amplitude]} trace pick centre-fraction]
-  (let [n (max 1 (count trace))
-        mid (+ trace-top (* centre-fraction trace-height))
+  ;; (range (count trace)), NOT (range (max 1 (count trace))). The max was
+  ;; there to keep a later division safe and it made the very first frame ask
+  ;; for element 0 of an empty vector, which is an index-out-of-bounds on the
+  ;; frame right after :scene/init. The division it was guarding uses
+  ;; trace-length, a constant, so it never needed guarding at all.
+  (let [mid (+ trace-top (* centre-fraction trace-height))
         step (/ (double w) trace-length)]
     (mapv (fn [i]
             [(* i step) (- mid (* amplitude (pick (nth trace i))))])
-          (range n))))
+          (range (count trace)))))
 
 (defn- init [_] [{:angle 0.0 :trace []} [[:scene/init :unitcircle]]])
 (defn- update-scene [state _] [(advance state) []])
