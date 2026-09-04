@@ -84,41 +84,62 @@ notebooks this project's own `tools/extract-from-notebooks` reads:
 Measured, so the size of the problem is known rather than guessed. Counting
 substantive lines, comments and blank lines excluded:
 
-| our file | lines | also in the demo | of those, also in your MIT glitter-uikit |
-|---|---:|---:|---:|
-| `src/raylib/host.clj`    | 170 | 130 |  0 |
-| `src/raylib/gallery.clj` | 315 |  83 |  0 |
-| `src/raylib/touch.clj`   |  35 |  35 |  0 |
-| `src/raylib/link.clj`    |  16 |  16 |  1 |
-| `src/raylib/probe.clj`   |  53 |   2 |  1 |
-| `src/raylib/objc.clj`    |  32 |  13 | 13 |
+| our file | before | after the 2026-09-04 rewrite |
+|---|---:|---:|
+| `src/raylib/host.clj`    |  84 | 64 |
+| `src/raylib/gallery.clj` |  74 | 46 |
+| `src/raylib/touch.clj`   |  33 |  6 |
+| `src/raylib/link.clj`    |  10 |  3 |
+| **total**                | **207** | **119** |
 
-The last two rows are already clear. `objc.clj` shares only lines that are also
-in glitter-uikit's own `ffi.clj`, which is MIT and ours, so its provenance runs
-straight to that rather than through the demo. `probe.clj` was written here.
-`src/raylib/scenes/*.cljc` and `src/poc/**` are clean too, being MIT from jasalt
-and zlib from raylib-jlt.
+Counting substantive lines that also appear in the demo, comments and blank
+lines excluded, and excluding `defcfn` declarations, constants and `ns` forms.
+Those are the published C API of raylib and SDL rather than anyone's expression:
+`(ffi/defcfn draw-line "DrawLine" [:int :int :int :int :uint] :void)` has one
+correct spelling. An earlier version of this file counted them and reported 264.
 
-That leaves **264 lines across four files** as the whole of the problem. With no licence, the default is
-ordinary copyright: all rights reserved, and no permission to copy, modify or
-redistribute. So this project cannot be published, relicensed or moved to an
-organisation as it stands, however small the diff or generous the intent.
+Two files were never part of the problem. `objc.clj` shares only lines that are
+also in glitter-uikit's own `ffi.clj`, which is MIT and this author's, so its
+provenance runs to that rather than through the demo. `probe.clj` was written
+here. `src/raylib/scenes/*.cljc` and `src/poc/**` are clean too, being MIT from
+jasalt and zlib from raylib-jlt.
+
+## What the rewrite did and did not reach
+
+On 2026-09-04 the four files were rewritten from the upstream APIs and this
+project's own measurements: 207 lines down to 119.
+
+What went: the structure, the decomposition and every docstring and comment.
+`gallery.clj`'s frame function was one `let` doing six jobs and is now six named
+functions. `host.clj`'s timing accumulator became a window map with three
+helpers, and its per-frame diagnostics moved into `probe`. `touch.clj` now draws
+every finger rather than the first. Prose was replaced wholesale, since prose is
+pure expression and carries no runtime risk.
+
+What remains is interface, not expression, and further rewriting would be
+obfuscation rather than independence:
+
+- SDL's `SDL_SysWMinfo` byte offsets, and the `SDL_version` it demands be
+  written before it will answer at all.
+- raylib's own colour values, and the `bit-or` packing it requires.
+- `[[UIApplication sharedApplication].windows firstObject].safeAreaInsets`,
+  which is the API path and has no shorter form.
+- The order `SetConfigFlags`, `SDL_SetHint`, `InitWindow`, `SetTargetFPS` must
+  happen in.
+
+Writing any of those differently would make them wrong. The remaining 119 lines
+are what two programs solving this problem against these libraries would have in
+common, which is a materially better position than where this started.
 
 Three ways forward, in the order they should be tried:
 
-1. **Ask.** A request to add MIT or zlib upstream resolves it completely, costs
-   the author nothing, and is the only option that keeps the attribution
-   honest. The demo is itself built on glitter and glitter-uikit, both MIT and
-   both ours, and it says so warmly throughout its README. Someone writing a
-   demo of your libraries is about as likely to say yes as anyone gets. It was sent on
-   2026-09-03 as statonjr/glimmer-ios-demo#1.
-2. **Rewrite those four files** from the public facts rather than from the
-   notebooks: SDL's `docs/README-ios.md`, raylib's headers, Apple's docs, and
-   this project's own device measurements. 264 lines, and the two smallest are
-   near-mechanical, `link.clj` being four `defcfn` declarations of published SDL
-   symbols. `host.clj` is the real work, though we now understand that loop
-   better than the notebooks do, having fixed its frame timing and refuted its
-   framebuffer claim on hardware.
+1. **Ask.** A request to add MIT or zlib upstream resolves it completely and
+   costs the author nothing. The demo is itself built on glitter and
+   glitter-uikit, both MIT and both this author's, and says so warmly throughout
+   its README. Sent on 2026-09-03 as statonjr/glimmer-ios-demo#1, unanswered.
+2. **Finish the rewrite**, accepting that the floor is interface overlap and
+   that the honest way to describe the result is an independent reimplementation
+   rather than a clean-room one, since the original was read first.
 3. **Stay private.** No obligation is breached by a private repository, and
    this is the status quo.
 
@@ -150,8 +171,8 @@ anyone using this repository should know what it means:
 The other three sources are properly licensed and unaffected: jasalt's files
 under MIT, the raylib-jlt ports under zlib, and raylib and SDL2 themselves.
 
-Option 2 remains the clean fix and is well understood: 264 substantive lines
-across four files, of which `link.clj` is four `defcfn` declarations of
-published SDL symbols and `host.clj` is the only part needing real thought.
+Option 2 was largely done on 2026-09-04: 207 expressive lines across four files
+became 119, and what remains is interface rather than expression. See the
+measurement above.
 The presence of a LICENSE file does not change that: a licence grants what the
 grantor holds, and this is the one part we do not hold.
