@@ -27,6 +27,7 @@
             [raylib.scenes.analog :as analog]
             [raylib.scenes.clockgrid :as cgrid]
             [raylib.scenes.sector :as sector]
+            [raylib.scenes.palette :as pal]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -61,7 +62,7 @@
              (ease/scene)
              (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
-             (analog/scene) (cgrid/scene) (sector/scene)])
+             (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -86,7 +87,7 @@
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
-             :analog :clockgrid :sector]}
+             :analog :clockgrid :sector :palette]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -1105,30 +1106,53 @@
 
 (defmethod draw-scene! :clockgrid [_ {:keys [current]} {:keys [m]}]
   (rl/clear-background (rl/rgba 8 12 28 255))
-  ;; 288 hands a frame, each an rlgl quad. The bezels are drawn as rings rather
-  ;; than skipped because without them the hands read as loose strokes instead
-  ;; of clock faces, which is the whole joke of the scene.
+  ;; Three drafts, and the middle one is the interesting failure.
+  ;;
+  ;; The bezels were draw-ring at 20 segments: 120 vertices each, 17000 FFI
+  ;; calls a frame for 144 of them, 6 fps. draw-circle-lines is ONE call and
+  ;; draws the same circle. rlgl is the right tool when raylib has no call for
+  ;; the shape, and the wrong one when it does. That alone took it to 50.
+  ;;
+  ;; Then the 288 hands were collected into a vector and handed to a single
+  ;; batched rlgl call, to save the 864 calls that 288 separate begin/colour/end
+  ;; triples cost. It measured 47. The batch saved the calls and paid for them
+  ;; in 288 vector allocations, which is this project's oldest lesson arriving
+  ;; again: the allocation costs more than the call.
+  ;;
+  ;; So the batch stays and the vector goes. One begin, one colour, one end, and
+  ;; the vertices emitted straight from the loop with nothing allocated between.
   (let [{:keys [x0 y0 step radius hand row-step pair-w]} (cgrid/dimensions m)
-        hands (rl/rgba 255 249 196 255)
         bezel (rl/rgba 42 48 74 255)
-        inner (* radius 0.86)]
+        half (* radius 0.08)]
     (dotimes [d 6]
-      (let [pair (quot d 2)
-            side (mod d 2)
-            ox (+ x0 (* side pair-w))
-            oy (+ y0 (* pair row-step))
+      (let [pair (quot d 2) side (mod d 2)
+            ox (+ x0 (* side pair-w)) oy (+ y0 (* pair row-step))]
+        (dotimes [i cgrid/cells]
+          (rl/draw-circle-lines (int (+ ox (* (mod i cgrid/cols) step) radius))
+                                (int (+ oy (* (quot i cgrid/cols) step) radius))
+                                (float radius) bezel))))
+    (rl/rl-begin rl/RL-TRIANGLES)
+    (rl/rl-color-4ub 255 249 196 255)
+    (dotimes [d 6]
+      (let [pair (quot d 2) side (mod d 2)
+            ox (+ x0 (* side pair-w)) oy (+ y0 (* pair row-step))
             grid (nth current d)]
         (dotimes [i cgrid/cells]
-          (let [cx (+ ox (* (mod i cgrid/cols) step) radius)
-                cy (+ oy (* (quot i cgrid/cols) step) radius)
-                [a b] (nth grid i)]
-            (rl/draw-ring cx cy inner radius 0 360 20 bezel)
-            (doseq [deg [a b]]
-              (let [t (Math/toRadians (double deg))]
-                (rl/draw-line-ex cx cy
-                                 (+ cx (* hand (Math/cos t)))
-                                 (+ cy (* hand (Math/sin t)))
-                                 (* radius 0.16) hands)))))))))
+          (let [cx (double (+ ox (* (mod i cgrid/cols) step) radius))
+                cy (double (+ oy (* (quot i cgrid/cols) step) radius))
+                cell (nth grid i)]
+            (dotimes [k 2]
+              (let [t (Math/toRadians (double (nth cell k)))
+                    dx (Math/cos t) dy (Math/sin t)
+                    x2 (+ cx (* hand dx)) y2 (+ cy (* hand dy))
+                    px (* half dy) py (* half (- dx))]
+                (rl/rl-vertex-2f (float (+ cx px)) (float (+ cy py)))
+                (rl/rl-vertex-2f (float (- cx px)) (float (- cy py)))
+                (rl/rl-vertex-2f (float (- x2 px)) (float (- y2 py)))
+                (rl/rl-vertex-2f (float (+ cx px)) (float (+ cy py)))
+                (rl/rl-vertex-2f (float (- x2 px)) (float (- y2 py)))
+                (rl/rl-vertex-2f (float (+ x2 px)) (float (+ y2 py)))))))))
+    (rl/rl-end)))
 
 (defmethod draw-scene! :sector [_ {:keys [start-angle end-angle requested]} {:keys [m]}]
   (rl/clear-background rl/RAYWHITE)
@@ -1151,3 +1175,20 @@
       (line 3 (if auto? (str "AUTO: drawing " segments)
                         (str "drawing " segments " as asked"))
             (if auto? (rl/rgba 190 33 55 255) (rl/rgba 0 130 60 255))))))
+
+(defmethod draw-scene! :palette [_ _ {:keys [m]}]
+  (rl/clear-background (rl/rgba 30 32 40 255))
+  (let [{:keys [swatch-h label-size] :as d} (pal/dimensions m)]
+    (doseq [[i entry] (map-indexed vector pal/colours)]
+      (let [[x y w _] (pal/cell d i)
+            [nm r g b] entry
+            ink (if (pal/light? entry) (rl/rgba 20 20 20 255) rl/RAYWHITE)]
+        (rl/draw-rectangle (int x) (int y) (int w) (int swatch-h) (rl/rgba r g b 255))
+        ;; The name sits ON the swatch rather than under it, so the contrast
+        ;; choice is visible: a label that vanishes is the bug this scene would
+        ;; otherwise hide.
+        (rl/draw-text nm (int (+ x (* 0.06 w))) (int (+ y (* 0.5 swatch-h) (- (quot label-size 2))))
+                      label-size ink)
+        (rl/draw-text (str r " " g " " b)
+                      (int (+ x (* 0.06 w))) (int (+ y swatch-h (* 0.12 label-size)))
+                      (max 14 (int (* 0.8 label-size))) (rl/rgba 150 150 160 255))))))

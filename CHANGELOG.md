@@ -2,6 +2,43 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-09-05
+
+### Added
+
+- **Three more, thirty-seven in all.** `clockgrid`, `sector` and `palette`, all
+  from raylib-jlt and all reusing the rlgl helpers added for the analog clock
+  rather than needing new FFI.
+- **`clockgrid`** spells the time with 144 little clock faces whose 288 hands
+  swing into position each second. Laid out three rows of two rather than the
+  original's single row of six: twenty-four faces across a portrait phone leaves
+  each about 50px, too small to read as a clock. Sized from the height, since
+  eighteen cells stacked bind before eight across do.
+- **`sector`** is a pie slice degrading into a triangle. The example is really
+  about one piece of arithmetic: raylib needs one segment per 90 degrees and
+  computes that floor itself when handed fewer, so asking for 2 across 270
+  degrees gives you 3. Driven by a timer, since the original uses raygui sliders
+  and a phone has neither those nor keys.
+- **`palette`** draws all 25 colours raylib names, with the label's ink chosen
+  by Rec. 601 luma. Two colours in the palette come out on opposite sides of
+  luma and a flat channel average: ORANGE reads dark by average and light by
+  luma, MAGENTA the reverse, and luma matches the eye both times.
+
+### Fixed
+
+- **The clock of clocks ran at 6 fps, and getting it to 59 took three drafts.**
+  The bezels were `draw-ring` at 20 segments, which is 120 vertices each and
+  about 17,000 FFI calls a frame for 144 of them. `DrawCircleLines` draws the
+  same circle in one call and needs no rlgl helper, because unlike `DrawRing` it
+  takes no by-value Vector2. That alone reached 50.
+
+  Then the 288 hands were collected into a vector and drawn in one batch, to
+  save the 864 calls that 288 separate begin/colour/end triples cost. It
+  measured **slower**, 47, because the batch had traded those calls for 288
+  vector allocations. Keeping the batch and emitting vertices straight from the
+  loop with nothing allocated reached 59. See
+  [performance](docs/guide/performance-on-a-phone.md).
+
 ## 2026-09-04
 
 ### Added

@@ -208,6 +208,38 @@ proxy for it while the work per primitive is roughly constant. A scene that
 computes geometry once and redraws it gets the thousand. A scene that recomputes
 every vertex every frame gets a few hundred.
 
+## rlgl is the wrong tool when raylib already has the call
+
+The clock of clocks draws 144 small bezels and 288 hands. Three drafts, and the
+numbers are worth keeping because two of them are counter-intuitive.
+
+| draft | fps |
+| --- | ---: |
+| bezels as `draw-ring`, 20 segments each | 6 |
+| bezels as `draw-circle-lines` | 50 |
+| plus the hands collected into a vector for one batched call | 47 |
+| plus the vector removed, vertices emitted straight from the loop | 59 |
+
+`draw-ring` is an rlgl helper this project added because raylib's own `DrawRing`
+takes its centre as a by-value Vector2. It emits 120 vertices for a 20-segment
+ring, so 144 bezels is about 17,000 FFI calls a frame. `DrawCircleLines` has no
+by-value argument, needs no helper, and draws the same circle in one call. rlgl
+earns its place where raylib has no call for the shape. Where raylib does, it is
+strictly worse.
+
+The middle row is the one that surprised me. Drawing 288 hands through
+`draw-line-ex` opens and closes an rlgl batch per line, which is three extra
+calls each and 864 a frame. Collecting the segments into a vector and drawing
+them in one batch removes all 864, and it measured **slower**: 47 against 50.
+The batch had traded 864 FFI calls for 288 vector allocations, and on this
+runtime the allocation is dearer. That is the same lesson the flow field and the
+Lorenz attractor both taught earlier on this page, arriving from a direction
+that looked like an optimisation.
+
+Keeping the batch and dropping the vector gets both: one `rlBegin`, one colour,
+one `rlEnd`, and every vertex computed and emitted inside the loop with nothing
+allocated between them. 59 fps.
+
 ## How these were measured
 
 All of it live, over the nREPL, without a rebuild between readings. That is

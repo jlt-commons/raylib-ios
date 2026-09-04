@@ -1,8 +1,8 @@
 # The scenes
 
-Thirty-four, in four categories. Three come byte-identical from
+Thirty-seven, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other thirty-one are ports from
+with their sha256 verified, and the other thirty-four are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -56,6 +56,9 @@ that were tuned to get there.
 | Collision Area | 3 rectangles | 59 | follows a finger, and drifts without one |
 | Multitouch | a circle and trail per finger | 58 | every point, not just point zero |
 | Analog Clock | a ring, 60 ticks, 3 hands | 59 | rlgl stands in for the by-value Vector2 calls |
+| Clock of Clocks | 144 bezels, 288 hands | 59 | the time spelled by little clock faces |
+| Circle Sector | one sector, 1-36 segments | 58 | raylib's own segment floor, demonstrated |
+| Colours | 25 swatches | 58 | every colour raylib names |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games

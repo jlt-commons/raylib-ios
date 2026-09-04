@@ -49,6 +49,7 @@
                      raylib.scenes.analog-test
                      raylib.scenes.clockgrid-test
                      raylib.scenes.sector-test
+                     raylib.scenes.palette-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
