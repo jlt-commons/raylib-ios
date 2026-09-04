@@ -240,6 +240,19 @@ Keeping the batch and dropping the vector gets both: one `rlBegin`, one colour,
 one `rlEnd`, and every vertex computed and emitted inside the loop with nothing
 allocated between them. 59 fps.
 
+Two more scenes hit the same wall the same night, which is what makes it a rule
+rather than an anecdote. The ring scene built two 97-point vectors per frame and
+partitioned them into pairs to stroke its outline: 40 fps, and 59 once the
+points were computed straight into the vertex stream. The spline scene was worse,
+because it did that three times over, once per basis: about a thousand
+allocations a frame and **20 fps**, against 59 for the same picture with the
+previous point carried in a loop binding.
+
+The shape of the fix is always the same. Keep the collection-returning function,
+because tests want something to inspect, and do not call it from the draw path.
+`ring/arc-points` and `splines/curve` both still exist and are both still tested.
+Neither runs sixty times a second.
+
 ## How these were measured
 
 All of it live, over the nREPL, without a rebuild between readings. That is

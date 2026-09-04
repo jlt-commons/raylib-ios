@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`splines`**, forty in all. Three bases over one set of control points, so
+  the difference is visible rather than described: Catmull-Rom passes through
+  its points, the cubic Bezier and the uniform B-spline do not. The original
+  cycles between them with SPACE, which a phone has no way to press, and drawing
+  all three at once is the stronger comparison anyway. raylib's own DrawSpline*
+  take Vector2 arrays by value and are unbindable here, so the curves are
+  evaluated in Clojure, which is what makes sharing the points possible at all.
 - **`ring`**, thirty-nine in all. A breathing annulus with a stroked outline,
   and the scene that would have caught the winding bug on day one: its whole
   subject is `draw-ring`, so a culled annulus is a blank screen rather than a
