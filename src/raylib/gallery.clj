@@ -17,6 +17,8 @@
             [raylib.flappy :as flappy-draw]
             [raylib.host :as rl]
             [raylib.scenes.automata :as auto]
+            [raylib.scenes.angles :as ang]
+            [raylib.scenes.balls :as balls]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
@@ -34,11 +36,13 @@
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.piechart :as pie]
             [raylib.scenes.penrose :as pen]
+            [raylib.scenes.sequence :as seqn]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.tesseract :as tess]
             [raylib.scenes.unitcircle :as circle]
-            [raylib.scenes.tree :as tree]))
+            [raylib.scenes.tree :as tree]
+            [raylib.scenes.writing :as writ]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
@@ -47,7 +51,8 @@
              (life/scene) (auto/scene)
              (wheel/scene) (circle/scene)
              (clock/scene) (pie/scene) (logo/scene)
-             (ease/scene)])
+             (ease/scene)
+             (ang/scene) (writ/scene) (balls/scene) (seqn/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -70,7 +75,8 @@
     :scenes [:hilbert :tree :lsystem :automata]}
    {:id :toys :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
-             :colorwheel :unitcircle :clock :piechart :logoanim :easings]}
+             :colorwheel :unitcircle :clock :piechart :logoanim :easings
+             :angles :writing :balls :sequence]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -873,3 +879,57 @@
             (recur (inc k))))
         (let [[dx dy] (ease/dot d f ox oy p)]
           (rl/draw-circle (int dx) (int dy) (* 0.022 (:cell-w d)) mark))))))
+
+(defmethod draw-scene! :angles [_ {:keys [angle]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (ang/dimensions m)
+        cx (int (:cx d)) cy (int (:cy d))
+        grey (rl/rgba 200 200 200 255)
+        maroon (rl/rgba 190 33 55 255)]
+    (rl/draw-circle-lines cx cy (:radius d) grey)
+    (doseq [a (ang/fixed-angles)]
+      (let [[x y] (ang/spoke-end d a)]
+        (stroke! cx cy (int x) (int y) grey)))
+    (let [[x y] (ang/spoke-end d angle)]
+      (stroke! cx cy (int x) (int y) maroon)
+      (rl/draw-circle (int x) (int y) (* 0.03 (:radius d)) maroon))))
+
+(defmethod draw-scene! :writing [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (writ/dimensions m)
+        lines (writ/wrap (writ/visible t) (:columns d))
+        ink (rl/rgba 0 82 172 255)]
+    (doseq [[i line] (map-indexed vector lines)]
+      (rl/draw-text line (int (:margin d)) (int (+ (:top d) (* i (:line-height d))))
+                    (:size d) ink))
+    ;; a cursor while typing, gone during the pause, which is how you can tell
+    ;; the difference between finished and stalled
+    (when-not (writ/complete? t)
+      (let [row (max 0 (dec (count lines)))
+            last-line (if (seq lines) (last lines) "")]
+        (rl/draw-rectangle
+         (int (+ (:margin d) (rl/measure-text last-line (:size d)) (* 0.2 (:size d))))
+         (int (+ (:top d) (* row (:line-height d))))
+         (int (* 0.09 (:size d))) (:size d) ink)))))
+
+(defmethod draw-scene! :balls [_ {:keys [balls]} _]
+  ;; No env needed: a ball already carries its position in the safe region's
+  ;; own coordinates, which is the space the host has translated us into.
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (doseq [b balls]
+    (let [[r g bl] (:colour b)]
+      (rl/draw-circle (int (:x b)) (int (:y b)) (:r b) (rl/rgba r g bl 255))
+      (rl/draw-circle-lines (int (:x b)) (int (:y b)) (:r b) (rl/rgba 80 80 80 90)))))
+
+(defmethod draw-scene! :sequence [_ {:keys [bars]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [d (seqn/dimensions m)
+        bw (:bar-w d)]
+    (doseq [[i bar] (map-indexed vector bars)]
+      (let [[r g b] (:colour bar)
+            height (* (:fraction bar) (:max-height d))]
+        (rl/draw-rectangle (int (* i bw))
+                           (int (- (:baseline d) height))
+                           (int (- bw 2))
+                           (int height)
+                           (rl/rgba r g b 255))))))

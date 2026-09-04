@@ -7,7 +7,7 @@
   <div class="hero-inner">
     <h1>raylib on an iPhone, from Clojure</h1>
     <p class="tagline">
-      A gallery of twenty-five scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
+      A gallery of twenty-nine scenes running at <strong>58 fps on an iPhone 17 Pro</strong>,
       drawn by raylib 6.0 over SDL2, driven by <strong>Jolt</strong> (Clojure on
       Chez Scheme) as threaded portable bytecode. No JIT, nothing generated at
       run time, and no dependencies.
@@ -110,7 +110,7 @@ flowchart LR
       <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
       experiment</a>, sha256 verified, and were written for a different platform
       entirely, along with three more namespaces carrying the scene contract
-      itself. The other twenty-two are ports from
+      itself. The other twenty-six are ports from
       <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
     </p>
     <div class="demo-grid">
@@ -201,6 +201,22 @@ flowchart LR
       <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
         <img src="{{site-base}}/images/easings.gif" alt="Fifteen easing curves plotted and running on one clock" loading="lazy" width="480">
         <figcaption>easings &middot; all fifteen curves, one clock</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/balls.gif" alt="Balls falling and bouncing under gravity" loading="lazy" width="480">
+        <figcaption>ball physics &middot; restarts when everything settles</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/sequence.gif" alt="A shuffled sequence of coloured bars" loading="lazy" width="480">
+        <figcaption>random sequence &middot; a permutation, not draws</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/angles.gif" alt="A ring of spokes with one turning" loading="lazy" width="480">
+        <figcaption>angles &middot; the two lines the rest are built from</figcaption>
+      </a>
+      <a class="demo" href="{{site-base}}/guide/porting-an-example.html">
+        <img src="{{site-base}}/images/writing.gif" alt="A message typing itself out one character at a time" loading="lazy" width="480">
+        <figcaption>writing &middot; the only scene that animates text</figcaption>
       </a>
       <a class="demo" href="{{site-base}}/images/penrose.png">
         <img src="{{site-base}}/images/thumbs/penrose.png" alt="A Penrose P3 tiling by deflation" loading="lazy" width="480">

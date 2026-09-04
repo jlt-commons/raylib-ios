@@ -6,6 +6,9 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Four more, twenty-nine in all.** `angles` (a ring of spokes and one that
+  turns), `writing` (a message typing itself), `balls` (gravity and bouncing)
+  and `sequence` (a shuffled permutation of bar heights).
 - **`easings`, the twenty-fifth scene.** All fifteen easing curves plotted at
   once, each running a dot on a shared clock so the only differences are the
   curves. raylib-jlt splits this across three examples; a phone screen holds
@@ -27,6 +30,14 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **The test runner's exit code did nothing, so the CI test job was never a
+  gate.** It called `(resolve 'System/exit)` and fell through to `nil` when
+  that returned nil, which it always does: Clojure's `resolve` looks up vars
+  and a static method is not one. A failing test printed FAIL and exited 0.
+  Proved by adding a deliberately failing test and reading the exit code, then
+  fixed by calling `System/exit` directly, which works under both
+  `clojure -M:test` and `jolt -M:test`. Both gates now stop the run: a failing
+  test, and a test file on disk the runner does not list.
 - **`bounce-in` was inconsistent at a zero duration.** It is defined by
   reflecting `bounce-out`, and the reflection inverts that degenerate case:
   every other curve reads `d=0` as finished and returns `b+c` where `bounce-in`

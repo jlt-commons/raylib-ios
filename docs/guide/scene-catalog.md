@@ -1,8 +1,8 @@
 # The scenes
 
-Twenty-five, in four categories. Three come byte-identical from
+Twenty-nine, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other twenty-two are ports from
+with their sha256 verified, and the other twenty-six are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -48,6 +48,10 @@ that were tuned to get there.
 | Pie Chart | 186 vertices | 58 | segments sized per wedge |
 | raylib Logo | 4 rectangles and a word | 58 | nothing eased, on purpose |
 | Easings | 405 lines and 15 dots | 58 | all fifteen curves on one clock |
+| Angles | 13 lines and a circle | 59 | the two lines every circular scene here uses |
+| Writing | a few lines of text | 58 | the only scene that animates text |
+| Ball Physics | 9 circles | 58 | restarts when everything settles |
+| Random Sequence | 24 rectangles | 57 | a permutation, not independent draws |
 
 ## Games
 

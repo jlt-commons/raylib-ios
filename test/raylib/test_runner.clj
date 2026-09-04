@@ -22,15 +22,26 @@
             (when-let [d (ex-data e)] (prn d)))
         (prn e)))))
 
-(defn- exit [code]
-  (cond
-    (resolve 'jolt.host/exit) ((resolve 'jolt.host/exit) code)
-    (resolve 'System/exit)    ((resolve 'System/exit) code)
-    :else nil))
+(defn- exit
+  "End the run with `code`.
+
+  Called directly rather than resolved. An earlier version tried
+  `(resolve 'System/exit)` first and fell through to nil when that returned
+  nil, which it always does: Clojure's resolve looks up vars, and a static
+  method is not one. So this function did nothing on either runtime, a failing
+  test exited 0, and the CI job that runs it was green whatever the tests said.
+  Proved by adding a deliberately failing test and reading the exit code.
+
+  System/exit is available under both `clojure -M:test` and `jolt -M:test`, so
+  there is nothing to detect."
+  [code]
+  (System/exit code))
 
 (defn -main [& _]
   (let [namespaces '[raylib.scenes.kaleidoscope-test
+                     raylib.scenes.angles-test
                      raylib.scenes.automata-test
+                     raylib.scenes.balls-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
@@ -39,8 +50,10 @@
                      raylib.scenes.logoanim-test
                      raylib.scenes.lorenz-test
                      raylib.scenes.piechart-test
+                     raylib.scenes.sequence-test
                      raylib.scenes.tesseract-test
                      raylib.scenes.unitcircle-test
+                     raylib.scenes.writing-test
                      poc.raylib.flappy-bird-test
                      poc.raylib.gallery-test
                      poc.raylib.gallery-ui-test
