@@ -6,6 +6,11 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`ring`**, thirty-nine in all. A breathing annulus with a stroked outline,
+  and the scene that would have caught the winding bug on day one: its whole
+  subject is `draw-ring`, so a culled annulus is a blank screen rather than a
+  missing detail. Its sweep is bounded to 330 degrees, where the original's own
+  formula reaches 380 and laps its own start, shading the overlap twice.
 - **`gradient`**, thirty-eight in all. The original draws one vertical band and
   calls itself a check that two by-value Colors survive one FFI call, which does
   not apply here since colours cross packed into a uint. So it grew into what the

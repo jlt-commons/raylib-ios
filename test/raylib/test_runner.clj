@@ -51,6 +51,7 @@
                      raylib.scenes.sector-test
                      raylib.scenes.palette-test
                      raylib.scenes.gradient-test
+                     raylib.scenes.ring-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test

@@ -117,6 +117,14 @@ arithmetic tends to be right, because it is the part you can reason about from a
 diagram, and the winding is the part that has no visible symptom until it is
 wrong.
 
+It happened three times in one night. Once in `draw-ring`, once avoided in
+`draw-gradient-quad` only because the ring bug was fresh, and once again in the
+ring scene's own outline, where the six vertices of a thick line were written
+out afresh and two of them swapped. That third one is the useful lesson: the
+correct order already existed in `draw-line-ex` and should have been copied
+rather than rederived. Winding is not something to work out again each time you
+write it.
+
 ## Cost
 
 Cheaper than it looks. The colour wheel is 540 vertices a frame and holds 59 fps;
