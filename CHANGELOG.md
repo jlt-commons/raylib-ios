@@ -6,6 +6,31 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **The scene list scrolls.** At forty-six scenes the Toys category is
+  thirty-two cards, and `gallery-layout` sizes cards to FIT: it divides the
+  height it is given by the row count, so more scenes means shorter cards rather
+  than a longer list. Each card had shrunk to about 138 pixels.
+
+  That file is one of the six verified byte-identical against the notebooks and
+  does not change. It does not need to. `below-the-safe-area` already hands it a
+  screen SHORTER than the real one and shifts the result down; scrolling hands
+  it one TALLER and shifts the result up. The pure function lays out a
+  comfortable grid for a screen that does not exist, and the host moves a window
+  over it. Cards are now at least 16% of the shorter side, about 193 pixels.
+
+  A list that scrolls cannot open a card on press, because at press time there
+  is no way to know whether a drag is starting. So a press begins a gesture,
+  movement scrolls, and the release opens a card only if the finger stayed
+  within a slop of 1.8% of the shorter side. The hit test uses where the gesture
+  STARTED rather than where it ended, since the release frame does not carry a
+  reliable position.
+
+- **`drag!`, a synthetic drag to go with `tap!`.** A drag is several frames of a
+  finger moving while down, which `tap!` cannot express: it is a press and a
+  release with nothing between. Without this the scroll could only be tested by
+  a person swiping, and a person cannot swipe while iPhone Mirroring holds the
+  device screen locked.
+
 - **`clipbox`**, forty-six in all, and the host now hands each scene its safe
   region. rlgl keeps a single scissor rectangle, so a scene calling
   `BeginScissorMode` replaces the host's safe-area one outright rather than
@@ -29,6 +54,19 @@ Notable changes, newest first. Dates are the day the work landed.
   everything between with no special case.
 
 ### Fixed
+
+- **Every tap was read as a scroll, the first time scrolling shipped.** Travel
+  was accumulated on the release frame as well as on movement, and raylib
+  answers `GetTouchX` and `GetTouchY` with whatever it last had even when no
+  finger is down. On device that put a motionless tap's travel at 1941 pixels,
+  far past the slop, so nothing opened. Travel accumulates on `:down` only.
+
+- **A fractional scroll offset killed the process.** `gallery-layout` rounds its
+  rectangles to ints and the offset is added afterwards, so a fractional one
+  made a card's `:y` a double, which `DrawRectangle`'s `[:int :int :int :int
+  :uint]` binding rejects at the FFI boundary. Reachable from any real swipe,
+  found by the synthetic one, which interpolates in doubles. `clamp` returns a
+  long now.
 
 - **The inset bands kept the previous screen's drawing.** A scene's own
   `ClearBackground` is subject to the scissor, because it becomes a `glClear`

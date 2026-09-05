@@ -37,6 +37,7 @@
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.fan :as fan]
             [raylib.scenes.clipbox :as clipbox]
+            [raylib.scroll :as scroll]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -138,6 +139,13 @@
 ;; twice and read as a held touch.
 (defonce pending-tap (atom nil))
 
+;; A queued drag, as a vector of points still to deliver. tap! cannot express
+;; one, because a drag is several frames of a finger being DOWN and moving,
+;; which is exactly what the gallery's scrolling reads. Without this the scroll
+;; can only be tested by a person swiping, and a person cannot swipe while
+;; iPhone Mirroring holds the device screen locked.
+(defonce pending-drag (atom nil))
+
 (defn tap!
   "Queue a synthetic tap at [x y] in SCREEN PIXELS, not points. The next frame
   sees a press there and the frame after sees the release, which is the edge
@@ -145,6 +153,24 @@
   [x y]
   (reset! pending-tap [x y])
   nil)
+
+(defn drag!
+  "Queue a synthetic drag from [x1 y1] to [x2 y2] over `steps` frames.
+
+  Delivered one point per frame: the first is a press, the rest are the finger
+  moving while down, and running out queues nothing so the next device sample
+  reports the release. That is the shape the scroll logic reads, and it is what
+  tap! cannot express, since a tap is a press and a release with nothing in
+  between."
+  ([x1 y1 x2 y2] (drag! x1 y1 x2 y2 12))
+  ([x1 y1 x2 y2 steps]
+   (let [n (max 2 (long steps))]
+     (reset! pending-drag
+             (mapv (fn [i]
+                     (let [t (/ (double i) (dec n))]
+                       [(+ x1 (* (- x2 x1) t)) (+ y1 (* (- y2 y1) t))]))
+                   (range n))))
+   nil))
 
 ;; --- polling ------------------------------------------------------------------
 ;; raylib's input is scalar: nothing is delivered, you sample. The map built
@@ -196,7 +222,12 @@
   is consumed, and `touch-points` needs to know whether the frame was synthetic
   without reading the atom a second time and finding it already emptied."
   [previous-count]
-  (let [tap (first (swap-vals! pending-tap (constantly nil)))
+  (let [tap (or (first (swap-vals! pending-tap (constantly nil)))
+                ;; A queued drag delivers one point per frame and reports itself
+                ;; the same way a tap does, so nothing downstream needs to know
+                ;; which kind of synthetic gesture it is looking at.
+                (let [[before] (swap-vals! pending-drag next)]
+                  (first before)))
         w   (rl/get-screen-width)
         h   (rl/get-screen-height)]
     [(merge {:screen-width w :screen-height h
@@ -469,13 +500,38 @@
     (rl/draw-rectangle x y width height accent)
     (centered-text! "< Back" back body-size WHITE)))
 
-(defn- draw-gallery! [{:keys [margin title-size body-size line-gap cards]} p top heading subheading]
+(defn- draw-gallery!
+  "The heading and the card grid, with the grid clipped to the area below the
+  heading so scrolled cards do not slide up over it.
+
+  The heading is drawn after the cards rather than before. Drawing it first and
+  letting a card scroll over it is the obvious ordering and the wrong one: the
+  scissor already stops that, and the heading then has to be redrawn anyway
+  because the card that overlapped it has repainted the background it sat on."
+  [{:keys [margin title-size body-size line-gap cards content-height viewport-height]}
+   p top scroll heading subheading]
   (rl/clear-background (color (:background p)))
+  (let [grid-top (+ top margin title-size (* 2 line-gap))
+        grid-h (- (+ top viewport-height) grid-top)]
+    (rl/begin-scissor-mode 0 grid-top (rl/get-screen-width) grid-h)
+    (doseq [{:keys [scene-id] :as card} cards]
+      ;; Cards outside the window are skipped rather than drawn and clipped. A
+      ;; long list is mostly off screen, and the scissor discards those pixels
+      ;; only after paying for the draw call and the text measurement.
+      (when (and (< (:y card) (+ grid-top grid-h))
+                 (> (+ (:y card) (:height card)) grid-top))
+        (rl/draw-rectangle (:x card) (:y card) (:width card) (:height card) (color (:card p)))
+        (centered-text! (title-of scene-id) card body-size WHITE)))
+    (rl/end-scissor-mode)
+    (when-let [[ty th] (scroll/thumb scroll content-height viewport-height)]
+      (let [w (rl/get-screen-width)
+            bar-w (max 6 (quot w 160))
+            x (- w bar-w (quot margin 3))]
+        (rl/draw-rectangle x (+ grid-top (int (* ty (/ (double grid-h) viewport-height))))
+                           bar-w (int (* th (/ (double grid-h) viewport-height)))
+                           (rl/rgba 140 140 150 160)))))
   (rl/draw-text heading margin (+ top margin) title-size (color (:accent p)))
-  (rl/draw-text subheading margin (+ top margin title-size (quot line-gap 2)) body-size rl/DARKGRAY)
-  (doseq [{:keys [scene-id] :as card} cards]
-    (rl/draw-rectangle (:x card) (:y card) (:width card) (:height card) (color (:card p)))
-    (centered-text! (title-of scene-id) card body-size WHITE)))
+  (rl/draw-text subheading margin (+ top margin title-size (quot line-gap 2)) body-size rl/DARKGRAY))
 
 (defn- below-the-safe-area
   "gallery-layout, shifted clear of the status bar.
@@ -488,14 +544,35 @@
 
   Both the cards and the Back target move. Missing the Back target is the
   interesting bug, because it still draws in the right place and only its
-  hit-test is wrong, so it looks like an unresponsive button."
-  [m sizes top ids]
-  (let [[w h] (:screen m)
-        shifted (ui/gallery-layout (assoc m :screen [w (- h top)]) ids sizes)
-        lower (fn [rect] (update rect :y + top))]
-    (-> shifted
-        (update :back lower)
-        (update :cards #(mapv lower %)))))
+  hit-test is wrong, so it looks like an unresponsive button.
+
+  Scrolling rides the same trick from the other direction. gallery-layout sizes
+  cards to FIT, dividing the height it is given by the row count, so a fixed
+  screen makes them shrink without limit: at twenty-seven scenes each card is
+  about 140 pixels tall. Handing it a screen TALLER than the real one gets a
+  comfortable grid for a screen that does not exist, and `scroll` then moves a
+  window over it. The Back target does not scroll, because it is chrome rather
+  than content."
+  ([m sizes top ids] (below-the-safe-area m sizes top ids 0))
+  ([m sizes top ids scroll]
+   (let [[w h] (:screen m)
+         viewport (- h top)
+         content (scroll/content-height {:width w :height viewport} sizes (count ids)
+                                        (if (>= (* w 3) (* viewport 2)) 3 2))
+         shifted (ui/gallery-layout (assoc m :screen [w content]) ids sizes)
+         lower (fn [rect] (update rect :y + top))
+         ;; long, not whatever arithmetic produced. gallery-layout rounds its
+         ;; own rectangles to ints, and this adds an offset afterwards: a
+         ;; fractional scroll makes :y a double, draw-rectangle is bound
+         ;; [:int :int :int :int :uint], and the process dies at the FFI
+         ;; boundary rather than drawing in the wrong place.
+         shift (long (- top scroll))
+         lower-scrolled (fn [rect] (update rect :y + shift))]
+     (assoc (-> shifted
+                (update :back lower)
+                (update :cards #(mapv lower-scrolled %)))
+            :content-height content
+            :viewport-height viewport))))
 
 ;; --- the scene, for raylib.host: the gallery state is the state
 (defn- init [{:keys [scale inset-top]}]
@@ -613,7 +690,7 @@
   "Three things can be on screen: a running scene, one category's scenes, or
   the categories. The first two carry a Back target and the last does not,
   because there is nowhere above it."
-  [{:keys [mode active-scene-id scene-state]} category layout k m top safe]
+  [{:keys [mode active-scene-id scene-state]} category layout k m top safe scroll]
   (let [p (ui/live-presentation)
         accent (color (:accent p))]
     (cond
@@ -646,11 +723,11 @@
         (draw-back! layout accent))
 
       category
-      (do (draw-gallery! layout p top (title-of category) "Choose a scene")
+      (do (draw-gallery! layout p top scroll (title-of category) "Choose a scene")
           (draw-back! layout accent))
 
       :else
-      (draw-gallery! layout p top (:title p) "Choose a category"))))
+      (draw-gallery! layout p top scroll (:title p) "Choose a category"))))
 
 (defn- frame
   "One frame: sample, decide where the press goes, advance the pure gallery,
@@ -676,15 +753,42 @@
         ;; then translates it into place at draw time, which is why no scene
         ;; has to know a safe area exists.
         scene-m (assoc m :screen [(:width safe) (:height safe)])
-        layout (below-the-safe-area m (diag/layout m) top (visible-ids category))
-        press? (= :press (get-in input [:pointer :phase]))
-        point  (get-in input [:pointer :position])
-        hit    (when press? (ui/hit-test layout point (:mode gstate)))
+        layout (below-the-safe-area m (diag/layout m) top (visible-ids category)
+                                    (:scroll s 0))
+        phase (get-in input [:pointer :phase])
+        point (get-in input [:pointer :position])
+        ;; A list that scrolls cannot open a card on press: at press time there
+        ;; is no way to know whether a drag is starting. So a press only begins
+        ;; a gesture, movement scrolls, and the release opens a card if and only
+        ;; if the finger stayed inside the slop. Back is chrome and does not
+        ;; scroll, but it goes through the same rule so a drag that happens to
+        ;; start on it does not navigate.
+        ;; Travel accumulates on :down only, never on :release. A release
+        ;; carries no finger, and raylib still answers GetTouchX and GetTouchY
+        ;; with whatever it last had, which on device is not the touch that just
+        ;; ended. Feeding that into the drag inflated travel to 1941 pixels on a
+        ;; motionless tap and every tap was read as a scroll.
+        drag (case phase
+               :press (scroll/begin-drag (:scroll s 0) point)
+               :down (if (and (:drag s) point)
+                       (scroll/drag-to (:drag s) point)
+                       (:drag s))
+               :release (:drag s)
+               nil)
+        scroll' (if (and drag point (= :down phase))
+                  (scroll/scroll-for drag point
+                                     (:content-height layout) (:viewport-height layout))
+                  (scroll/clamp (:scroll s 0)
+                                (:content-height layout) (:viewport-height layout)))
+        tapped? (and (= :release phase) (scroll/tap? drag (min (first (:screen m))
+                                                               (second (:screen m)))))
+        tap-at (when tapped? (scroll/tap-point drag))
+        hit (when tapped? (ui/hit-test layout tap-at (:mode gstate)))
         ;; hit-test only looks for Back in :scene mode, so the scene list's own
         ;; Back is recognised here. Kept separate from the scene's Back on
         ;; purpose: see navigate.
-        list-back? (and press? (= :gallery (:mode gstate)) category
-                        (within? (:back layout) point))
+        list-back? (and tapped? (= :gallery (:mode gstate)) category
+                        (within? (:back layout) tap-at))
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
         input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
@@ -693,9 +797,16 @@
                      (gallery/run-frame registry gstate scene-input))
                    drain-events!
                    ignore-close)]
-    (render! gstate category' layout k scene-m top safe)
+    (render! gstate category' layout k scene-m top safe scroll')
     (assoc s :insets insets
              :category category'
+             ;; The offset belongs to the level being shown, so moving between
+             ;; levels starts at the top rather than halfway down a list of a
+             ;; different length. Without this, opening a scene from the bottom
+             ;; of Toys and coming back lands on a blank stretch below the last
+             ;; card of a shorter category.
+             :scroll (if (= category category') scroll' 0)
+             :drag (when-not (= :release phase) drag)
              :touches (get-in input [:touches :count])
              :gstate gstate)))
 
