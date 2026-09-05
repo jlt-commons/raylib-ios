@@ -117,7 +117,14 @@ arithmetic tends to be right, because it is the part you can reason about from a
 diagram, and the winding is the part that has no visible symptom until it is
 wrong.
 
-It happened three times in one night. Once in `draw-ring`, once avoided in
+It happened four times. The fourth was the resize handle's corner triangle,
+written out by hand like the others and culled like the others, and that is when
+`draw-triangle` was added: it computes the cross product itself and swaps the
+last two points when the sign is wrong. One comparison per triangle against a
+bug that costs a rebuild and a device round-trip every time it appears. Prefer
+it over writing three vertices yourself.
+
+The first three. Once in `draw-ring`, once avoided in
 `draw-gradient-quad` only because the ring bug was fresh, and once again in the
 ring scene's own outline, where the six vertices of a thick line were written
 out afresh and two of them swapped. That third one is the useful lesson: the

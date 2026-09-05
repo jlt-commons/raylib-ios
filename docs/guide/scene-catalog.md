@@ -1,8 +1,8 @@
 # The scenes
 
-Forty-six, in four categories. Three come byte-identical from
+Forty-eight, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other forty-three are ports from
+with their sha256 verified, and the other forty-five are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -68,6 +68,8 @@ that were tuned to get there.
 | Bezier | 48 segments and a control polygon | 58 | follows a finger; handles are derived, not dragged |
 | Line Widths | 16 spokes, 16 widths | 58 | a direct test of thick-line winding |
 | Scissor | 435 rectangles, most clipped | 58 | a scene's own clip, intersected with the safe region |
+| Resize | a rectangle and a corner handle | 58 | a sticky grab, because a finger has no hover |
+| Text Alignment | 3 boxes, one word | 58 | MeasureText, the rare call with nothing to work around |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games

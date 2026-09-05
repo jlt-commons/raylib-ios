@@ -162,6 +162,33 @@
   [(bit-and c 0xff) (bit-and (bit-shift-right c 8) 0xff)
    (bit-and (bit-shift-right c 16) 0xff) (bit-and (bit-shift-right c 24) 0xff)])
 
+(defn draw-triangle
+  "One filled triangle, wound so it survives back-face culling whichever order
+  the three points arrive in.
+
+  This exists because getting the winding wrong has now happened four times in
+  this project: in draw-ring, in the ring scene's outline, nearly in
+  draw-gradient-quad, and in the resize handle. The symptom is always the same
+  and always misleading, because rlgl culls the triangle silently and what you
+  see is a shape that simply is not there, which reads as a geometry bug.
+
+  The cross product of the first two edges says which way round the points go.
+  In this project's screen space, with y growing downward, the survivors are
+  negative, so a positive one has its last two points swapped. That is one
+  comparison per triangle, against a class of bug that costs a rebuild and a
+  device round-trip every time it is met."
+  [x1 y1 x2 y2 x3 y3 colour]
+  (let [[r g b a] (unpack colour)
+        cross (- (* (- (double x2) x1) (- (double y3) y1))
+                 (* (- (double y2) y1) (- (double x3) x1)))
+        [bx by cx cy] (if (pos? cross) [x3 y3 x2 y2] [x2 y2 x3 y3])]
+    (rl-begin RL-TRIANGLES)
+    (rl-color-4ub r g b a)
+    (rl-vertex-2f (float x1) (float y1))
+    (rl-vertex-2f (float bx) (float by))
+    (rl-vertex-2f (float cx) (float cy))
+    (rl-end)))
+
 (defn draw-ring
   "A filled annulus from `inner` to `outer` over [start-deg, end-deg].
 

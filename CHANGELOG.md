@@ -6,6 +6,36 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`resize` and `align`**, forty-eight in all. `resize` drags a corner handle
+  to resize a rectangle: the original tracks a mouse, which is always somewhere
+  even with no button down, so it highlights on hover. A finger has no hover, so
+  the handle highlights while held and the grab is sticky, kept until the finger
+  lifts rather than re-tested each frame, which drops the rectangle the moment
+  you drag faster than the corner follows. `align` places one word left, centre
+  and right from `MeasureText`, which is the rare raylib call this project can
+  bind directly, with no by-value struct to work around.
+
+- **`raylib.host/draw-triangle`, which sorts out its own winding.** Getting it
+  wrong has happened four times here: in `draw-ring`, in the ring scene's
+  outline, nearly in `draw-gradient-quad`, and in this batch's resize handle,
+  whose triangle scored +3600 and was culled. The symptom is identical every
+  time and always misleading, because rlgl discards the triangle silently and
+  what you see is a shape that is not there. One cross-product comparison per
+  triangle ends the class.
+
+- **Relicensed from zlib to EPL 2.0**, matching the rest of jlt-commons and jolt
+  itself. zlib was chosen to match the graphics stack, since raylib-jlt, raylib
+  and SDL2 are all zlib, but one exception across the organisation is harder to
+  explain than that symmetry was worth. The `LICENSE` file is byte-identical to
+  jolt's.
+
+  This relicenses nothing that arrived under another licence, because those
+  files are not ours to relicense: the whole is EPL 2.0 and each part keeps what
+  it came with. Both inbound licences here are permissive and impose nothing EPL
+  conflicts with. zlib's requirement that altered sources be plainly marked
+  survives the change and the ports still satisfy it in their docstrings.
+  `NOTICE` records all of it.
+
 - **The scene list scrolls.** At forty-six scenes the Toys category is
   thirty-two cards, and `gallery-layout` sizes cards to FIT: it divides the
   height it is given by the row count, so more scenes means shorter cards rather

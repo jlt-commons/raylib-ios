@@ -59,6 +59,8 @@
                      raylib.scenes.bezier-test
                      raylib.scenes.fan-test
                      raylib.scenes.clipbox-test
+                     raylib.scenes.align-test
+                     raylib.scenes.resize-test
                      raylib.scroll-test
                      raylib.easings-test
                      raylib.scenes.clock-test

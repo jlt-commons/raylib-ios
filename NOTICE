@@ -1,17 +1,23 @@
 # NOTICE
 
-This project is licensed under the zlib licence, in [`LICENSE`](LICENSE),
-matching jlt-commons/raylib-jlt, raylib itself and SDL2. The whole graphics
-stack is zlib and there is no reason for this to be the exception.
+This project is licensed under the Eclipse Public License 2.0, in
+[`LICENSE`](LICENSE), matching the rest of jlt-commons and jolt itself.
 
-That licence covers the work in this repository that is ours to license. It
-does not, on its own, make the repository publishable: some of it is derived
-from a source that grants nothing. See "Open-source status" at the end, which
-is required reading before this repository is made public.
+It was zlib until 2026-09-05, chosen to match jlt-commons/raylib-jlt, raylib and
+SDL2, on the reasoning that the whole graphics stack is zlib. The org's own
+convention won instead: every other jlt-commons repository is EPL 2.0, and a
+single exception is harder to explain than the graphics-stack symmetry was worth.
 
-Ownership is a separate question from publication. Transferring this repository
-between accounts or into an organisation is fine while it stays private, and
-does not touch anything below.
+**EPL 2.0 does not relicense anything that arrived under another licence.** It
+cannot: those files are not ours to relicense. The whole is EPL 2.0 and each
+part below keeps what it came with, which is what the rest of this file records.
+Both inbound licences here, MIT and zlib, are permissive and impose no condition
+that EPL 2.0 conflicts with, so the combination distributes cleanly as long as
+their notices travel with it. That is what this file is for.
+
+One obligation is worth stating on its own, because it survives the change and
+is easy to lose: zlib requires that altered source versions be plainly marked as
+such. The ports below satisfy it in their docstrings, and they still have to.
 
 ## Carried unchanged
 
@@ -112,9 +118,9 @@ reproduced here in full:
 
 ### What that leaves
 
-Nothing blocking. The zlib licence in `LICENSE` covers this project's own work,
-MIT covers what came from the demo and from jasalt, and both notices are in this
-file.
+Nothing blocking. EPL 2.0 in `LICENSE` covers this project's own work, MIT
+covers what came from the demo and from jasalt, zlib covers what came from
+raylib-jlt, and every one of those notices is in this file.
 
 The four files were also substantially rewritten on 2026-09-04, from the
 upstream APIs and this project's own device measurements, taking the expressive

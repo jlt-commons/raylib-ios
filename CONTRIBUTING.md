@@ -93,10 +93,19 @@ Prose in this repository avoids em-dashes.
 
 ## Licensing
 
-zlib, and by contributing you agree your work is licensed the same way. Parts
-of `host.clj`, `gallery.clj`, `touch.clj` and `link.clj` derive from
-[glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo), which is MIT.
-`NOTICE` has the detail and reproduces both notices.
+EPL 2.0, and by contributing you agree your work is licensed the same way. It
+was zlib until 2026-09-05; the change was to match the rest of jlt-commons.
+
+Parts of `host.clj`, `gallery.clj`, `touch.clj` and `link.clj` derive from
+[glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo), which is MIT,
+and the scenes are ports from raylib-jlt, which is zlib. Those keep their own
+licences: a change of outbound licence cannot relicense someone else's
+copyright. `NOTICE` has the detail and reproduces every notice.
+
+One inherited obligation applies to anyone adding a scene. zlib requires that
+altered source versions be plainly marked as such, so a port names its original
+in its docstring and says what changed. That is not a stylistic convention here,
+it is the licence.
 
 ## Reporting something wrong in the docs
 

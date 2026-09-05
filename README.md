@@ -3,13 +3,13 @@
 [![CI](https://github.com/jlt-commons/raylib-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/ci.yml)
 [![Site](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml/badge.svg)](https://github.com/jlt-commons/raylib-ios/actions/workflows/site.yml)
 [![Docs](https://img.shields.io/badge/docs-jlt--commons.github.io-blue)](https://jlt-commons.github.io/raylib-ios)
-[![License](https://img.shields.io/badge/license-zlib-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-EPL--2.0-green)](LICENSE)
 
 raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of forty-six scenes (Following Eyes, Touch Trail and
+What runs today: a gallery of forty-eight scenes (Following Eyes, Touch Trail and
 Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
 at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
@@ -73,9 +73,8 @@ the mirror's, not a frame we drew. Nobody touched the phone for any of them,
 including Flappy Bird: that one is flapped by a loop running inside the app,
 started from the nREPL.*
 
-Licensed [zlib](LICENSE), matching raylib, SDL2 and
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Third-party code and
-attribution are in [`NOTICE`](NOTICE).
+Licensed [EPL 2.0](LICENSE), matching the rest of jlt-commons. Third-party code
+and attribution are in [`NOTICE`](NOTICE).
 
 ## Where the code came from
 
@@ -387,9 +386,20 @@ that turns out not to be true.
 
 ## Licence
 
-[zlib](LICENSE), matching
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt), raylib and SDL2. The
-whole stack is zlib.
+[EPL 2.0](LICENSE), matching the rest of jlt-commons and jolt itself.
+
+It was zlib until 2026-09-05, chosen so the licence matched the graphics stack:
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt), raylib and SDL2 are all
+zlib. The org's own convention won instead, since one exception across the
+organisation is harder to explain than that symmetry was worth.
+
+Changing the outbound licence relicenses nothing that arrived under another one,
+because those files are not ours to relicense. The whole is EPL 2.0 and each
+part keeps what it came with. Both inbound licences here are permissive and
+impose nothing EPL 2.0 conflicts with, so the combination distributes cleanly
+provided their notices travel with it, which is what `NOTICE` is for. zlib's
+requirement that altered sources be plainly marked survives the change, and the
+ports satisfy it in their docstrings.
 
 Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces
 began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),

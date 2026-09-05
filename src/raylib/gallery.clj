@@ -37,6 +37,8 @@
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.fan :as fan]
             [raylib.scenes.clipbox :as clipbox]
+            [raylib.scenes.resize :as rsz]
+            [raylib.scenes.align :as align]
             [raylib.scroll :as scroll]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
@@ -75,7 +77,8 @@
              (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)
              (grad/scene) (ring/scene) (spl/scene)
              (rnd/scene) (vang/scene) (bars/scene)
-             (bez/scene) (fan/scene) (clipbox/scene)])
+             (bez/scene) (fan/scene) (clipbox/scene)
+             (rsz/scene) (align/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -101,7 +104,7 @@
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
-             :rounded :vecangle :bars :bezier :fan :clipbox]}
+             :rounded :vecangle :bars :bezier :fan :clipbox :resize :align]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -1632,3 +1635,44 @@
     (rl/draw-text "only the box shows the grid"
                   (int (* 0.08 w)) (int (- h (* 0.10 h)))
                   label-size (rl/rgba 60 60 60 255))))
+
+(defmethod draw-scene! :resize [_ {:keys [rw rh holding?]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [x y handle label-size w h]} (rsz/dimensions m)
+        ink (if holding? (rl/rgba 230 41 55 255) (rl/rgba 0 82 172 255))]
+    (rl/draw-rectangle (int x) (int y) (int rw) (int rh) (rl/rgba 70 130 200 90))
+    (stroke! (int x) (int y) (int (+ x rw)) (int y) (rl/rgba 0 121 241 255))
+    (stroke! (int (+ x rw)) (int y) (int (+ x rw)) (int (+ y rh)) (rl/rgba 0 121 241 255))
+    (stroke! (int (+ x rw)) (int (+ y rh)) (int x) (int (+ y rh)) (rl/rgba 0 121 241 255))
+    (stroke! (int x) (int (+ y rh)) (int x) (int y) (rl/rgba 0 121 241 255))
+    ;; The corner handle, as a triangle pointing into the rectangle. Through
+    ;; draw-triangle, which sorts its own winding: the order written here by
+    ;; hand was culled, for the fourth time in this project.
+    (let [hx (+ x rw) hy (+ y rh)]
+      (rl/draw-triangle (- hx handle) hy hx (- hy handle) hx hy ink))
+    (rl/draw-text (str (int rw) " x " (int rh))
+                  (int (* 0.10 w)) (int (- h (* 0.20 h))) label-size (rl/rgba 60 60 60 255))
+    (rl/draw-text (if holding? "resizing" "drag the corner")
+                  (int (* 0.10 w)) (int (- h (* 0.20 h) (- (+ label-size 14))))
+                  label-size (rl/rgba 130 130 135 255))))
+
+(defmethod draw-scene! :align [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [{:keys [box-x box-w box-y box-h gap text-size label-size h]} (align/dimensions m)
+        {:keys [word]} (align/current t)
+        tw (rl/measure-text word text-size)]
+    ;; All three boxes at once, so the comparison does not depend on memory.
+    (doseq [[i a] (map-indexed vector align/alignments)]
+      (let [by (+ box-y (* i (+ box-h gap)))
+            ox (align/offset a box-w tw)]
+        (rl/draw-rectangle (int box-x) (int by) (int box-w) (int box-h) (rl/rgba 225 228 236 255))
+        (stroke! (int box-x) (int by) (int (+ box-x box-w)) (int by) (rl/rgba 180 184 196 255))
+        (stroke! (int box-x) (int (+ by box-h)) (int (+ box-x box-w)) (int (+ by box-h))
+                 (rl/rgba 180 184 196 255))
+        (rl/draw-text word (int (+ box-x ox))
+                      (int (+ by (* 0.5 (- box-h text-size))))
+                      text-size (rl/rgba 30 30 40 255))
+        (rl/draw-text (name a) (int box-x) (int (- by label-size 6))
+                      label-size (rl/rgba 130 130 140 255))))
+    (rl/draw-text (str "MeasureText: " tw " px")
+                  (int box-x) (int (- h (* 0.16 h))) label-size (rl/rgba 60 60 60 255))))
