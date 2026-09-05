@@ -34,6 +34,8 @@
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.bars :as bars]
+            [raylib.scenes.bezier :as bez]
+            [raylib.scenes.fan :as fan]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -70,7 +72,8 @@
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
              (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)
              (grad/scene) (ring/scene) (spl/scene)
-             (rnd/scene) (vang/scene) (bars/scene)])
+             (rnd/scene) (vang/scene) (bars/scene)
+             (bez/scene) (fan/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -96,7 +99,7 @@
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
-             :rounded :vecangle :bars]}
+             :rounded :vecangle :bars :bezier :fan]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -1423,3 +1426,55 @@
     (rl/draw-text "one loop draws a square and a lozenge"
                   (int (* 0.08 w)) (int (- h (* 0.14 h)))
                   label-size (rl/rgba 60 60 60 255))))
+
+(defmethod draw-scene! :bezier [_ {:keys [end touching?]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  (let [{:keys [anchor dot thick label-size w h]} (bez/dimensions m)
+        ctrl (bez/controls anchor end)
+        [[ax ay] [bx by] [cx cy] [dx dy]] ctrl
+        half (* 0.5 thick)]
+    ;; The control polygon first, thin and grey, so the curve reads against it.
+    (doseq [[[x1 y1] [x2 y2]] (partition 2 1 ctrl)]
+      (rl/draw-line (int x1) (int y1) (int x2) (int y2) (rl/rgba 190 190 195 255)))
+    ;; The curve, sampled inline into one batch. bez/curve exists for the tests.
+    (rl/rl-begin rl/RL-TRIANGLES)
+    (rl/rl-color-4ub 0 121 241 255)
+    (loop [i 1 px (double ax) py (double ay)]
+      (when (<= i bez/samples)
+        (let [[qx qy] (bez/at ctrl (/ (double i) bez/samples))
+              ex (- qx px) ey (- qy py)
+              len (Math/sqrt (+ (* ex ex) (* ey ey)))]
+          (when (pos? len)
+            ;; draw-line-ex's vertex order, copied not rederived
+            (let [ox (* half (/ ey len)) oy (* half (/ (- ex) len))]
+              (rl/rl-vertex-2f (float (+ px ox)) (float (+ py oy)))
+              (rl/rl-vertex-2f (float (- px ox)) (float (- py oy)))
+              (rl/rl-vertex-2f (float (- qx ox)) (float (- qy oy)))
+              (rl/rl-vertex-2f (float (+ px ox)) (float (+ py oy)))
+              (rl/rl-vertex-2f (float (- qx ox)) (float (- qy oy)))
+              (rl/rl-vertex-2f (float (+ qx ox)) (float (+ qy oy)))))
+          (recur (inc i) (double qx) (double qy)))))
+    (rl/rl-end)
+    (doseq [[[x y] fill?] [[[ax ay] true] [[bx by] false] [[cx cy] false] [[dx dy] true]]]
+      (if fill?
+        (rl/draw-circle (int x) (int y) (float dot) (rl/rgba 230 41 55 255))
+        (rl/draw-circle-lines (int x) (int y) (float dot) (rl/rgba 130 130 135 255))))
+    (rl/draw-text (if touching? "following your finger" "drag anywhere")
+                  (int (* 0.08 w)) (int (- h (* 0.14 h)))
+                  label-size (rl/rgba 60 60 60 255))))
+
+(defmethod draw-scene! :fan [_ {:keys [t]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 18 20 28 255))
+  (let [{:keys [cx cy label-size w h] :as d} (fan/dimensions m)]
+    ;; One draw-line-ex per spoke rather than a batch: sixteen calls a frame is
+    ;; nothing, and each spoke needs its own colour anyway, which a single
+    ;; batched colour would not give.
+    (dotimes [i fan/spokes]
+      (let [{:keys [from to thick hue]} (fan/spoke d t i)
+            [r g b] (fan/hsv->rgb hue)
+            [x1 y1] from [x2 y2] to]
+        (rl/draw-line-ex x1 y1 x2 y2 thick (rl/rgba r g b 255))))
+    (rl/draw-circle (int cx) (int cy) (float (* 0.012 w)) rl/RAYWHITE)
+    (rl/draw-text "sixteen widths, thinnest at the top"
+                  (int (* 0.08 w)) (int (- h (* 0.14 h)))
+                  label-size (rl/rgba 150 150 160 255))))

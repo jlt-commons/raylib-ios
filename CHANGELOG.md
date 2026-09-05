@@ -6,6 +6,14 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`bezier` and `fan`**, forty-five in all. `bezier` is a cubic curve whose far
+  end follows a finger, with its control polygon drawn so the shape is
+  explained rather than just shown. The handles are derived from the two
+  endpoints rather than dragged separately, because a finger has one position
+  and derived handles stay well behaved everywhere, including with the finger
+  on the anchor. `fan` is sixteen spokes at sixteen widths, from under a pixel
+  to a fat bar, which is a direct test of thick-line winding: a spoke that
+  fails to draw is a visible gap at a known width.
 - **`bars`**, forty-three in all. Five bars with independent rounding on each
   end, each filled with a horizontal gradient. raylib has no call for this and
   the C example builds it from rlgl by hand: a triangle fan over a walked
