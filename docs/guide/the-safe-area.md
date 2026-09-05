@@ -74,6 +74,17 @@ status bar, so nobody looked. Rotating the phone to landscape moves the insets
 to the sides, 186 pixels of stale cards down each edge, and it is the first
 thing you see. The host clears the whole screen before raising the scissor now.
 
+**A scene that clips for itself has to intersect, not replace.** rlgl keeps one
+scissor rectangle. `BeginScissorMode` inside another does not nest, it takes
+over, so a scene clipping to a box of its own would be free to paint over the
+status bar the host had just moved it clear of. The host passes each scene its
+safe region for exactly this, and `clipbox/clip-rect` shows the shape of the
+fix: offset the scene-space box into screen coordinates, intersect with the
+region, and return nil when they miss. nil rather than a zero or negative
+width, because raylib takes the width as an int and a negative one reads as an
+enormous unsigned value, so a degenerate box clips to everything instead of
+nothing, which looks exactly like the scissor being ignored.
+
 Worth noting what rotation did get right on its own. The insets come from UIKit
 each frame rather than being cached from launch, so landscape reports left and
 right 186 with top 0, every scene re-derives its geometry from the new safe

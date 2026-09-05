@@ -46,7 +46,7 @@ done
 for img in gallery.png gallery-scenes.png multitouch.png \
            clockgrid.png palette.png sector.png gradient.png ring.png \
            splines.png rounded.png vecangle.png bars.png \
-           fan.png bezier.png analog.gif \
+           fan.png bezier.png clipbox.png analog.gif \
            lorenz.gif tesseract.gif life.gif automata.gif colorwheel.gif \
            unitcircle.gif clock.gif piechart.gif logoanim.gif easings.gif \
            angles.gif writing.gif balls.gif sequence.gif \

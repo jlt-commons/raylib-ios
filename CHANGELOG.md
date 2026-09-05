@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`clipbox`**, forty-six in all, and the host now hands each scene its safe
+  region. rlgl keeps a single scissor rectangle, so a scene calling
+  `BeginScissorMode` replaces the host's safe-area one outright rather than
+  nesting inside it, and would be free to paint over the status bar it had just
+  been moved clear of. `clip-rect` intersects instead, and returns nil for a
+  miss rather than a negative width, because raylib reads a negative width as an
+  enormous unsigned one and clips nothing at all.
 - **`bezier` and `fan`**, forty-five in all. `bezier` is a cubic curve whose far
   end follows a finger, with its control polygon drawn so the shape is
   explained rather than just shown. The handles are derived from the two
