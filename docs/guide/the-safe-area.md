@@ -65,8 +65,19 @@ which would then paint over the status bar it was just moved clear of.
 One consequence worth knowing: `ClearBackground` is affected by the scissor
 test, because it becomes a `glClear` and `glClear` respects it. So a scene
 clearing to its own background colour clears only the safe region, and the bands
-above and below keep whatever the gallery drew there. That is the behaviour you
-want and it is not obvious from the name.
+outside it keep whatever was drawn there last. That is not obvious from the name.
+
+It is also not the behaviour you want, which took a while to notice. An earlier
+version of this page said it was. For a scene opened from the gallery the bands
+held the card grid, and in portrait they are thin strips mostly behind the
+status bar, so nobody looked. Rotating the phone to landscape moves the insets
+to the sides, 186 pixels of stale cards down each edge, and it is the first
+thing you see. The host clears the whole screen before raising the scissor now.
+
+Worth noting what rotation did get right on its own. The insets come from UIKit
+each frame rather than being cached from launch, so landscape reports left and
+right 186 with top 0, every scene re-derives its geometry from the new safe
+region, and nothing else had to change.
 
 **The pointer has to make the same journey.** Moving the drawing is only half
 of it. A scene told its screen is the safe region believes its own y of 0 is the

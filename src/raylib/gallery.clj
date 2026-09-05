@@ -33,6 +33,7 @@
             [raylib.scenes.splines :as spl]
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.vecangle :as vang]
+            [raylib.scenes.bars :as bars]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.easings :as ez]
@@ -69,7 +70,7 @@
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
              (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)
              (grad/scene) (ring/scene) (spl/scene)
-             (rnd/scene) (vang/scene)])
+             (rnd/scene) (vang/scene) (bars/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -95,7 +96,7 @@
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
-             :rounded :vecangle]}
+             :rounded :vecangle :bars]}
    {:id :games :title "Games"
     :scenes [:flappy-bird]}])
 
@@ -614,6 +615,15 @@
     (cond
       (= :scene mode)
       (do
+        ;; The inset bands, cleared before the scissor goes up.
+        ;;
+        ;; A scene's own ClearBackground is subject to the scissor, because it
+        ;; becomes a glClear and glClear respects it. So the bands keep whatever
+        ;; was drawn there last, which for a scene opened from the gallery is the
+        ;; card grid. In portrait those bands are thin strips behind the status
+        ;; bar and nobody noticed for weeks. Rotating the phone to landscape puts
+        ;; 186 pixels down each side and the stale cards are unmissable.
+        (rl/clear-background (color (:background p)))
         ;; The scene drew its geometry for the safe region starting at 0,0, so
         ;; it is translated into place here and clipped to it. Scissor as well
         ;; as translate, because a scene that overshoots its own bounds would
@@ -1370,3 +1380,46 @@
     (rl/draw-text (if (neg? turn) "anticlockwise" "clockwise")
                   (int (* 0.08 w)) (int (- h (* 0.22 h) (- (+ label-size 14))))
                   label-size (rl/rgba 150 150 160 255))))
+
+(defmethod draw-scene! :bars [_ _ {:keys [m]}]
+  (rl/clear-background (rl/rgba 245 245 245 255))
+  ;; bars/outline still returns a vector, because the tests walk it, and it is
+  ;; called once per bar rather than once per vertex. bars/shade is not called
+  ;; here at all: it allocated a colour vector per vertex, 400 a frame across the
+  ;; five bars, which with the outlines came to 54 fps. The channels are mixed
+  ;; inline from primitives instead. Fourth scene to make this trade.
+  (let [{:keys [label-size w h] :as d} (bars/dimensions m)
+        [lr lg lb] bars/left-colour
+        [rr rg rb] bars/right-colour]
+    (dotimes [i bars/bar-count]
+      (let [[x y bw bh] (bars/bar-rect d i)
+            [rl* rrn] (bars/roundness i)
+            pts (bars/outline x y bw bh rl* rrn)
+            n (count pts)
+            cx (+ x (* 0.5 bw))
+            cy (+ y (* 0.5 bh))
+            emit (fn [px py]
+                   (let [t (max 0.0 (min 1.0 (/ (- (double px) x) bw)))]
+                     (rl/rl-color-4ub (long (+ lr (* (- rr lr) t)))
+                                      (long (+ lg (* (- rg lg) t)))
+                                      (long (+ lb (* (- rb lb) t)))
+                                      255)
+                     (rl/rl-vertex-2f (float px) (float py))))]
+        (rl/rl-begin rl/RL-TRIANGLES)
+        (dotimes [k n]
+          (let [[px py] (nth pts k)
+                [qx qy] (nth pts (mod (inc k) n))]
+            ;; centre, then NEXT, then current. The natural centre-current-next
+            ;; order gives a positive cross for this clockwise outline and every
+            ;; triangle is culled. Checked by hand on a square bar before
+            ;; building: +80000 one way round, -80000 the other.
+            (emit cx cy)
+            (emit qx qy)
+            (emit px py)))
+        (rl/rl-end)
+        (rl/draw-text (str "left " (format "%.2f" rl*) "   right " (format "%.2f" rrn))
+                      (int (+ x (* 0.02 w))) (int (+ y (* 0.06 bh)))
+                      label-size (rl/rgba 255 255 255 220))))
+    (rl/draw-text "one loop draws a square and a lozenge"
+                  (int (* 0.08 w)) (int (- h (* 0.14 h)))
+                  label-size (rl/rgba 60 60 60 255))))

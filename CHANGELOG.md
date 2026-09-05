@@ -6,6 +6,24 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`bars`**, forty-three in all. Five bars with independent rounding on each
+  end, each filled with a horizontal gradient. raylib has no call for this and
+  the C example builds it from rlgl by hand: a triangle fan over a walked
+  outline, where a corner of roundness 0 contributes coincident points whose
+  triangles have no area and vanish, so one loop draws a square, a lozenge and
+  everything between with no special case.
+
+### Fixed
+
+- **The inset bands kept the previous screen's drawing.** A scene's own
+  `ClearBackground` is subject to the scissor, because it becomes a `glClear`
+  and `glClear` respects it, so the bands outside the safe region held whatever
+  was there before: for a scene opened from the gallery, the card grid. In
+  portrait those bands are thin strips behind the status bar and it went
+  unnoticed for weeks. The phone rotated to landscape mid-session, which puts
+  186 pixels down each side, and the stale cards were unmissable. The host now
+  clears the full screen before raising the scissor.
+
 - **`rounded` and `vecangle`**, forty-two in all. `DrawRectangleRounded` takes a
   Rectangle by value and cannot be bound here, so the shape is assembled from
   two overlapping rectangles and four quarter disks, and the radius breathes
