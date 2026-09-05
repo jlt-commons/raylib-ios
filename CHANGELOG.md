@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **`rounded` and `vecangle`**, forty-two in all. `DrawRectangleRounded` takes a
+  Rectangle by value and cannot be bound here, so the shape is assembled from
+  two overlapping rectangles and four quarter disks, and the radius breathes
+  between square and fully round so both degenerate ends are visible. `vecangle`
+  fills the signed angle between two vectors as an arc: an unsigned angle is a
+  distance, a signed one is a rotation, and the readout swinging through zero
+  into negative is the point.
 - **`splines`**, forty in all. Three bases over one set of control points, so
   the difference is visible rather than described: Catmull-Rom passes through
   its points, the cubic Bezier and the uniform B-spline do not. The original

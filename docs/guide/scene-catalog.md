@@ -1,8 +1,8 @@
 # The scenes
 
-Forty, in four categories. Three come byte-identical from
+Forty-two, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other thirty-seven are ports from
+with their sha256 verified, and the other thirty-nine are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -62,6 +62,8 @@ that were tuned to get there.
 | Gradients | 4 quads, 8 vertices | 58 | one rlgl quad covers raylib's three calls |
 | Ring Drawing | a breathing annulus, stroked | 59 | the scene that would have caught the winding bug |
 | Splines | 3 bases, 480 segments | 59 | Catmull-Rom passes through, the others do not |
+| Rounded Rect | 2 rects, 4 quarter disks | 58 | DrawRectangleRounded, decomposed |
+| Vector Angle | 2 arms and a filled arc | 58 | the angle is signed, and you can see the sign |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 
 ## Games

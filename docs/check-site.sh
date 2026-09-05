@@ -45,7 +45,7 @@ done
 # likely to be forgotten when the grid is edited.
 for img in gallery.png gallery-scenes.png multitouch.png \
            clockgrid.png palette.png sector.png gradient.png ring.png \
-           splines.png analog.gif \
+           splines.png rounded.png vecangle.png analog.gif \
            lorenz.gif tesseract.gif life.gif automata.gif colorwheel.gif \
            unitcircle.gif clock.gif piechart.gif logoanim.gif easings.gif \
            angles.gif writing.gif balls.gif sequence.gif \

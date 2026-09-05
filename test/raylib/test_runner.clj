@@ -53,6 +53,8 @@
                      raylib.scenes.gradient-test
                      raylib.scenes.ring-test
                      raylib.scenes.splines-test
+                     raylib.scenes.rounded-test
+                     raylib.scenes.vecangle-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
