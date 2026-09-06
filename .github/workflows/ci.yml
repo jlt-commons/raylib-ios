@@ -34,12 +34,23 @@ on:
 permissions:
   contents: read
 
-# A push that lands while an earlier run is going cancels it. main is not
-# exempt the way the site workflow's is: a superseded test run tells you
-# nothing, where a superseded deploy can leave a half-applied site.
+# A push that lands while an earlier run is going cancels it. That still
+# holds off main: a superseded test run tells you nothing, where a
+# superseded deploy can leave a half-applied site.
+#
+# main itself IS exempt now, unlike before, and unlike the reasoning just
+# above -- matching glitter-gl's guard. jlt-commons/ci-builds dispatches
+# this workflow_dispatch on main once per jolt version it fans out (pinned,
+# latest, nightly), all in short succession, and this group could not tell
+# those apart from an ordinary superseded push: cancel-in-progress fired on
+# whichever leg lost the race regardless of version, and ci-builds read that
+# as jolt breaking the fleet rather than three legs stepping on each other.
+# Reproduced 2026-09-05 on ci-builds run 33999584713: two of this project's
+# runs, created and cancelled 2-3 seconds apart by the next leg's dispatch.
+# See jlt-commons/raylib-ios#1.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 # Pinned rather than floating, because `latest` lets a release published
 # overnight turn CI red on a tree nobody touched. clj-kondo is the one that
