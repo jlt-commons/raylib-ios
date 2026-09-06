@@ -53,7 +53,7 @@ env:
   # jolt is the runtime this project actually ships on, and jlt-commons/ci-builds
   # dispatches this workflow with a jolt-version input to test the whole fleet
   # against a candidate release before it lands anywhere.
-  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.1' }}
+  JOLT_VERSION: ${{ inputs.jolt-version || '0.8.2' }}
   CLOJURE_VERSION: 1.12.6.1673
   CLJ_KONDO_VERSION: ${{ inputs.clj-kondo-version || '2026.08.04' }}
   SHELLCHECK_VERSION: v0.9.0
@@ -85,7 +85,7 @@ jobs:
         run: clojure -M:test
 
   jolt:
-    name: tests on jolt ${{ inputs.jolt-version || '0.8.1' }}
+    name: tests on jolt ${{ inputs.jolt-version || '0.8.2' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
