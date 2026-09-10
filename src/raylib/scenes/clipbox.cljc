@@ -22,8 +22,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :box-w (* 0.62 w) :box-h (* 0.30 h)
+    {:w (double w)
+     :h (double h)
+     :box-w (* 0.62 w)
+     :box-h (* 0.30 h)
      :label-size (max 20 (int (* 0.028 (min w h))))}))
 
 (defn box
@@ -75,5 +77,9 @@
 (defn- dispose [state] [state [[:scene/dispose :clipbox]]])
 
 (defn scene []
-  {:id :clipbox :title "Scissor"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :clipbox
+   :title "Scissor"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -29,7 +29,8 @@
 
 (defn dimensions [metrics]
   (let [[width height] (:screen metrics)]
-    {:width (double width) :height (double height)
+    {:width (double width)
+     :height (double height)
      :speed (* (min (double width) (double height)) 0.0028)
      ;; the field's spatial frequency, scaled so the pattern reads the same on
      ;; a phone as on the original's 800x450
@@ -50,7 +51,10 @@
     (if (= i n) [out seed]
         (let [[x s1] (pick seed 0.0 (:width dims))
               [y s2] (pick s1 0.0 (:height dims))]
-          (recur (inc i) s2 (conj out {:x x :y y :angle 0.0 :trail [[x y]]}))))))
+          (recur (inc i) s2 (conj out {:x x
+                                       :y y
+                                       :angle 0.0
+                                       :trail [[x y]]}))))))
 
 (defn- step-part [dims {:keys [x y trail]} t]
   (let [{:keys [width height speed]} dims
@@ -60,7 +64,8 @@
         wrapped-x (cond (< nx 0) (+ nx width) (>= nx width) (- nx width) :else nx)
         wrapped-y (cond (< ny 0) (+ ny height) (>= ny height) (- ny height) :else ny)
         wrapped? (or (not= nx wrapped-x) (not= ny wrapped-y))]
-    {:x wrapped-x :y wrapped-y
+    {:x wrapped-x
+     :y wrapped-y
      ;; keep the angle the step already computed. The draw loop colours each
      ;; trail by it, and recomputing there cost two more transcendentals per
      ;; particle per frame: 130 particles at 886 segments ran at 32 fps with
@@ -83,12 +88,18 @@
 
 (defn- init [input]
   (let [[parts seed] (spawn (dimensions (:metrics input)) default-count default-seed)]
-    [{:parts parts :seed seed :t 0.0} [[:scene/init :flowfield]]]))
+    [{:parts parts
+      :seed seed
+      :t 0.0} [[:scene/init :flowfield]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :flowfield]]])
 
 (defn scene []
-  {:id :flowfield :title "Flow Field"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :flowfield
+   :title "Flow Field"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

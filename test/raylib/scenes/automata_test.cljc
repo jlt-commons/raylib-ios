@@ -62,8 +62,11 @@
 (deftest the-window-is-bounded
   (testing "it scrolls rather than growing, so the draw cost stays flat"
     (let [{:keys [cols rows]} (a/dimensions metrics)
-          s0 {:row (a/seed-row cols) :window [(a/runs (a/seed-row cols))]
-              :rule-index 0 :generation 0 :t 0}
+          s0 {:row (a/seed-row cols)
+              :window [(a/runs (a/seed-row cols))]
+              :rule-index 0
+              :generation 0
+              :t 0}
           run (nth (iterate #(a/advance % metrics) s0)
                    (* a/ticks-per-generation (+ rows 40)))]
       (is (= rows (count (:window run)))))))
@@ -71,8 +74,11 @@
 (deftest the-rules-cycle-on-their-own
   (testing "there is no keyboard, so a rule change has to come from the clock"
     (let [{:keys [cols]} (a/dimensions metrics)
-          s0 {:row (a/seed-row cols) :window [(a/runs (a/seed-row cols))]
-              :rule-index 0 :generation 0 :t 0}
+          s0 {:row (a/seed-row cols)
+              :window [(a/runs (a/seed-row cols))]
+              :rule-index 0
+              :generation 0
+              :t 0}
           after (nth (iterate #(a/advance % metrics) s0)
                      (* a/ticks-per-generation (inc a/generations-per-rule)))]
       (is (= 1 (:rule-index after)))

@@ -59,9 +59,12 @@
 
 (deftest a-tick-restarts-the-sweep-and-a-quiet-frame-continues-it
   (let [s0 (first ((:init (cg/scene)) {:metrics metrics}))
-        s1 (cg/advance s0 {:local-time [1 2 3] :delta-seconds 0.0})
-        s2 (cg/advance s1 {:local-time [1 2 3] :delta-seconds 0.2})
-        s3 (cg/advance s2 {:local-time [1 2 4] :delta-seconds 0.2})]
+        s1 (cg/advance s0 {:local-time [1 2 3]
+                           :delta-seconds 0.0})
+        s2 (cg/advance s1 {:local-time [1 2 3]
+                           :delta-seconds 0.2})
+        s3 (cg/advance s2 {:local-time [1 2 4]
+                           :delta-seconds 0.2})]
     (is (= 3 (:sec s1)))
     (is (zero? (:timer s1)) "the tick resets the clock")
     (is (< (abs (- 0.2 (:timer s2))) 1e-9) "a quiet frame accumulates")
@@ -71,14 +74,17 @@
 (deftest the-sweep-completes-and-then-holds
   (testing "t is clamped at 1, so the hands settle rather than overshooting the
             digit they were heading for"
-    (let [s (reduce (fn [st _] (cg/advance st {:local-time [1 2 3] :delta-seconds 0.2}))
+    (let [s (reduce (fn [st _] (cg/advance st {:local-time [1 2 3]
+                                               :delta-seconds 0.2}))
                     (cg/advance (first ((:init (cg/scene)) {:metrics metrics}))
-                                {:local-time [1 2 3] :delta-seconds 0.0})
+                                {:local-time [1 2 3]
+                                 :delta-seconds 0.0})
                     (range 20))]
       (is (= (:dst s) (:current s)) "arrived exactly on target"))))
 
 (deftest the-grid-keeps-its-shape-through-every-second
-  (let [run (reductions (fn [st sec] (cg/advance st {:local-time [12 34 sec] :delta-seconds 0.1}))
+  (let [run (reductions (fn [st sec] (cg/advance st {:local-time [12 34 sec]
+                                                     :delta-seconds 0.1}))
                         (first ((:init (cg/scene)) {:metrics metrics}))
                         (range 60))]
     (doseq [s run]

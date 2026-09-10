@@ -51,14 +51,16 @@
                                    (* (- y (:cy d)) (- y (:cy d)))))]
             (is (< dist (:r d)))))))))
 
-(defn- tick [state sec dt] (a/advance state {:local-time [1 2 sec] :delta-seconds dt}))
+(defn- tick [state sec dt] (a/advance state {:local-time [1 2 sec]
+                                             :delta-seconds dt}))
 
 (deftest the-fraction-is-phased-to-the-wall-clock-not-free-running
   (testing "a change of second snaps it to zero. Free-running, it wraps whenever
             its own accumulation says to, which is out of phase with the clock
             it subdivides: measured on device the hand went .95 then .02 while
             the second was still 12, jumping backward 5.6 degrees mid-second."
-    (let [s (-> {:frac 0.0 :sec nil}
+    (let [s (-> {:frac 0.0
+                 :sec nil}
                 (tick 12 0.0) (tick 12 0.4) (tick 12 0.4) (tick 12 0.4))]
       (is (= 12 (:sec s)))
       (is (< (abs (- 0.999 (:frac s))) 1e-9) "clamped, not past the tick")
@@ -69,12 +71,14 @@
 (deftest the-hand-never-goes-backwards-within-a-second
   (testing "which is the property the eye is actually watching"
     (let [run (reductions (fn [st [sec dt]] (tick st sec dt))
-                          {:frac 0.0 :sec nil}
+                          {:frac 0.0
+                           :sec nil}
                           (for [sec (range 5) _ (range 6)] [sec 0.17]))
           angles (map (fn [st] (:second (a/hand-angles [0 0 (or (:sec st) 0)] (:frac st)))) run)]
       (doseq [[a b] (map vector angles (rest angles))]
         (is (<= a b) "monotonic across ticks and within them")))))
 
 (deftest a-slow-frame-cannot-push-the-hand-past-the-tick
-  (let [s (-> {:frac 0.0 :sec nil} (tick 5 0.0) (tick 5 10.0))]
+  (let [s (-> {:frac 0.0
+               :sec nil} (tick 5 0.0) (tick 5 10.0))]
     (is (< (:frac s) 1.0))))

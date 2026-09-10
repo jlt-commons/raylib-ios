@@ -2,8 +2,12 @@
   (:require [clojure.test :refer [deftest is testing]]
             [raylib.scroll :as sc]))
 
-(def viewport {:width 1206 :height 2334})
-(def sizes {:margin 48 :title-size 64 :body-size 34 :line-gap 16})
+(def viewport {:width 1206
+               :height 2334})
+(def sizes {:margin 48
+            :title-size 64
+            :body-size 34
+            :line-gap 16})
 
 (deftest a-short-list-does-not-scroll
   (testing "and is not stretched either: two cards on a tall screen stay two

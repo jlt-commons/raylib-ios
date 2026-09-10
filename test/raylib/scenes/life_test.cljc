@@ -13,7 +13,9 @@
       (is (< 3000 (* cols rows) 5500)))))
 
 (deftest the-classic-patterns-behave
-  (let [dims {:cols 20 :rows 20 :cell 10}]
+  (let [dims {:cols 20
+              :rows 20
+              :cell 10}]
     (testing "a block is a still life"
       (let [block #{[5 5] [5 6] [6 5] [6 6]}]
         (is (= block (l/step dims block)))))
@@ -29,7 +31,9 @@
 (deftest the-grid-wraps
   (testing "a blinker on the edge wraps rather than falling off, which is what
             makes this a torus and not a board with walls"
-    (let [dims {:cols 10 :rows 10 :cell 10}
+    (let [dims {:cols 10
+                :rows 10
+                :cell 10}
           edge #{[0 0] [9 0] [1 0]}]
       (is (= edge (l/step dims (l/step dims edge)))))))
 
@@ -57,7 +61,11 @@
 (deftest advancing-only-steps-on-a-tick
   (let [dims (l/dimensions metrics)
         [live seed] (l/spawn dims l/default-seed)
-        s0 {:live live :seed seed :t 0 :history () :generation 0}
+        s0 {:live live
+            :seed seed
+            :t 0
+            :history ()
+            :generation 0}
         s1 (l/advance s0 metrics)]
     (testing "the first tick is not a generation, it is one frame of six"
       (is (= 1 (:t s1)))

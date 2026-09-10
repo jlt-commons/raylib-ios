@@ -23,7 +23,8 @@
     {:ox (/ (double width) 2.0)
      ;; hung from the upper third, so a full swing stays on a tall screen
      :oy (* (double height) 0.30)
-     :l1 rod :l2 rod
+     :l1 rod
+     :l2 rod
      :bob (max 4 (int (* span 0.018)))
      :trail-dot (* span 0.005)}))
 
@@ -69,12 +70,20 @@
 
 (defn- init [_input]
   ;; the original's starting angles, which is what makes the curve reproducible
-  [{:a1 2.2 :a2 2.6 :v1 0.0 :v2 0.0 :trail []} [[:scene/init :pendulum]]])
+  [{:a1 2.2
+    :a2 2.6
+    :v1 0.0
+    :v2 0.0
+    :trail []} [[:scene/init :pendulum]]])
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :pendulum]]])
 
 (defn scene []
-  {:id :pendulum :title "Double Pendulum"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :pendulum
+   :title "Double Pendulum"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

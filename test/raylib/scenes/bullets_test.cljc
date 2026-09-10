@@ -24,7 +24,11 @@
 (deftest bullets-fly-straight
   (testing "each keeps the velocity it left with, so the spiral is an illusion
             made of straight lines rather than curved paths"
-    (let [start {:angle 0.0 :bullets [{:x 100.0 :y 100.0 :vx 3.0 :vy -2.0}]}
+    (let [start {:angle 0.0
+                 :bullets [{:x 100.0
+                            :y 100.0
+                            :vx 3.0
+                            :vy -2.0}]}
           after (nth (iterate #(b/advance % metrics) start) 5)
           tracked (first (filter #(and (= 3.0 (:vx %)) (= -2.0 (:vy %))) (:bullets after)))]
       (is (some? tracked))
@@ -36,7 +40,8 @@
             minute is the cost in the first. Without this it grows by three a
             frame forever."
     (let [counts (mapv (fn [n] (count (:bullets (nth (iterate #(b/advance % metrics)
-                                                              {:angle 0.0 :bullets []}) n))))
+                                                              {:angle 0.0
+                                                               :bullets []}) n))))
                        [600 900 1200 1800 2400])
           lo (apply min counts)
           hi (apply max counts)]
@@ -53,5 +58,6 @@
       (is (> lo 200) "and it is not decaying to nothing"))))
 
 (deftest nothing-lingers-outside-the-region
-  (let [run (nth (iterate #(b/advance % metrics) {:angle 0.0 :bullets []}) 700)]
+  (let [run (nth (iterate #(b/advance % metrics) {:angle 0.0
+                                                  :bullets []}) 700)]
     (is (every? #(b/in-flight? dims %) (:bullets run)))))

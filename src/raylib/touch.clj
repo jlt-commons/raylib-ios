@@ -24,12 +24,19 @@
              [(rl/get-touch-point-id i) (int x) (int y)])))
 
 (defn- init [{:keys [scale]}]
-  {:k scale :was 0 :downs 0 :ups 0 :frames-held 0 :trail [] :peak 0})
+  {:k scale
+   :was 0
+   :downs 0
+   :ups 0
+   :frames-held 0
+   :trail []
+   :peak 0})
 
 (defn- advance
   "Fold this frame's sample into the counters. Edges are derived rather than
   received: a press is count rising from zero, a release is it falling to it."
-  [{:keys [was] :as s} n pts]
+  [{:keys [was]
+    :as s} n pts]
   (let [down?     (pos? n)
         pressed?  (and down? (zero? was))
         released? (and (not down?) (pos? was))]
@@ -69,4 +76,6 @@
     s'))
 
 (defn -main [& _]
-  (rl/run! {:title "touch" :init init :frame frame}))
+  (rl/run! {:title "touch"
+            :init init
+            :frame frame}))

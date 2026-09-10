@@ -5,8 +5,10 @@
 
 (def scene-ids [:eyes :trail :flappy :controls :touch :gestures])
 (def portrait-metrics
-  (diagnostics/screen-metrics {:screen-width 1080 :screen-height 2400
-                               :render-width 1080 :render-height 2400}))
+  (diagnostics/screen-metrics {:screen-width 1080
+                               :screen-height 2400
+                               :render-width 1080
+                               :render-height 2400}))
 (def sizes (diagnostics/layout portrait-metrics))
 
 (deftest live-presentation-is-pure-data-test
@@ -21,8 +23,10 @@
 (deftest adaptive-card-layout-test
   (let [portrait (gallery-ui/gallery-layout portrait-metrics scene-ids sizes)
         landscape-metrics (diagnostics/screen-metrics
-                           {:screen-width 2400 :screen-height 1080
-                            :render-width 2400 :render-height 1080})
+                           {:screen-width 2400
+                            :screen-height 1080
+                            :render-width 2400
+                            :render-height 1080})
         landscape (gallery-ui/gallery-layout landscape-metrics scene-ids
                                              (diagnostics/layout landscape-metrics))]
     (testing "all registered scenes receive a safe, unique card"
@@ -55,4 +59,4 @@
     (is (= :back (gallery-ui/hit-test layout (center back) :scene)))
     (is (nil? (gallery-ui/hit-test layout [0 0] :gallery)))
     (is (nil? (gallery-ui/hit-test layout [(:x first-card) (dec (:y first-card))]
-                                           :gallery)))))
+                                   :gallery)))))

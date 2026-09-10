@@ -28,7 +28,9 @@
         [x s1] (pick seed (- spread) spread)
         [y s2] (pick s1 (- spread) spread)
         [z s3] (pick s2 0.25 1.0)]
-    [{:x x :y y :z z} s3]))
+    [{:x x
+      :y y
+      :z z} s3]))
 
 (defn spawn [dims n seed]
   (loop [i 0 seed seed out []]
@@ -55,12 +57,17 @@
 
 (defn- init [input]
   (let [[stars seed] (spawn (dimensions (:metrics input)) default-count default-seed)]
-    [{:stars stars :seed seed} [[:scene/init :stars]]]))
+    [{:stars stars
+      :seed seed} [[:scene/init :stars]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :stars]]])
 
 (defn scene []
-  {:id :stars :title "Starfield"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :stars
+   :title "Starfield"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

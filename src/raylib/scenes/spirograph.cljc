@@ -73,7 +73,12 @@
   (let [{:keys [r-min r-max d-min d-max]} (dimensions metrics)
         [r seed'] (pick seed r-min r-max)
         [d seed''] (pick seed' d-min d-max)]
-    {:r r :d d :t 0.0 :points [] :seed seed'' :figures 0}))
+    {:r r
+     :d d
+     :t 0.0
+     :points []
+     :seed seed''
+     :figures 0}))
 
 (defn point
   "The pen position at angle t, for a wheel of radius r and pen offset d."

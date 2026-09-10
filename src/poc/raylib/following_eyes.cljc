@@ -8,7 +8,10 @@
   (let [[width height] (:screen metrics)
         scale (/ (double (min width height)) 450.0)
         radius (* 60.0 scale)]
-    {:width width :height height :eye-radius radius :pupil-radius (* 22.0 scale)
+    {:width width
+     :height height
+     :eye-radius radius
+     :pupil-radius (* 22.0 scale)
      :left [(* width 0.35) (* height 0.5)]
      :right [(* width 0.65) (* height 0.5)]
      :neutral [(/ width 2.0) (/ height 2.0)]}))
@@ -33,7 +36,8 @@
    :title "Following Eyes"
    :init (fn [input]
            (let [layout (layout (:metrics input))]
-             [{:target (:neutral layout) :phase :idle} [[:scene/init :following-eyes]]]))
+             [{:target (:neutral layout)
+               :phase :idle} [[:scene/init :following-eyes]]]))
    :update (fn [state input] [(update-state state input) []])
    :draw (fn [state _] [state []])
    :dispose (fn [state] [state [[:scene/dispose :following-eyes]]])})

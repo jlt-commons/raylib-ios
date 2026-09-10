@@ -33,8 +33,14 @@
         top-margin (* 0.045 h)
         cw (/ (- w (* pad (inc cols))) cols)
         ch (/ (- h top-margin (* pad (inc rows)) (* 0.02 h)) rows)]
-    {:w w :h h :cols cols :rows rows :pad pad :top-margin top-margin
-     :cell-w cw :cell-h ch
+    {:w w
+     :h h
+     :cols cols
+     :rows rows
+     :pad pad
+     :top-margin top-margin
+     :cell-w cw
+     :cell-h ch
      ;; the plot sits inside its cell with headroom, since two curves overshoot
      :inset-y (* 0.26 ch)
      :label-h (* 0.16 ch)}))
@@ -86,5 +92,9 @@
 (defn- dispose [state] [state [[:scene/dispose :easings]]])
 
 (defn scene []
-  {:id :easings :title "Easings"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :easings
+   :title "Easings"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

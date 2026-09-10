@@ -6,7 +6,8 @@
   {:id scene-id
    :title title
    :init (fn [input]
-           [{:ticks 0 :last-input input} [[:init scene-id]]])
+           [{:ticks 0
+             :last-input input} [[:init scene-id]]])
    :update (fn [state input]
              [(-> state (update :ticks inc) (assoc :last-input input))
               [[:update scene-id]]])
@@ -20,7 +21,9 @@
    (fake-scene :trail "Touch Trail")])
 
 (def fake-registry (gallery/make-registry fake-scenes))
-(def input {:back? false :pointer {:phase :idle} :metrics {:screen [720 1280]}})
+(def input {:back? false
+            :pointer {:phase :idle}
+            :metrics {:screen [720 1280]}})
 
 (deftest deterministic-static-registry-test
   (is (= [:eyes :trail] (mapv :id fake-scenes)))

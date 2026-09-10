@@ -20,8 +20,10 @@
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
         outer (* 0.36 (min w h))]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.45 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.45 h)
      :outer outer
      :thick (* 0.008 (min w h))
      :label-size (max 20 (int (* 0.030 (min w h))))}))
@@ -45,7 +47,9 @@
         ;; twice. Harmless on a desktop demo you glance at, wrong in a gallery
         ;; that sits on one scene.
         end (+ start 100.0 (* 115.0 (+ 1.0 (Math/sin (* 1.02 t)))))]
-    {:inner inner :start start :end end}))
+    {:inner inner
+     :start start
+     :end end}))
 
 (defn arc-points
   "`n`+1 points along an arc, for stroking it as short segments."
@@ -63,5 +67,9 @@
 (defn- dispose [state] [state [[:scene/dispose :ring]]])
 
 (defn scene []
-  {:id :ring :title "Ring Drawing"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :ring
+   :title "Ring Drawing"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

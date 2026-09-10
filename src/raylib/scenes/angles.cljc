@@ -44,5 +44,9 @@
 (defn- dispose [state] [state [[:scene/dispose :angles]]])
 
 (defn scene []
-  {:id :angles :title "Angles"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :angles
+   :title "Angles"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

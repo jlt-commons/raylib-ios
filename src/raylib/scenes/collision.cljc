@@ -21,10 +21,13 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :slider-w (* 0.55 w) :slider-h (* 0.22 h)
+    {:w (double w)
+     :h (double h)
+     :slider-w (* 0.55 w)
+     :slider-h (* 0.22 h)
      :slider-y (* 0.30 h)
-     :finger-w (* 0.38 w) :finger-h (* 0.18 h)}))
+     :finger-w (* 0.38 w)
+     :finger-h (* 0.18 h)}))
 
 (defn intersection
   "The overlap of two [x y w h] boxes, or nil when they do not touch.
@@ -70,7 +73,11 @@
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [w h]} (dimensions metrics)]
-    [{:x 0.0 :vx slide-speed :t 0 :target [(* 0.5 w) (* 0.5 h)] :touching? false}
+    [{:x 0.0
+      :vx slide-speed
+      :t 0
+      :target [(* 0.5 w) (* 0.5 h)]
+      :touching? false}
      [[:scene/init :collision]]]))
 
 (defn- update-scene [state input] [(advance state input) []])
@@ -78,5 +85,9 @@
 (defn- dispose [state] [state [[:scene/dispose :collision]]])
 
 (defn scene []
-  {:id :collision :title "Collision Area"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :collision
+   :title "Collision Area"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

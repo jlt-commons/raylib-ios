@@ -19,7 +19,8 @@
 (defn dimensions [metrics]
   (let [[width height] (:screen metrics)
         span (min (double width) (double height))]
-    {:width (double width) :height (double height)
+    {:width (double width)
+     :height (double height)
      :radius (* span 0.10)
      :max-speed (* span 0.0026)
      :body (max 2 (int (* span 0.004)))
@@ -40,7 +41,10 @@
             [y s2] (pick s1 0.0 (:height dims))
             [vx s3] (pick s2 -1.0 1.0)
             [vy s4] (pick s3 -1.0 1.0)]
-        (recur (inc i) s4 (conj out {:x x :y y :vx vx :vy vy}))))))
+        (recur (inc i) s4 (conj out {:x x
+                                     :y y
+                                     :vx vx
+                                     :vy vy}))))))
 
 (defn- limit [vx vy m]
   (let [s (Math/sqrt (+ (* vx vx) (* vy vy)))]
@@ -59,7 +63,10 @@
         vx (+ (:vx b) (* 0.0008 (- (avg :x) (:x b))) (* 0.05 (- (avg :vx) (:vx b))) (* 0.0010 (sep :x)))
         vy (+ (:vy b) (* 0.0008 (- (avg :y) (:y b))) (* 0.05 (- (avg :vy) (:vy b))) (* 0.0010 (sep :y)))
         [vx vy] (limit vx vy max-speed)]
-    {:x (mod (+ (:x b) vx) width) :y (mod (+ (:y b) vy) height) :vx vx :vy vy}))
+    {:x (mod (+ (:x b) vx) width)
+     :y (mod (+ (:y b) vy) height)
+     :vx vx
+     :vy vy}))
 
 (defn advance [state metrics]
   (let [dims (dimensions metrics)
@@ -76,12 +83,17 @@
 (defn- init [input]
   (let [dims (dimensions (:metrics input))
         [flock seed] (spawn dims default-count default-seed)]
-    [{:flock flock :seed seed} [[:scene/init :boids]]]))
+    [{:flock flock
+      :seed seed} [[:scene/init :boids]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :boids]]])
 
 (defn scene []
-  {:id :boids :title "Boids"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :boids
+   :title "Boids"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

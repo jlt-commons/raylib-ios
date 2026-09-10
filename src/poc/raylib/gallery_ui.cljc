@@ -23,7 +23,9 @@
   (if (>= (* width 3) (* height 2)) 3 2))
 
 (defn- rectangle [x y width height]
-  {:x (int x) :y (int y) :width (max 1 (int width))
+  {:x (int x)
+   :y (int y)
+   :width (max 1 (int width))
    :height (max 1 (int height))})
 
 (defn ^:export gallery-layout

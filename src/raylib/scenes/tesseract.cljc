@@ -79,5 +79,9 @@
 (defn- dispose [state] [state [[:scene/dispose :tesseract]]])
 
 (defn scene []
-  {:id :tesseract :title "Tesseract"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :tesseract
+   :title "Tesseract"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

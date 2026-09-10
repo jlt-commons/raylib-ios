@@ -14,55 +14,55 @@
             [poc.raylib.gallery :as gallery]
             [poc.raylib.gallery-ui :as ui]
             [poc.raylib.touch-trail :as trail]
+            [raylib.easings :as ez]
             [raylib.flappy :as flappy-draw]
             [raylib.host :as rl]
-            [raylib.scenes.automata :as auto]
-            [raylib.scenes.angles :as ang]
-            [raylib.scenes.balls :as balls]
-            [raylib.scenes.boids :as boids]
-            [raylib.scenes.bullets :as bull]
-            [raylib.scenes.collision :as coll]
-            [raylib.scenes.dashed :as dash]
-            [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.align :as align]
             [raylib.scenes.analog :as analog]
-            [raylib.scenes.clockgrid :as cgrid]
-            [raylib.scenes.sector :as sector]
-            [raylib.scenes.palette :as pal]
-            [raylib.scenes.gradient :as grad]
-            [raylib.scenes.ring :as ring]
-            [raylib.scenes.splines :as spl]
-            [raylib.scenes.rounded :as rnd]
-            [raylib.scenes.vecangle :as vang]
+            [raylib.scenes.angles :as ang]
+            [raylib.scenes.automata :as auto]
+            [raylib.scenes.balls :as balls]
             [raylib.scenes.bars :as bars]
             [raylib.scenes.bezier :as bez]
-            [raylib.scenes.fan :as fan]
+            [raylib.scenes.boids :as boids]
+            [raylib.scenes.bullets :as bull]
             [raylib.scenes.clipbox :as clipbox]
-            [raylib.scenes.resize :as rsz]
-            [raylib.scenes.align :as align]
-            [raylib.scroll :as scroll]
             [raylib.scenes.clock :as clock]
+            [raylib.scenes.clockgrid :as cgrid]
+            [raylib.scenes.collision :as coll]
             [raylib.scenes.colorwheel :as wheel]
-            [raylib.easings :as ez]
+            [raylib.scenes.dashed :as dash]
             [raylib.scenes.easings :as ease]
             [raylib.scenes.epicycles :as epi]
+            [raylib.scenes.fan :as fan]
+            [raylib.scenes.fireworks :as fw]
             [raylib.scenes.flowfield :as flow]
+            [raylib.scenes.gradient :as grad]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
             [raylib.scenes.logoanim :as logo]
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
-            [raylib.scenes.fireworks :as fw]
-            [raylib.scenes.kaleidoscope :as kal]
+            [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.palette :as pal]
             [raylib.scenes.pendulum :as pend]
-            [raylib.scenes.piechart :as pie]
             [raylib.scenes.penrose :as pen]
+            [raylib.scenes.piechart :as pie]
+            [raylib.scenes.resize :as rsz]
+            [raylib.scenes.ring :as ring]
+            [raylib.scenes.rounded :as rnd]
+            [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
             [raylib.scenes.spirograph :as spiro]
+            [raylib.scenes.splines :as spl]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.tesseract :as tess]
-            [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.tree :as tree]
-            [raylib.scenes.writing :as writ]))
+            [raylib.scenes.unitcircle :as circle]
+            [raylib.scenes.vecangle :as vang]
+            [raylib.scenes.writing :as writ]
+            [raylib.scroll :as scroll]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
@@ -94,18 +94,22 @@
 ;; argument. Hand it category ids and it lays out categories; hand it the ids
 ;; in a category and it lays out those. Same untouched function, twice.
 (def categories
-  [{:id :generative :title "Generative"
+  [{:id :generative
+    :title "Generative"
     :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield
              :lorenz :life :bullets]}
-   {:id :fractals :title "Fractals"
+   {:id :fractals
+    :title "Fractals"
     :scenes [:hilbert :tree :lsystem :automata]}
-   {:id :toys :title "Toys"
+   {:id :toys
+    :title "Toys"
     :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align]}
-   {:id :games :title "Games"
+   {:id :games
+    :title "Games"
     :scenes [:flappy-bird]}])
 
 (def ^:private category-ids (mapv :id categories))
@@ -233,10 +237,12 @@
                   (first before)))
         w   (rl/get-screen-width)
         h   (rl/get-screen-height)]
-    [(merge {:screen-width w :screen-height h
+    [(merge {:screen-width w
+             :screen-height h
              ;; no HighDPI translation to do: the window is created at pixel
              ;; size, so the render surface and the screen are the same numbers
-             :render-width w :render-height h
+             :render-width w
+             :render-height h
              :back? false}
             ;; Each sampler reports :down? from the count it already read. An
             ;; earlier draft derived it here with a second GetTouchPointCount
@@ -415,7 +421,8 @@
           (rl/draw-circle (int (nth p 0)) (int (nth p 1)) (double (nth p 2)) white))
         (recur (inc i))))))
 
-(defmethod draw-scene! :pendulum [_ {:keys [trail] :as st} {:keys [m]}]
+(defmethod draw-scene! :pendulum [_ {:keys [trail]
+                                     :as st} {:keys [m]}]
   ;; Indexed loops throughout, per docs/guide/performance-on-a-phone.md.
   (let [{:keys [ox oy bob trail-dot]} (pend/dimensions m)
         [[x1 y1] [x2 y2]] (pend/positions st m)
@@ -517,7 +524,8 @@
   (let [grid-top (+ top margin title-size (* 2 line-gap))
         grid-h (- (+ top viewport-height) grid-top)]
     (rl/begin-scissor-mode 0 grid-top (rl/get-screen-width) grid-h)
-    (doseq [{:keys [scene-id] :as card} cards]
+    (doseq [{:keys [scene-id]
+             :as card} cards]
       ;; Cards outside the window are skipped rather than drawn and clipped. A
       ;; long list is mostly off screen, and the scissor discards those pixels
       ;; only after paying for the draw call and the text measurement.
@@ -560,7 +568,8 @@
   ([m sizes top ids scroll]
    (let [[w h] (:screen m)
          viewport (- h top)
-         content (scroll/content-height {:width w :height viewport} sizes (count ids)
+         content (scroll/content-height {:width w
+                                         :height viewport} sizes (count ids)
                                         (if (>= (* w 3) (* viewport 2)) 3 2))
          shifted (ui/gallery-layout (assoc m :screen [w content]) ids sizes)
          lower (fn [rect] (update rect :y + top))
@@ -581,7 +590,10 @@
 (defn- init [{:keys [scale inset-top]}]
   ;; :category nil is the top level, showing categories. Set, it is that
   ;; category's scene list. The pure gstate is unaware of either.
-  {:k scale :insets {:top inset-top} :touches 0 :category nil
+  {:k scale
+   :insets {:top inset-top}
+   :touches 0
+   :category nil
    :gstate gallery/initial-gallery-state})
 
 (defn- resolve-insets
@@ -605,8 +617,13 @@
 
 (defn- safe-region
   "Where a scene may draw, in screen pixels."
-  [[w h] {:keys [top bottom left right] :or {top 0 bottom 0 left 0 right 0}}]
-  {:x left :y top
+  [[w h] {:keys [top bottom left right]
+          :or {top 0
+               bottom 0
+               left 0
+               right 0}}]
+  {:x left
+   :y top
    :width  (- w left right)
    :height (- h top bottom)})
 
@@ -720,7 +737,9 @@
         ;; scissor does not nest: BeginScissorMode inside another one simply
         ;; takes over, so a scene clipping to its own box would be free to paint
         ;; over the status bar the host just moved it clear of.
-        (draw-scene! active-scene-id scene-state {:k k :m m :safe safe})
+        (draw-scene! active-scene-id scene-state {:k k
+                                                  :m m
+                                                  :safe safe})
         (rl/rl-pop-matrix)
         (rl/end-scissor-mode)
         (draw-back! layout accent))
@@ -736,7 +755,8 @@
   "One frame: sample, decide where the press goes, advance the pure gallery,
   draw. The state carried between frames is the touch count, the cached inset,
   which category is open, and the pure state itself."
-  [{:keys [k insets touches gstate category] :as s}]
+  [{:keys [k insets touches gstate category]
+    :as s}]
   (let [insets (resolve-insets k insets)
         top    (:top insets 0)
         [raw tap] (raw-sample touches)
@@ -802,19 +822,21 @@
                    ignore-close)]
     (render! gstate category' layout k scene-m top safe scroll')
     (assoc s :insets insets
-             :category category'
+           :category category'
              ;; The offset belongs to the level being shown, so moving between
              ;; levels starts at the top rather than halfway down a list of a
              ;; different length. Without this, opening a scene from the bottom
              ;; of Toys and coming back lands on a blank stretch below the last
              ;; card of a shorter category.
-             :scroll (if (= category category') scroll' 0)
-             :drag (when-not (= :release phase) drag)
-             :touches (get-in input [:touches :count])
-             :gstate gstate)))
+           :scroll (if (= category category') scroll' 0)
+           :drag (when-not (= :release phase) drag)
+           :touches (get-in input [:touches :count])
+           :gstate gstate)))
 
 (defn -main [& _]
-  (rl/run! {:title "Gallery" :init init :frame frame}))
+  (rl/run! {:title "Gallery"
+            :init init
+            :frame frame}))
 
 (defmethod draw-scene! :lorenz [_ {:keys [points t]} {:keys [m]}]
   (rl/clear-background (rl/rgba 12 14 22 255))
@@ -880,7 +902,8 @@
     (doseq [c live]
       (rl/draw-rectangle (* (nth c 0) cell) (* (nth c 1) cell) size size lime))))
 
-(defmethod draw-scene! :automata [_ {:keys [window] :as state} {:keys [m]}]
+(defmethod draw-scene! :automata [_ {:keys [window]
+                                     :as state} {:keys [m]}]
   (rl/clear-background (rl/rgba 245 245 245 255))
   (let [{:keys [px row-h]} (auto/dimensions m)
         ink (rl/rgba 20 30 60 255)
@@ -1221,7 +1244,8 @@
   ;; Read here, not in the scene, for the reason the digital clock gives above.
   (let [now (rl/local-time)
         [h mi s] now
-        {:keys [cx cy r label-size] :as d} (analog/dimensions m)
+        {:keys [cx cy r label-size]
+         :as d} (analog/dimensions m)
         {:keys [hour minute second]} (analog/hand-angles now frac)
         pale (rl/rgba 235 235 245 255)
         red (rl/rgba 235 90 90 255)
@@ -1318,12 +1342,13 @@
       (line 1 (str "asked for " requested " segments") rl/DARKGRAY)
       (line 2 (str "floor is " floor " (one per 90 degrees)") (rl/rgba 130 130 130 255))
       (line 3 (if auto? (str "AUTO: drawing " segments)
-                        (str "drawing " segments " as asked"))
+                  (str "drawing " segments " as asked"))
             (if auto? (rl/rgba 190 33 55 255) (rl/rgba 0 130 60 255))))))
 
 (defmethod draw-scene! :palette [_ _ {:keys [m]}]
   (rl/clear-background (rl/rgba 30 32 40 255))
-  (let [{:keys [swatch-h label-size] :as d} (pal/dimensions m)]
+  (let [{:keys [swatch-h label-size]
+         :as d} (pal/dimensions m)]
     (doseq [[i entry] (map-indexed vector pal/colours)]
       (let [[x y w _] (pal/cell d i)
             [nm r g b] entry
@@ -1340,7 +1365,8 @@
 
 (defmethod draw-scene! :gradient [_ {:keys [t]} {:keys [m]}]
   (rl/clear-background (rl/rgba 18 18 24 255))
-  (let [{:keys [label-size] :as d} (grad/dimensions m)
+  (let [{:keys [label-size]
+         :as d} (grad/dimensions m)
         labels ["vertical, top pair equal"
                 "horizontal, left pair equal"
                 "four corners, all different"
@@ -1362,7 +1388,8 @@
   ;; 1700 FFI calls a frame, for 40 fps. Same trade the clock grid made, and
   ;; the same answer. arc-points stays, because the tests use it to assert the
   ;; stroke actually follows the arc.
-  (let [{:keys [cx cy outer thick label-size w h] :as d} (ring/dimensions m)
+  (let [{:keys [cx cy outer thick label-size w h]
+         :as d} (ring/dimensions m)
         {:keys [inner start end]} (ring/geometry d t)
         n ring/outline-segments
         span (- end start)
@@ -1413,7 +1440,8 @@
   ;; into pairs, which is about a thousand allocations a frame across the three,
   ;; and ran at 20 fps. spl/curve stays because the tests inspect its output;
   ;; the draw path carries the previous point in locals instead.
-  (let [{:keys [dot thick label-size w h] :as d} (spl/dimensions m)
+  (let [{:keys [dot thick label-size w h]
+         :as d} (spl/dimensions m)
         pts (spl/points d t)
         n (count pts)
         at (fn [i] (nth pts (max 0 (min (dec n) i))))
@@ -1458,7 +1486,8 @@
 
 (defmethod draw-scene! :rounded [_ {:keys [t]} {:keys [m]}]
   (rl/clear-background (rl/rgba 245 245 245 255))
-  (let [{:keys [label-size w h] :as d} (rnd/dimensions m)
+  (let [{:keys [label-size w h]
+         :as d} (rnd/dimensions m)
         r (rnd/radius-at d t)
         {:keys [rects corners]} (rnd/parts d r)
         fill (rl/rgba 0 121 241 255)]
@@ -1481,7 +1510,8 @@
 
 (defmethod draw-scene! :vecangle [_ {:keys [t]} {:keys [m]}]
   (rl/clear-background (rl/rgba 26 28 36 255))
-  (let [{:keys [cx cy arc thick label-size w h] :as d} (vang/dimensions m)
+  (let [{:keys [cx cy arc thick label-size w h]
+         :as d} (vang/dimensions m)
         {:keys [a b]} (vang/vectors d t)
         ba (vang/bearing a) bb (vang/bearing b)
         turn (vang/signed-between ba bb)
@@ -1511,7 +1541,8 @@
   ;; here at all: it allocated a colour vector per vertex, 400 a frame across the
   ;; five bars, which with the outlines came to 54 fps. The channels are mixed
   ;; inline from primitives instead. Fourth scene to make this trade.
-  (let [{:keys [label-size w h] :as d} (bars/dimensions m)
+  (let [{:keys [label-size w h]
+         :as d} (bars/dimensions m)
         [lr lg lb] bars/left-colour
         [rr rg rb] bars/right-colour]
     (dotimes [i bars/bar-count]
@@ -1585,7 +1616,8 @@
 
 (defmethod draw-scene! :fan [_ {:keys [t]} {:keys [m]}]
   (rl/clear-background (rl/rgba 18 20 28 255))
-  (let [{:keys [cx cy label-size w h] :as d} (fan/dimensions m)]
+  (let [{:keys [cx cy label-size w h]
+         :as d} (fan/dimensions m)]
     ;; One draw-line-ex per spoke rather than a batch: sixteen calls a frame is
     ;; nothing, and each spoke needs its own colour anyway, which a single
     ;; batched colour would not give.
@@ -1601,7 +1633,8 @@
 
 (defmethod draw-scene! :clipbox [_ {:keys [t]} {:keys [m safe]}]
   (rl/clear-background rl/RAYWHITE)
-  (let [{:keys [label-size w h] :as d} (clipbox/dimensions m)
+  (let [{:keys [label-size w h]
+         :as d} (clipbox/dimensions m)
         b (clipbox/box d t)
         [bx by bw bh] b]
     ;; The scene's own scissor, intersected with the host's rather than

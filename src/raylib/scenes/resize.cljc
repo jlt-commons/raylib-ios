@@ -20,10 +20,13 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :x (* 0.12 w) :y (* 0.20 h)
+    {:w (double w)
+     :h (double h)
+     :x (* 0.12 w)
+     :y (* 0.20 h)
      :handle (* 0.055 w)
-     :min-w (* min-w w) :min-h (* min-h h)
+     :min-w (* min-w w)
+     :min-h (* min-h h)
      :label-size (max 20 (int (* 0.028 (min w h))))}))
 
 (defn handle-box
@@ -64,12 +67,18 @@
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [w h]} (dimensions metrics)]
-    [{:rw (* 0.50 w) :rh (* 0.28 h) :holding? false}
+    [{:rw (* 0.50 w)
+      :rh (* 0.28 h)
+      :holding? false}
      [[:scene/init :resize]]]))
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :resize]]])
 
 (defn scene []
-  {:id :resize :title "Resize"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :resize
+   :title "Resize"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

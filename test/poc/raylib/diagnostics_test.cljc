@@ -3,16 +3,25 @@
             [poc.raylib.diagnostics :as diagnostics]))
 
 (def portrait-raw
-  {:screen-width 1080 :screen-height 2400
-   :render-width 1080 :render-height 2400
-   :touch-count 0 :touch-ids []
-   :pointer-x 0 :pointer-y 0
-   :pressed? false :down? false :released? false :back? false})
+  {:screen-width 1080
+   :screen-height 2400
+   :render-width 1080
+   :render-height 2400
+   :touch-count 0
+   :touch-ids []
+   :pointer-x 0
+   :pointer-y 0
+   :pressed? false
+   :down? false
+   :released? false
+   :back? false})
 
 (deftest live-screen-metrics-and-layout-test
   (testing "portrait and landscape derive from live dimensions"
-    (is (= {:screen [1080 2400] :render [1080 2400]
-            :dpi-scale [1 1] :orientation :portrait}
+    (is (= {:screen [1080 2400]
+            :render [1080 2400]
+            :dpi-scale [1 1]
+            :orientation :portrait}
            (diagnostics/screen-metrics portrait-raw)))
     (is (= :landscape
            (:orientation (diagnostics/screen-metrics
@@ -36,7 +45,9 @@
                  (assoc portrait-raw
                         :pointer-x 150 :pointer-y 390 :released? true))]
     (is (= :press (get-in press [:pointer :phase])))
-    (is (= {:count 2 :ids [7 11] :point-0 [120 340]
+    (is (= {:count 2
+            :ids [7 11]
+            :point-0 [120 340]
             :available-coordinates :point-0
             :all-coordinates-available? false}
            (:touches press)))

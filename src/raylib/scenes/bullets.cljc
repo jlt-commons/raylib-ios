@@ -26,8 +26,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.5 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.5 h)
      :radius (* 0.022 (min w h))}))
 
 (defn emit
@@ -36,7 +38,8 @@
   (let [step (/ (* 2.0 Math/PI) arms)]
     (mapv (fn [k]
             (let [a (+ angle (* k step))]
-              {:x cx :y cy
+              {:x cx
+               :y cy
                :vx (* speed (Math/cos a))
                :vy (* speed (Math/sin a))}))
           (range arms))))
@@ -56,11 +59,16 @@
            :bullets (into (filterv #(in-flight? dims %) moved)
                           (emit dims angle)))))
 
-(defn- init [_] [{:angle 0.0 :bullets []} [[:scene/init :bullets]]])
+(defn- init [_] [{:angle 0.0
+                  :bullets []} [[:scene/init :bullets]]])
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :bullets]]])
 
 (defn scene []
-  {:id :bullets :title "Bullet Spiral"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :bullets
+   :title "Bullet Spiral"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

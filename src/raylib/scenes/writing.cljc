@@ -40,7 +40,8 @@
         ;; line. It also keeps this namespace free of MeasureText, which lives
         ;; on the other side of the pure boundary.
         advance (* 0.55 size)]
-    {:w w :h h
+    {:w w
+     :h h
      :margin margin
      :top (* 0.30 h)
      :size size
@@ -70,5 +71,9 @@
 (defn- dispose [state] [state [[:scene/dispose :writing]]])
 
 (defn scene []
-  {:id :writing :title "Writing"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :writing
+   :title "Writing"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

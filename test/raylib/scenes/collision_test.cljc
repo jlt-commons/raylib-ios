@@ -24,7 +24,11 @@
 (deftest the-slider-bounces-and-stays-on-screen
   (let [{:keys [w slider-w]} dims
         run (reductions (fn [s _] (c/advance s {:metrics metrics}))
-                        {:x 0.0 :vx c/slide-speed :t 0 :target [0.0 0.0] :touching? false}
+                        {:x 0.0
+                         :vx c/slide-speed
+                         :t 0
+                         :target [0.0 0.0]
+                         :touching? false}
                         (range 2000))]
     (testing "it never leaves the screen"
       (doseq [{:keys [x]} run]
@@ -34,16 +38,25 @@
       (is (some #(pos? (:vx %)) run)))))
 
 (deftest the-follower-tracks-a-finger-and-drifts-without-one
-  (let [base {:x 0.0 :vx 1.0 :t 0 :target [0.0 0.0] :touching? false}]
+  (let [base {:x 0.0
+              :vx 1.0
+              :t 0
+              :target [0.0 0.0]
+              :touching? false}]
     (testing "a press puts it on the finger"
       (let [s (c/advance base {:metrics metrics
-                               :pointer {:phase :press :position [400 900]}})]
+                               :pointer {:phase :press
+                                         :position [400 900]}})]
         (is (:touching? s))
         (is (= [400.0 900.0] (:target s)))))
     (testing "and with nothing touching it moves on its own, so the scene is
               alive in a gallery nobody is holding"
-      (let [a (c/advance base {:metrics metrics :pointer {:phase :idle :position nil}})
-            b (c/advance a {:metrics metrics :pointer {:phase :idle :position nil}})]
+      (let [a (c/advance base {:metrics metrics
+                               :pointer {:phase :idle
+                                         :position nil}})
+            b (c/advance a {:metrics metrics
+                            :pointer {:phase :idle
+                                      :position nil}})]
         (is (not (:touching? a)))
         (is (not= (:target a) (:target b)))))))
 

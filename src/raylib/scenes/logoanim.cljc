@@ -29,7 +29,8 @@
   (let [[w h] (:screen metrics)
         side (* 0.72 (min w h))
         scale (/ side logo-units)]
-    {:w w :h h
+    {:w w
+     :h h
      :side side
      :scale scale
      :border (* border-units scale)
@@ -37,10 +38,14 @@
      :y (- (* 0.5 h) (* 0.5 side))}))
 
 (defn initial-state []
-  {:stage 0 :counter 0
-   :top border-units :left border-units
-   :bottom border-units :right border-units
-   :letters 0 :alpha 1.0})
+  {:stage 0
+   :counter 0
+   :top border-units
+   :left border-units
+   :bottom border-units
+   :right border-units
+   :letters 0
+   :alpha 1.0})
 
 (defn advance
   "One frame of the state machine. Stages, in order: blink, grow the top and
@@ -48,7 +53,8 @@
 
   Units rather than pixels throughout, so the machine is the same on any screen
   and only the drawing scales."
-  [{:keys [stage counter top left bottom right letters alpha] :as s}]
+  [{:keys [stage counter top left bottom right letters alpha]
+    :as s}]
   (case stage
     0 (if (>= counter blink-frames)
         (assoc s :stage 1 :counter 0)
@@ -85,5 +91,9 @@
 (defn- dispose [state] [state [[:scene/dispose :logoanim]]])
 
 (defn scene []
-  {:id :logoanim :title "raylib Logo"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :logoanim
+   :title "raylib Logo"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

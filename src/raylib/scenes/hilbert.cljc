@@ -49,7 +49,8 @@
 
 (defn- init [input]
   (let [pts (curve (:metrics input))]
-    [{:points pts :colours (colours (count pts))} [[:scene/init :hilbert]]]))
+    [{:points pts
+      :colours (colours (count pts))} [[:scene/init :hilbert]]]))
 
 ;; Nothing moves, so the update is a no-op: this scene is a still that costs
 ;; 1023 draw calls a frame.
@@ -58,5 +59,9 @@
 (defn- dispose [state] [state [[:scene/dispose :hilbert]]])
 
 (defn scene []
-  {:id :hilbert :title "Hilbert Curve"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :hilbert
+   :title "Hilbert Curve"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

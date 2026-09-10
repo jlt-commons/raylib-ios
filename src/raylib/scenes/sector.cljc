@@ -23,8 +23,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.46 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.46 h)
      :radius (* 0.34 (min w h))
      :label-size (max 22 (int (* 0.036 (min w h))))}))
 
@@ -61,12 +63,19 @@
     (assoc state :t t :start-angle 0.0 :end-angle end-angle :requested requested)))
 
 (defn- init [_]
-  [{:t 0.0 :start-angle 0.0 :end-angle 270.0 :requested max-segments}
+  [{:t 0.0
+    :start-angle 0.0
+    :end-angle 270.0
+    :requested max-segments}
    [[:scene/init :sector]]])
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :sector]]])
 
 (defn scene []
-  {:id :sector :title "Circle Sector"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :sector
+   :title "Circle Sector"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

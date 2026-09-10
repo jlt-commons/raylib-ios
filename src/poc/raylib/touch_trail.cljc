@@ -5,7 +5,8 @@
 
 (defn ^:export layout [metrics]
   (let [[w h] (:screen metrics) s (/ (double (min w h)) 450.0)]
-    {:radius (max 4.0 (* 12.0 s)) :max-points max-points}))
+    {:radius (max 4.0 (* 12.0 s))
+     :max-points max-points}))
 
 (defn step [state input]
   (let [phase (get-in input [:pointer :phase]) point (get-in input [:pointer :position])]
@@ -15,7 +16,8 @@
       :else state)))
 
 (defn ^:export scene []
-  {:id :touch-trail :title "Touch Trail"
+  {:id :touch-trail
+   :title "Touch Trail"
    :init (fn [_] [{:points []} [[:scene/init :touch-trail]]])
    :update (fn [state input] [(step state input) []])
    :draw (fn [state _] [state []])

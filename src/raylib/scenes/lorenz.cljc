@@ -135,8 +135,10 @@
   [metrics t]
   (let [[width height] (:screen metrics)
         w (double width) h (double height)]
-    {:cos (Math/cos t) :sin (Math/sin t)
-     :cx (* w 0.5) :cy (* h 0.5)
+    {:cos (Math/cos t)
+     :sin (Math/sin t)
+     :cx (* w 0.5)
+     :cy (* h 0.5)
      ;; focal length in pixels, chosen so the attractor fills most of the
      ;; short side whichever way the phone is held
      :f (* (min w h) 1.35)
@@ -170,7 +172,9 @@
 
 (defn- init [_input]
   (let [[points seed] (warm default-seed)]
-    [{:points points :seed seed :t 0.0} [[:scene/init :lorenz]]]))
+    [{:points points
+      :seed seed
+      :t 0.0} [[:scene/init :lorenz]]]))
 
 (defn- update-scene [state _input]
   [(-> state
@@ -182,5 +186,9 @@
 (defn- dispose [state] [state [[:scene/dispose :lorenz]]])
 
 (defn scene []
-  {:id :lorenz :title "Lorenz"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :lorenz
+   :title "Lorenz"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

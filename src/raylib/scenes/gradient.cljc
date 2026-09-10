@@ -27,9 +27,13 @@
         gap (* 0.03 h)
         band-w (- w (* 2 margin))
         band-h (/ (- h top margin (* (dec bands) gap)) bands)]
-    {:w (double w) :h (double h)
-     :margin margin :top top :gap gap
-     :band-w band-w :band-h band-h
+    {:w (double w)
+     :h (double h)
+     :margin margin
+     :top top
+     :gap gap
+     :band-w band-w
+     :band-h band-h
      :label-size (max 18 (int (* 0.024 (min w h))))}))
 
 (defn band-rect [{:keys [margin top gap band-w band-h]} i]
@@ -74,5 +78,9 @@
 (defn- dispose [state] [state [[:scene/dispose :gradient]]])
 
 (defn scene []
-  {:id :gradient :title "Gradients"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :gradient
+   :title "Gradients"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

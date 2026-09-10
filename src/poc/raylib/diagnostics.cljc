@@ -64,8 +64,8 @@
         previous-point (:last-pointer state)
         moved? (and point previous-point (not= point previous-point))
         state (assoc state :last-pointer point
-                           :close-requested? (or (:close-requested? state)
-                                                 (:back? input)))]
+                     :close-requested? (or (:close-requested? state)
+                                           (:back? input)))]
     (case phase
       :press (-> state
                  (update :tap-count inc)

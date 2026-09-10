@@ -28,9 +28,13 @@
         gap (* 0.022 h)
         bar-w (- w (* 2 margin))
         bar-h (/ (- (* 0.66 h) (* (dec bar-count) gap)) bar-count)]
-    {:w (double w) :h (double h)
-     :x margin :y (* 0.16 h)
-     :bar-w bar-w :bar-h bar-h :gap gap
+    {:w (double w)
+     :h (double h)
+     :x margin
+     :y (* 0.16 h)
+     :bar-w bar-w
+     :bar-h bar-h
+     :gap gap
      :label-size (max 18 (int (* 0.024 (min w h))))}))
 
 (defn bar-rect [{:keys [x y bar-w bar-h gap]} i]
@@ -87,5 +91,9 @@
 (defn- dispose [state] [state [[:scene/dispose :bars]]])
 
 (defn scene []
-  {:id :bars :title "Rounded Bars"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :bars
+   :title "Rounded Bars"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -18,7 +18,7 @@
   (testing "without the pause the sentence completes and restarts on adjacent
             frames, so it is never on screen long enough to read"
     (let [done (filter w/complete? (range 0 (* w/frames-per-character
-                                              (+ (count w/message) w/pause-frames))))]
+                                               (+ (count w/message) w/pause-frames))))]
       (is (>= (count done) (* w/frames-per-character (dec w/pause-frames)))
           "the pause should be most of a hundred frames"))))
 

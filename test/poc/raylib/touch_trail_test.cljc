@@ -1,6 +1,8 @@
 (ns poc.raylib.touch-trail-test
-  (:require [clojure.test :refer [deftest is]] [poc.raylib.touch-trail :as trail]))
-(defn input [phase point] {:pointer {:phase phase :position point}})
+  (:require [clojure.test :refer [deftest is]]
+            [poc.raylib.touch-trail :as trail]))
+(defn input [phase point] {:pointer {:phase phase
+                                     :position point}})
 (deftest trail-is-bounded-and-idle-stable
   (let [started (trail/step {:points []} (input :press [0 0]))
         drawn (reduce (fn [s n] (trail/step s (input :down [n n]))) started (range 100))]

@@ -14,8 +14,7 @@
   at its height rather than the screen's. See the safe-area guide."
   (:require [clojure.string]))
 
-(def default-seed 4242
-  )
+(def default-seed 4242)
 (def ball-count 9)
 (def gravity 0.45)
 (def restitution 0.78)
@@ -28,7 +27,8 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
+    {:w (double w)
+     :h (double h)
      :base-radius (* 0.045 (min w h))}))
 
 (defn- next-random [seed]
@@ -50,7 +50,11 @@
             [y s3] (pick s2 r (* 0.35 h))
             [vx s4] (pick s3 -4.0 4.0)]
         (recur (inc i) s4
-               (conj out {:x x :y y :vx vx :vy 0.0 :r r
+               (conj out {:x x
+                          :y y
+                          :vx vx
+                          :vy 0.0
+                          :r r
                           :colour (nth palette (mod i (count palette)))}))))))
 
 (defn step
@@ -58,7 +62,8 @@
   scales it by restitution; the position is clamped to the wall rather than
   left outside it, or a ball that lands fast enough tunnels through and never
   comes back."
-  [{:keys [w h]} {:keys [x y vx vy r] :as b}]
+  [{:keys [w h]} {:keys [x y vx vy r]
+                  :as b}]
   (let [vy (+ vy gravity)
         nx (+ x vx)
         ny (+ y vy)
@@ -93,12 +98,18 @@
 
 (defn- init [{:keys [metrics]}]
   (let [[balls seed] (spawn (dimensions metrics) default-seed)]
-    [{:balls balls :seed seed :settled 0} [[:scene/init :balls]]]))
+    [{:balls balls
+      :seed seed
+      :settled 0} [[:scene/init :balls]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :balls]]])
 
 (defn scene []
-  {:id :balls :title "Ball Physics"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :balls
+   :title "Ball Physics"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -67,5 +67,9 @@
 (defn- dispose [state] [state [[:scene/dispose :colorwheel]]])
 
 (defn scene []
-  {:id :colorwheel :title "Colour Wheel"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :colorwheel
+   :title "Colour Wheel"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

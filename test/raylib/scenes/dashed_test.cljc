@@ -46,11 +46,19 @@
     (is (= [] (d/dashes dims [(+ (:cx dims) 1e-9) (:cy dims)])))))
 
 (deftest it-follows-a-finger-and-drifts-without-one
-  (let [base {:t 0 :target [0.0 0.0] :touching? false}]
-    (let [s (d/advance base {:metrics metrics :pointer {:phase :down :position [300 700]}})]
+  (let [base {:t 0
+              :target [0.0 0.0]
+              :touching? false}]
+    (let [s (d/advance base {:metrics metrics
+                             :pointer {:phase :down
+                                       :position [300 700]}})]
       (is (:touching? s))
       (is (= [300.0 700.0] (:target s))))
-    (let [a (d/advance base {:metrics metrics :pointer {:phase :idle :position nil}})
-          b (d/advance a {:metrics metrics :pointer {:phase :idle :position nil}})]
+    (let [a (d/advance base {:metrics metrics
+                             :pointer {:phase :idle
+                                       :position nil}})
+          b (d/advance a {:metrics metrics
+                          :pointer {:phase :idle
+                                    :position nil}})]
       (is (not (:touching? a)))
       (is (not= (:target a) (:target b))))))

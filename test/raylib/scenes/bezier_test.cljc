@@ -58,16 +58,21 @@
 
 (deftest it-follows-a-finger-and-drifts-without-one
   (let [base (first ((:init (bez/scene)) {:metrics m}))]
-    (let [s (bez/advance base {:metrics m :pointer {:phase :down :position [400 700]}})]
+    (let [s (bez/advance base {:metrics m
+                               :pointer {:phase :down
+                                         :position [400 700]}})]
       (is (:touching? s))
       (is (= [400.0 700.0] (:end s))))
-    (let [a (bez/advance base {:metrics m :delta-seconds 0.2})
-          b (bez/advance a {:metrics m :delta-seconds 0.2})]
+    (let [a (bez/advance base {:metrics m
+                               :delta-seconds 0.2})
+          b (bez/advance a {:metrics m
+                            :delta-seconds 0.2})]
       (is (not (:touching? a)))
       (is (not= (:end a) (:end b))))))
 
 (deftest the-drift-stays-on-screen
-  (let [run (reductions (fn [s _] (bez/advance s {:metrics m :delta-seconds 0.1}))
+  (let [run (reductions (fn [s _] (bez/advance s {:metrics m
+                                                  :delta-seconds 0.1}))
                         (first ((:init (bez/scene)) {:metrics m}))
                         (range 400))]
     (doseq [{:keys [end]} run]

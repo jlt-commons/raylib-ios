@@ -11,7 +11,10 @@
 (defn- metrics [] {:screen [(rl/get-screen-width) (rl/get-screen-height)]})
 
 (defn- init [{:keys [scale]}]
-  {:k scale :touches 0 :frame 0 :game (flappy/new-game (metrics) flappy/default-seed)})
+  {:k scale
+   :touches 0
+   :frame 0
+   :game (flappy/new-game (metrics) flappy/default-seed)})
 
 (defn- phase
   "The touch count's edge, as the sim's pointer phase."
@@ -38,7 +41,8 @@
 
 (defn- draw! [{:keys [k game]} m] (draw-game! k game m))
 
-(defn- frame [{:keys [touches game] :as s}]
+(defn- frame [{:keys [touches game]
+               :as s}]
   (let [m     (metrics)
         n     (rl/get-touch-point-count)
         input {:metrics m
@@ -56,4 +60,6 @@
     s'))
 
 (defn -main [& _]
-  (rl/run! {:title "Flappy Bird" :init init :frame frame}))
+  (rl/run! {:title "Flappy Bird"
+            :init init
+            :frame frame}))

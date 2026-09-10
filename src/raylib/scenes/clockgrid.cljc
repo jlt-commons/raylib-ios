@@ -62,8 +62,10 @@
         pair-gap (* 0.05 w)
         total-w (+ (* 2 cols step) pair-gap)
         total-h (+ (* 3 block-h) (* 2 row-gap))]
-    {:w (double w) :h (double h)
-     :step step :face face
+    {:w (double w)
+     :h (double h)
+     :step step
+     :face face
      :radius (* 0.5 face)
      :hand (* 0.42 face)
      :pair-w (+ (* cols step) pair-gap)
@@ -122,12 +124,20 @@
            :timer timer :current current)))
 
 (defn- init [_]
-  [{:sec nil :timer 0.0 :current (blank-grid) :src (blank-grid) :dst (blank-grid)}
+  [{:sec nil
+    :timer 0.0
+    :current (blank-grid)
+    :src (blank-grid)
+    :dst (blank-grid)}
    [[:scene/init :clockgrid]]])
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :clockgrid]]])
 
 (defn scene []
-  {:id :clockgrid :title "Clock of Clocks"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :clockgrid
+   :title "Clock of Clocks"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

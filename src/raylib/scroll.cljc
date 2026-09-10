@@ -77,7 +77,10 @@
   the coordinates are whatever the hardware last had. Travel is bounded by the
   slop anyway, so the two points are within a few pixels by construction."
   [scroll [x y]]
-  {:from [x y] :from-y (double y) :from-scroll scroll :travel 0.0})
+  {:from [x y]
+   :from-y (double y)
+   :from-scroll scroll
+   :travel 0.0})
 
 (defn drag-to
   "Update a drag as the finger moves.

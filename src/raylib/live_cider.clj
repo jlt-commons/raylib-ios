@@ -25,8 +25,8 @@
 
   Verified on an iPhone 17 Pro over the app's own nREPL: cider.nrepl loads and
   answers, alongside the gallery running at 58.8 fps."
-  (:require [cider.nrepl]        ; see the docstring: not unused
-            [nrepl.middleware]   ; see the docstring: not unused
+  (:require [cider.nrepl] ; see the docstring: not unused
+            [nrepl.middleware] ; see the docstring: not unused
             [raylib.gallery :as gallery]
             [raylib.live :as live]))
 

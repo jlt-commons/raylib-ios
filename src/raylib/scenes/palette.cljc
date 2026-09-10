@@ -42,9 +42,12 @@
         cell-w (/ (- w (* 2 margin) (* (dec cols) gap)) cols)
         n (rows)
         cell-h (/ (- h (* 2 margin) (* (dec n) gap)) n)]
-    {:w (double w) :h (double h)
-     :margin margin :gap gap
-     :cell-w cell-w :cell-h cell-h
+    {:w (double w)
+     :h (double h)
+     :margin margin
+     :gap gap
+     :cell-w cell-w
+     :cell-h cell-h
      :swatch-h (* 0.66 cell-h)
      :label-size (max 16 (int (* 0.020 (min w h))))}))
 
@@ -77,5 +80,9 @@
 (defn- dispose [state] [state [[:scene/dispose :palette]]])
 
 (defn scene []
-  {:id :palette :title "Colours"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :palette
+   :title "Colours"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

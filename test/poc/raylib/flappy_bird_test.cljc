@@ -57,7 +57,8 @@
   (let [dims (flappy/dimensions metrics)
         base (flappy/new-game metrics 3)
         scored-state (assoc base :pipes [{:x (- (:bird-x dims) (:pipe-width dims) 1.0)
-                                         :gap 900.0 :scored? false}])
+                                          :gap 900.0
+                                          :scored? false}])
         scored (flappy/step scored-state (input (/ 1.0 60.0)))
         collided (flappy/step (assoc base :y 3.0 :vy -50.0)
                               (input (/ 1.0 60.0)))

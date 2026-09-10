@@ -20,9 +20,12 @@
   (let [[w h] (:screen metrics)
         rw (* 0.72 w)
         rh (* 0.42 h)]
-    {:w (double w) :h (double h)
-     :x (* 0.5 (- w rw)) :y (* 0.5 (- h rh))
-     :rect-w rw :rect-h rh
+    {:w (double w)
+     :h (double h)
+     :x (* 0.5 (- w rw))
+     :y (* 0.5 (- h rh))
+     :rect-w rw
+     :rect-h rh
      :max-radius (* 0.5 (min rw rh))
      :label-size (max 20 (int (* 0.028 (min w h))))}))
 
@@ -61,5 +64,9 @@
 (defn- dispose [state] [state [[:scene/dispose :rounded]]])
 
 (defn scene []
-  {:id :rounded :title "Rounded Rect"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :rounded
+   :title "Rounded Rect"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

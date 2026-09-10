@@ -117,7 +117,11 @@
 (defn- init [{:keys [metrics]}]
   (let [{:keys [cols]} (dimensions metrics)
         row (seed-row cols)]
-    [{:row row :window [(runs row)] :rule-index 0 :generation 0 :t 0}
+    [{:row row
+      :window [(runs row)]
+      :rule-index 0
+      :generation 0
+      :t 0}
      [[:scene/init :automata]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
@@ -125,5 +129,9 @@
 (defn- dispose [state] [state [[:scene/dispose :automata]]])
 
 (defn scene []
-  {:id :automata :title "Automata"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :automata
+   :title "Automata"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

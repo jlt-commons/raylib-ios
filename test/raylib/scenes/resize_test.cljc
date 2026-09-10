@@ -21,22 +21,30 @@
             obvious version and it drops the rectangle the moment you drag fast."
     (let [[hx hy] (rz/handle-box d (:rw start) (:rh start))
           grabbed (rz/advance start {:metrics m
-                                     :pointer {:phase :press :position [(+ hx 10) (+ hy 10)]}})
+                                     :pointer {:phase :press
+                                               :position [(+ hx 10) (+ hy 10)]}})
           far (rz/advance grabbed {:metrics m
-                                   :pointer {:phase :down :position [1100 2000]}})]
+                                   :pointer {:phase :down
+                                             :position [1100 2000]}})]
       (is (:holding? grabbed))
       (is (:holding? far) "still held, far outside the original handle box")
       (is (not= (:rw start) (:rw far))))))
 
 (deftest a-press-away-from-the-handle-grabs-nothing
-  (let [s (rz/advance start {:metrics m :pointer {:phase :press :position [100 100]}})]
+  (let [s (rz/advance start {:metrics m
+                             :pointer {:phase :press
+                                       :position [100 100]}})]
     (is (not (:holding? s)))
     (is (= (:rw start) (:rw s)) "and the rectangle does not jump to the finger")))
 
 (deftest lifting-releases-the-handle
   (let [[hx hy] (rz/handle-box d (:rw start) (:rh start))
-        grabbed (rz/advance start {:metrics m :pointer {:phase :press :position [(+ hx 5) (+ hy 5)]}})
-        lifted (rz/advance grabbed {:metrics m :pointer {:phase :release :position nil}})]
+        grabbed (rz/advance start {:metrics m
+                                   :pointer {:phase :press
+                                             :position [(+ hx 5) (+ hy 5)]}})
+        lifted (rz/advance grabbed {:metrics m
+                                    :pointer {:phase :release
+                                              :position nil}})]
     (is (not (:holding? lifted)))))
 
 (deftest the-rectangle-cannot-be-inverted-or-run-off-the-screen
@@ -60,8 +68,12 @@
 
 (deftest a-full-drag-leaves-a-sane-rectangle
   (let [[hx hy] (rz/handle-box d (:rw start) (:rh start))
-        run (reduce (fn [s p] (rz/advance s {:metrics m :pointer {:phase :down :position p}}))
-                    (rz/advance start {:metrics m :pointer {:phase :press :position [(+ hx 5) (+ hy 5)]}})
+        run (reduce (fn [s p] (rz/advance s {:metrics m
+                                             :pointer {:phase :down
+                                                       :position p}}))
+                    (rz/advance start {:metrics m
+                                       :pointer {:phase :press
+                                                 :position [(+ hx 5) (+ hy 5)]}})
                     [[900 1400] [400 700] [1100 2100] [200 300]])]
     (is (>= (:rw run) (:min-w d)))
     (is (>= (:rh run) (:min-h d)))

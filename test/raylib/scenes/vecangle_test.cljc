@@ -41,8 +41,10 @@
           (str a "->" b " gave " f " and " r)))))
 
 (deftest vector-a-is-fixed-and-b-turns
-  (let [{a0 :a b0 :b} (va/vectors d 0.0)
-        {a1 :a b1 :b} (va/vectors d 1.5)]
+  (let [{a0 :a
+         b0 :b} (va/vectors d 0.0)
+        {a1 :a
+         b1 :b} (va/vectors d 1.5)]
     (is (= a0 a1) "A does not move")
     (is (not= b0 b1) "B does")
     (testing "and both keep their length, so only the angle is changing"

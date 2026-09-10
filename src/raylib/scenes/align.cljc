@@ -20,9 +20,12 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :box-x (* 0.10 w) :box-w (* 0.80 w)
-     :box-y (* 0.26 h) :box-h (* 0.12 h)
+    {:w (double w)
+     :h (double h)
+     :box-x (* 0.10 w)
+     :box-w (* 0.80 w)
+     :box-y (* 0.26 h)
+     :box-h (* 0.12 h)
      :gap (* 0.05 h)
      :text-size (max 30 (int (* 0.055 (min w h))))
      :label-size (max 18 (int (* 0.024 (min w h))))}))
@@ -62,5 +65,9 @@
 (defn- dispose [state] [state [[:scene/dispose :align]]])
 
 (defn scene []
-  {:id :align :title "Text Alignment"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :align
+   :title "Text Alignment"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -49,8 +49,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :x0 (* 0.10 w) :span (* 0.80 w)
+    {:w (double w)
+     :h (double h)
+     :x0 (* 0.10 w)
+     :span (* 0.80 w)
      :cy (* 0.46 h)
      :amplitude (* 0.16 h)
      :dot (* 0.011 w)
@@ -91,5 +93,9 @@
 (defn- dispose [state] [state [[:scene/dispose :splines]]])
 
 (defn scene []
-  {:id :splines :title "Splines"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :splines
+   :title "Splines"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

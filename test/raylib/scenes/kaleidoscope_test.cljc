@@ -26,7 +26,8 @@
 
 (deftest the-trail-is-bounded
   (let [metrics metrics
-        grown (reduce (fn [s _] (k/advance s metrics)) {:frame 0 :trail []} (range 500))]
+        grown (reduce (fn [s _] (k/advance s metrics)) {:frame 0
+                                                        :trail []} (range 500))]
     (is (= k/trail-length (count (:trail grown))))))
 
 (deftest colour-fades-along-the-trail

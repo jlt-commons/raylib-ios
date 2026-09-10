@@ -18,8 +18,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.45 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.45 h)
      :length (* 0.30 (min w h))
      :arc (* 0.16 (min w h))
      :thick (* 0.010 w)
@@ -60,5 +62,9 @@
 (defn- dispose [state] [state [[:scene/dispose :vecangle]]])
 
 (defn scene []
-  {:id :vecangle :title "Vector Angle"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :vecangle
+   :title "Vector Angle"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

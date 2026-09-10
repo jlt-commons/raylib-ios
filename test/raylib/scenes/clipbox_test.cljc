@@ -3,7 +3,10 @@
             [raylib.scenes.clipbox :as cb]))
 
 (def d (cb/dimensions {:screen [1206 2334]}))
-(def safe {:x 0 :y 186 :width 1206 :height 2334})
+(def safe {:x 0
+           :y 186
+           :width 1206
+           :height 2334})
 
 (deftest intersection-is-the-overlap-or-nothing
   (is (= [5 5 5 5] (cb/intersect [0 0 10 10] [5 5 10 10])))
@@ -35,14 +38,23 @@
 
 (deftest a-box-outside-the-region-clips-to-nothing
   (testing "rather than to a rectangle with a negative extent"
-    (is (nil? (cb/clip-rect {:x 0 :y 0 :width 100 :height 100} [500.0 500.0 50.0 50.0])))
-    (is (nil? (cb/clip-rect {:x 0 :y 0 :width 100 :height 100} [-90.0 0.0 50.0 50.0])))))
+    (is (nil? (cb/clip-rect {:x 0
+                             :y 0
+                             :width 100
+                             :height 100} [500.0 500.0 50.0 50.0])))
+    (is (nil? (cb/clip-rect {:x 0
+                             :y 0
+                             :width 100
+                             :height 100} [-90.0 0.0 50.0 50.0])))))
 
 (deftest the-box-is-offset-into-screen-space-before-clipping
   (testing "the scene draws from 0,0 but the scissor is set in screen
             coordinates, so skipping the offset would clip the wrong place by
             exactly the inset, which is the bug the pointer already had once"
-    (let [s {:x 10 :y 200 :width 1000 :height 2000}
+    (let [s {:x 10
+             :y 200
+             :width 1000
+             :height 2000}
           [x y _ _] (cb/clip-rect s [50.0 60.0 100.0 100.0])]
       ;; == not =, because clip-rect returns doubles and (= 60 60.0) is false.
       (is (== 60 x) "10 + 50")

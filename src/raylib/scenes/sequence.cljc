@@ -57,7 +57,8 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
+    {:w (double w)
+     :h (double h)
      :bar-w (/ (double w) bar-count)
      :max-height (* 0.78 h)
      :baseline (* 0.92 h)}))
@@ -71,12 +72,19 @@
 
 (defn- init [_]
   (let [[b seed] (shuffle-with (bars bar-count) default-seed)]
-    [{:bars b :seed seed :t 0 :shuffles 0} [[:scene/init :sequence]]]))
+    [{:bars b
+      :seed seed
+      :t 0
+      :shuffles 0} [[:scene/init :sequence]]]))
 
 (defn- update-scene [state _] [(advance state) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :sequence]]])
 
 (defn scene []
-  {:id :sequence :title "Random Sequence"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :sequence
+   :title "Random Sequence"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

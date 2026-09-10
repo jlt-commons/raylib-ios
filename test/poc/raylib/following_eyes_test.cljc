@@ -17,10 +17,14 @@
               (+ 0.000001 (- eye-radius pupil-radius)))))))
 
 (deftest active-pointer-updates-and-release-retains-position-test
-  (let [initial {:target [540.0 1200.0] :phase :idle}
-        pressed (eyes/update-state initial {:pointer {:phase :press :position [10 20]}})
-        held (eyes/update-state pressed {:pointer {:phase :down :position [30 40]}})
-        released (eyes/update-state held {:pointer {:phase :release :position [30 40]}})]
+  (let [initial {:target [540.0 1200.0]
+                 :phase :idle}
+        pressed (eyes/update-state initial {:pointer {:phase :press
+                                                      :position [10 20]}})
+        held (eyes/update-state pressed {:pointer {:phase :down
+                                                   :position [30 40]}})
+        released (eyes/update-state held {:pointer {:phase :release
+                                                    :position [30 40]}})]
     (is (= [10 20] (:target pressed)))
     (is (= [30 40] (:target held)))
     (is (= [30 40] (:target released)))))

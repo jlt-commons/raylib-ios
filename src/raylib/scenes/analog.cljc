@@ -15,7 +15,9 @@
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
         r (* 0.40 (min w h))]
-    {:cx (* 0.5 w) :cy (* 0.5 h) :r r
+    {:cx (* 0.5 w)
+     :cy (* 0.5 h)
+     :r r
      :label-size (max 20 (int (* 0.034 (min w h))))}))
 
 (defn polar
@@ -69,11 +71,16 @@
       (assoc state :sec sec :frac 0.0)
       (assoc state :frac (min 0.999 (+ (:frac state 0.0) dt))))))
 
-(defn- init [_] [{:frac 0.0 :sec nil} [[:scene/init :analog]]])
+(defn- init [_] [{:frac 0.0
+                  :sec nil} [[:scene/init :analog]]])
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :analog]]])
 
 (defn scene []
-  {:id :analog :title "Analog Clock"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :analog
+   :title "Analog Clock"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

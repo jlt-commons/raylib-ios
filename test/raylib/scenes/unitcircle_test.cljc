@@ -25,7 +25,8 @@
           (is (close? radius d)))))))
 
 (deftest the-trace-is-a-bounded-ring
-  (let [run (nth (iterate u/advance {:angle 0.0 :trace []}) (* 3 u/trace-length))]
+  (let [run (nth (iterate u/advance {:angle 0.0
+                                     :trace []}) (* 3 u/trace-length))]
     (is (= u/trace-length (count (:trace run))))
     (testing "it holds sine and cosine of the angles actually visited, not a
               recomputation, so the wave is a record rather than a plot"
@@ -43,16 +44,19 @@
     (is (= [] (u/wave-points dims [] first 0.28)))
     (is (= [] (u/wave-points dims [] second 0.72))))
   (testing "and one sample gives one point, not a segment"
-    (let [one (nth (iterate u/advance {:angle 0.0 :trace []}) 1)]
+    (let [one (nth (iterate u/advance {:angle 0.0
+                                       :trace []}) 1)]
       (is (= 1 (count (u/wave-points dims (:trace one) first 0.28)))))))
 
 (deftest the-trace-fills-before-it-scrolls
   (testing "a short run has a short trace rather than a padded one"
-    (let [run (nth (iterate u/advance {:angle 0.0 :trace []}) 10)]
+    (let [run (nth (iterate u/advance {:angle 0.0
+                                       :trace []}) 10)]
       (is (= 10 (count (:trace run)))))))
 
 (deftest waves-span-the-width-and-stay-in-their-band
-  (let [run (nth (iterate u/advance {:angle 0.0 :trace []}) (* 2 u/trace-length))
+  (let [run (nth (iterate u/advance {:angle 0.0
+                                     :trace []}) (* 2 u/trace-length))
         {:keys [w trace-top trace-height amplitude]} dims]
     (doseq [[nm pick centre] [["sine" first 0.28] ["cosine" second 0.72]]]
       (let [pts (u/wave-points dims (:trace run) pick centre)
@@ -68,7 +72,8 @@
 
 (deftest the-two-waves-are-a-quarter-turn-apart
   (testing "cosine leads sine by pi/2, which is the whole point of showing both"
-    (let [run (nth (iterate u/advance {:angle 0.0 :trace []}) (* 2 u/trace-length))
+    (let [run (nth (iterate u/advance {:angle 0.0
+                                       :trace []}) (* 2 u/trace-length))
           [s c] (last (:trace run))
           a (:angle run)]
       (is (close? s (Math/sin a)) "the first channel really is sine")

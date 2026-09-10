@@ -88,5 +88,9 @@
 (defn- dispose [state] [state [[:scene/dispose :penrose]]])
 
 (defn scene []
-  {:id :penrose :title "Penrose"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :penrose
+   :title "Penrose"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -9,7 +9,8 @@
   not change: only how much of it is shown does. That keeps the per-frame cost
   to the draw loop, which is the shape this runtime rewards.")
 
-(def rules {\X "F+[[X]-X]-F[-FX]+X" \F "FF"})
+(def rules {\X "F+[[X]-X]-F[-FX]+X"
+            \F "FF"})
 (def iterations 5)
 (def turn (* 25.0 (/ Math/PI 180.0)))
 (def grow-frames 40)
@@ -53,12 +54,17 @@
       (min total (int (* total (/ (double phase) grow-frames)))))))
 
 (defn- init [input]
-  [{:segments (segments (:metrics input)) :frame 0} [[:scene/init :lsystem]]])
+  [{:segments (segments (:metrics input))
+    :frame 0} [[:scene/init :lsystem]]])
 
 (defn- update-scene [state _input] [(update state :frame inc) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :lsystem]]])
 
 (defn scene []
-  {:id :lsystem :title "L-system Plant"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :lsystem
+   :title "L-system Plant"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

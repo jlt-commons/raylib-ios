@@ -31,7 +31,8 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w w :h h
+    {:w w
+     :h h
      :cx (* 0.5 w)
      :cy (* 0.38 h)
      :radius (* 0.40 (min w h))
@@ -50,9 +51,11 @@
     (first
      (reduce (fn [[out acc] [label value colour]]
                (let [span (* 360.0 (/ (double value) t))]
-                 [(conj out {:label label :colour colour
+                 [(conj out {:label label
+                             :colour colour
                              :value value
-                             :from (+ base acc) :to (+ base acc span)})
+                             :from (+ base acc)
+                             :to (+ base acc span)})
                   (+ acc span)]))
              [[] 0.0]
              wedges))))
@@ -85,5 +88,9 @@
 (defn- dispose [state] [state [[:scene/dispose :piechart]]])
 
 (defn scene []
-  {:id :piechart :title "Pie Chart"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :piechart
+   :title "Pie Chart"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

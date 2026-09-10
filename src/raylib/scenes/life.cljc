@@ -92,7 +92,11 @@
 
 (defn- init [{:keys [metrics]}]
   (let [[live seed] (spawn (dimensions metrics) default-seed)]
-    [{:live live :seed seed :t 0 :history () :generation 0}
+    [{:live live
+      :seed seed
+      :t 0
+      :history ()
+      :generation 0}
      [[:scene/init :life]]]))
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
@@ -100,5 +104,9 @@
 (defn- dispose [state] [state [[:scene/dispose :life]]])
 
 (defn scene []
-  {:id :life :title "Life"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :life
+   :title "Life"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

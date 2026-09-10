@@ -2,7 +2,9 @@
   (:require [clojure.test :refer [deftest is testing]]
             [raylib.scenes.multitouch :as mt]))
 
-(defn- frame [pts ids] {:touch-points pts :touches {:ids ids :count (count pts)}})
+(defn- frame [pts ids] {:touch-points pts
+                        :touches {:ids ids
+                                  :count (count pts)}})
 (def empty-state (first ((:init (mt/scene)) {:metrics {:screen [1206 2334]}})))
 
 (deftest every-point-gets-drawn-not-just-the-first
@@ -10,7 +12,9 @@
             could read coordinates for point 0 only"
     (let [s (mt/advance empty-state (frame [[10.0 20.0] [30.0 40.0] [50.0 60.0]] [0 1 2]))]
       (is (= 3 (count (:live s))))
-      (is (= {0 [10.0 20.0] 1 [30.0 40.0] 2 [50.0 60.0]} (:live s))))))
+      (is (= {0 [10.0 20.0]
+              1 [30.0 40.0]
+              2 [50.0 60.0]} (:live s))))))
 
 (deftest trails-follow-the-id-not-the-index
   (testing "raylib does not promise ids are 0..n-1, and when a middle finger
@@ -53,7 +57,8 @@
 
 (deftest ids-fall-back-to-the-index-when-none-are-reported
   (testing "the synthetic tap path produces a point with no id list"
-    (let [s (mt/advance empty-state {:touch-points [[9.0 9.0]] :touches {}})]
+    (let [s (mt/advance empty-state {:touch-points [[9.0 9.0]]
+                                     :touches {}})]
       (is (= {0 [9.0 9.0]} (:live s))))))
 
 ;; Ids real fingers produced on an iPhone 17 Pro, from three separate runs.

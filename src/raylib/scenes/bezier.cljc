@@ -21,7 +21,8 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
+    {:w (double w)
+     :h (double h)
      :anchor [(* 0.14 w) (* 0.30 h)]
      :dot (* 0.013 w)
      :thick (* 0.009 w)
@@ -70,12 +71,18 @@
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [w h]} (dimensions metrics)]
-    [{:t 0.0 :touching? false :end [(* 0.8 w) (* 0.7 h)]}
+    [{:t 0.0
+      :touching? false
+      :end [(* 0.8 w) (* 0.7 h)]}
      [[:scene/init :bezier]]]))
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :bezier]]])
 
 (defn scene []
-  {:id :bezier :title "Bezier"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :bezier
+   :title "Bezier"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

@@ -38,7 +38,8 @@
   (let [{:keys [cx cy scale]} dims]
     (loop [k 1 x cx y cy centers [[cx cy]] radii []]
       (if (> k (dec (* 2 terms)))
-        {:centers centers :radii radii}
+        {:centers centers
+         :radii radii}
         (let [radius (* scale (/ 4.0 Math/PI) (/ 1.0 k))
               nx (+ x (* radius (Math/cos (* k theta))))
               ny (+ y (* radius (Math/sin (* k theta))))]
@@ -55,12 +56,17 @@
            :trace (vec (take trace-length (cons px (:trace state)))))))
 
 (defn- init [_input]
-  [{:theta 0.0 :trace []} [[:scene/init :epicycles]]])
+  [{:theta 0.0
+    :trace []} [[:scene/init :epicycles]]])
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :epicycles]]])
 
 (defn scene []
-  {:id :epicycles :title "Fourier Epicycles"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :epicycles
+   :title "Fourier Epicycles"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

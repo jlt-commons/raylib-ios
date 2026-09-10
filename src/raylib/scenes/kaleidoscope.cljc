@@ -66,12 +66,17 @@
            :trail (vec (take-last trail-length (conj (:trail state) (trail-point reach t)))))))
 
 (defn- init [_input]
-  [{:frame 0 :trail []} [[:scene/init :kaleidoscope]]])
+  [{:frame 0
+    :trail []} [[:scene/init :kaleidoscope]]])
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :kaleidoscope]]])
 
 (defn scene []
-  {:id :kaleidoscope :title "Kaleidoscope"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :kaleidoscope
+   :title "Kaleidoscope"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

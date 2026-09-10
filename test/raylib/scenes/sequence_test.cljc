@@ -51,7 +51,10 @@
             (str "rank " rank " never reached every position"))))))
 
 (deftest advancing-shuffles-on-schedule
-  (let [start {:bars (s/bars 24) :seed 1 :t 0 :shuffles 0}
+  (let [start {:bars (s/bars 24)
+               :seed 1
+               :t 0
+               :shuffles 0}
         just-before (nth (iterate s/advance start) (dec s/frames-per-shuffle))
         just-after (nth (iterate s/advance start) s/frames-per-shuffle)]
     (is (= 0 (:shuffles just-before)))

@@ -24,7 +24,8 @@
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
         radius (* 0.36 (min w h))]
-    {:w w :h h
+    {:w w
+     :h h
      :cx (* 0.5 w)
      :cy (* 0.30 h)
      :radius radius
@@ -68,11 +69,16 @@
             [(* i step) (- mid (* amplitude (pick (nth trace i))))])
           (range (count trace)))))
 
-(defn- init [_] [{:angle 0.0 :trace []} [[:scene/init :unitcircle]]])
+(defn- init [_] [{:angle 0.0
+                  :trace []} [[:scene/init :unitcircle]]])
 (defn- update-scene [state _] [(advance state) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :unitcircle]]])
 
 (defn scene []
-  {:id :unitcircle :title "Sine & Cosine"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :unitcircle
+   :title "Sine & Cosine"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

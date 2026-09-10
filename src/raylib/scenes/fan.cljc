@@ -20,8 +20,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.44 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.44 h)
      :inner (* 0.06 (min w h))
      :outer (* 0.36 (min w h))
      :max-thick (* 0.020 w)
@@ -63,5 +65,9 @@
 (defn- dispose [state] [state [[:scene/dispose :fan]]])
 
 (defn scene []
-  {:id :fan :title "Line Widths"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :fan
+   :title "Line Widths"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

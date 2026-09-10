@@ -39,9 +39,13 @@
         gap (* 0.10 digit-w)
         row-h (+ (* 2 half) thick)
         block-h (+ (* 3 row-h) (* 2 gap))]
-    {:w w :h h
-     :digit-w digit-w :thick thick :half half
-     :gap gap :row-h row-h
+    {:w w
+     :h h
+     :digit-w digit-w
+     :thick thick
+     :half half
+     :gap gap
+     :row-h row-h
      :x0 (- (* 0.5 w) digit-w (* 0.5 gap))       ; left digit of each pair
      :x1 (+ (* 0.5 w) (* 0.5 gap))
      :y0 (- (* 0.5 h) (* 0.5 block-h))}))
@@ -84,5 +88,9 @@
 (defn- dispose [state] [state [[:scene/dispose :clock]]])
 
 (defn scene []
-  {:id :clock :title "Clock"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :clock
+   :title "Clock"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

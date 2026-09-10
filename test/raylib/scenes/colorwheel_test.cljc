@@ -42,7 +42,8 @@
         (is (< (abs (- (nth last-slice 4) (nth first-slice 1))) 1e-9))))))
 
 (deftest every-rim-vertex-is-on-the-rim
-  (let [{:keys [cx cy radius] :as d} (c/dimensions metrics)]
+  (let [{:keys [cx cy radius]
+         :as d} (c/dimensions metrics)]
     (doseq [i (range c/slices)]
       (let [s (c/slice d 0.0 i)
             dist (fn [x y] (Math/sqrt (+ (* (- x cx) (- x cx)) (* (- y cy) (- y cy)))))]

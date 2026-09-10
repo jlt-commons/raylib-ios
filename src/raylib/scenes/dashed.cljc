@@ -14,8 +14,10 @@
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
-     :cx (* 0.5 w) :cy (* 0.5 h)
+    {:w (double w)
+     :h (double h)
+     :cx (* 0.5 w)
+     :cy (* 0.5 h)
      :dash (* 0.022 (min w h))
      :hub (* 0.018 (min w h))}))
 
@@ -51,12 +53,18 @@
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [w h]} (dimensions metrics)]
-    [{:t 0 :target [(* 0.9 w) (* 0.5 h)] :touching? false} [[:scene/init :dashed]]]))
+    [{:t 0
+      :target [(* 0.9 w) (* 0.5 h)]
+      :touching? false} [[:scene/init :dashed]]]))
 
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :dashed]]])
 
 (defn scene []
-  {:id :dashed :title "Dashed Line"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :dashed
+   :title "Dashed Line"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

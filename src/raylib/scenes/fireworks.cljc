@@ -18,11 +18,13 @@
 (defn dimensions [metrics]
   (let [[width height] (:screen metrics)
         h (double height)]
-    {:width (double width) :height h
+    {:width (double width)
+     :height h
      :gravity (* h gravity-ratio)
      ;; rocket speeds and particle spread scale with the screen, so a tall
      ;; phone does not get a burst the size of a coin
-     :rise-min (* h -0.019) :rise-max (* h -0.027)
+     :rise-min (* h -0.019)
+     :rise-max (* h -0.027)
      :spread (* h 0.0075)
      :rocket-radius (max 2 (int (* h 0.004)))
      :particle-radius (max 1 (int (* h 0.0026)))}))
@@ -39,7 +41,10 @@
         [x s1] (pick seed (* 0.12 width) (* 0.88 width))
         [vy s2] (pick s1 rise-max rise-min)
         [c s3] (pick s2 0 (count palette))]
-    [{:x x :y (:height dims) :vy vy :color (nth palette (min (int c) (dec (count palette))))} s3]))
+    [{:x x
+      :y (:height dims)
+      :vy vy
+      :color (nth palette (min (int c) (dec (count palette))))} s3]))
 
 (defn- explode [dims {:keys [x y color]} seed]
   (loop [i 0 seed seed out []]
@@ -48,9 +53,12 @@
       (let [[a s1] (pick seed 0.0 6.28318)
             [sp s2] (pick s1 (* 0.15 (:spread dims)) (:spread dims))]
         (recur (inc i) s2
-               (conj out {:x x :y y
-                          :vx (* sp (Math/cos a)) :vy (* sp (Math/sin a))
-                          :life 1.0 :color color}))))))
+               (conj out {:x x
+                          :y y
+                          :vx (* sp (Math/cos a))
+                          :vy (* sp (Math/sin a))
+                          :life 1.0
+                          :color color}))))))
 
 (defn advance [state metrics]
   (let [dims (dimensions metrics)
@@ -73,7 +81,10 @@
            :parts (filterv (fn [p] (pos? (:life p))) parts))))
 
 (defn- init [_input]
-  [{:frame 0 :seed default-seed :rockets [] :parts []}
+  [{:frame 0
+    :seed default-seed
+    :rockets []
+    :parts []}
    [[:scene/init :fireworks]]])
 
 (defn- update-scene [state input] [(advance state (:metrics input)) []])
@@ -81,5 +92,9 @@
 (defn- dispose [state] [state [[:scene/dispose :fireworks]]])
 
 (defn scene []
-  {:id :fireworks :title "Fireworks"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :fireworks
+   :title "Fireworks"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

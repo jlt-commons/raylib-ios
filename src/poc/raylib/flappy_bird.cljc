@@ -38,7 +38,9 @@
 
 (defn- pipe [x seed dims]
   (let [[gap next-seed] (gap-from-seed seed dims)]
-    [{:x (double x) :gap gap :scored? false} next-seed]))
+    [{:x (double x)
+      :gap gap
+      :scored? false} next-seed]))
 
 (defn new-game
   "Create a reproducible game for metrics and an optional integer seed."

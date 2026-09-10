@@ -111,8 +111,8 @@
   caching the first non-zero result is what the gallery does."
   []
   (let [win (u/objc-msg-send-0
-              (u/objc-msg-send-0 (u/objc-msg-send-0 (u/cls "UIApplication") (u/sel "sharedApplication")) (u/sel "windows"))
-              (u/sel "firstObject"))]
+             (u/objc-msg-send-0 (u/objc-msg-send-0 (u/cls "UIApplication") (u/sel "sharedApplication")) (u/sel "windows"))
+             (u/sel "firstObject"))]
     (ffi/with-layout [i insets-l]
       (msg-0-insets i win (u/sel "safeAreaInsets"))
       (into {} (for [f [:top :left :bottom :right]] [f (ffi/read-field i insets-l f)])))))
@@ -320,7 +320,8 @@
     (ffi/write-field info sdl-version-l :minor 32)
     (ffi/write-field info sdl-version-l :patch 10)                 ; SDL 2.32.10
     (if (pos? (sdl-get-window-wm-info (sdl-gl-get-current-window) info))
-      {:framebuffer (ffi/read info :uint32 16) :colorbuffer (ffi/read info :uint32 20)}
+      {:framebuffer (ffi/read info :uint32 16)
+       :colorbuffer (ffi/read info :uint32 20)}
       (do (println "host: SDL_GetWindowWMInfo failed:" (sdl-get-error)) {}))))
 
 ;; The scene, parked where the callback can reach it. SDL is handed a C
@@ -376,10 +377,14 @@
   the mean, short enough to notice a scene degrading while you watch it."
   300)
 
-(defn- fresh-window [] {:count 0 :seconds 0.0 :worst 0.0})
+(defn- fresh-window [] {:count 0
+                        :seconds 0.0
+                        :worst 0.0})
 
 (defn- accumulate [{:keys [count seconds worst]} dt]
-  {:count (inc count) :seconds (+ seconds dt) :worst (max worst dt)})
+  {:count (inc count)
+   :seconds (+ seconds dt)
+   :worst (max worst dt)})
 
 (defn- report-window!
   "Print the window's own numbers.
@@ -408,7 +413,8 @@
   UIKit is running and before any drawing: size the window in pixels, hint SDL
   toward Metal for its presentation surface, then hand raylib the window."
   [_argc _argv]
-  (let [{:keys [title init frame fps] :or {fps 60}} @app
+  (let [{:keys [title init frame fps]
+         :or {fps 60}} @app
         [pw ph] (display-points)
         k       (screen-scale)
         w       (int (* pw k))
@@ -421,7 +427,8 @@
     (sdl-set-hint "SDL_FRAMEBUFFER_ACCELERATION" "metal")
     (init-window w h title)
     (set-target-fps fps)
-    (let [{:keys [framebuffer colorbuffer] :as wm} (view-framebuffer)]
+    (let [{:keys [framebuffer colorbuffer]
+           :as wm} (view-framebuffer)]
       (reset! probe/wm-info wm)
       (reset! probe/initial-framebuffer
               {:bound  (probe/rl-get-active-framebuffer)      ; before any bind of ours
@@ -433,7 +440,10 @@
                    "drawable" (ffi/read dw :int 0) "x" (ffi/read dh :int 0) "fbo" framebuffer
                    "(safe area: ask UIKit from inside the loop, not SDL)")))
       ;; milestone 5's numbers: every 300 frames, the mean and worst frame time
-      (loop [state (init {:width w :height h :scale k :inset-top 0})
+      (loop [state (init {:width w
+                          :height h
+                          :scale k
+                          :inset-top 0})
              frames 0
              window (fresh-window)]
         (begin-drawing)

@@ -75,7 +75,8 @@
   small dot in a lot of empty space. These are about double that."
   [metrics]
   (let [[w h] (:screen metrics)]
-    {:w (double w) :h (double h)
+    {:w (double w)
+     :h (double h)
      ;; About twice the first version, which used a flat 46 px. Bigger than
      ;; this and four fingers held naturally start to overlap into one blob.
      :touch-radius (* 0.075 w)
@@ -108,11 +109,19 @@
            :peak (max (:peak state 0) (count live))
            :t (inc (:t state 0)))))
 
-(defn- init [_] [{:trails {} :live {} :colours {} :peak 0 :t 0} [[:scene/init :multitouch]]])
+(defn- init [_] [{:trails {}
+                  :live {}
+                  :colours {}
+                  :peak 0
+                  :t 0} [[:scene/init :multitouch]]])
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])
 (defn- dispose [state] [state [[:scene/dispose :multitouch]]])
 
 (defn scene []
-  {:id :multitouch :title "Multitouch"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :multitouch
+   :title "Multitouch"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})

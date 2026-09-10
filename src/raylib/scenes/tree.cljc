@@ -57,5 +57,9 @@
   (* sway (Math/sin t)))
 
 (defn scene []
-  {:id :tree :title "Fractal Tree"
-   :init init :update update-scene :draw draw :dispose dispose})
+  {:id :tree
+   :title "Fractal Tree"
+   :init init
+   :update update-scene
+   :draw draw
+   :dispose dispose})
