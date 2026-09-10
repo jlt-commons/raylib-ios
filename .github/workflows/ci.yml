@@ -71,7 +71,7 @@ env:
 
 jobs:
   test:
-    name: tests
+    name: tests · format · ns
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
@@ -80,6 +80,13 @@ jobs:
         uses: DeLaGuardo/setup-clojure@13.6.1
         with:
           cli: ${{ env.CLOJURE_VERSION }}
+
+      # Pinned to match the version the rest of the fleet runs (glitter,
+      # glitter-gl, glitter-uikit, raygui-jlt, raylib-jlt), so a clean local
+      # commit and this gate agree on the same formatter.
+      - uses: clojure-lsp/setup-clojure-lsp@v1.0.3
+        with:
+          clojure-lsp-version: "2026.05.05-12.58.26"
 
       # The project declares no dependencies, so there is nothing to restore
       # beyond the CLI's own. Kept because the :cider alias has some, and
@@ -94,6 +101,17 @@ jobs:
 
       - name: Test
         run: clojure -M:test
+
+      # Direct clojure-lsp invocation rather than a bb task: this project has
+      # no bb.edn and nothing else here needs one, so a wrapper task would be
+      # new infrastructure for one gate. `cli` above is what gives clojure-lsp
+      # a classpath to resolve; the :test alias is picked up automatically
+      # since clojure-lsp's default :source-aliases already includes :test.
+      - name: Formatting
+        run: clojure-lsp format --dry
+
+      - name: Namespace forms
+        run: clojure-lsp clean-ns --dry
 
   jolt:
     name: tests on jolt ${{ inputs.jolt-version || '0.8.2' }}
