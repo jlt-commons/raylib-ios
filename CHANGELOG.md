@@ -53,6 +53,16 @@ Notable changes, newest first. Dates are the day the work landed.
   were missing, and the `proxy` comment in `deps.edn` now matches `proxy.sh`,
   which forwards 7888 to 7888 unless told otherwise.
 
+### Fixed
+
+- **`pack.sh` no longer fails in silence.** Its configure and make steps wrote to
+  `/dev/null`, so when a ChezScheme worktree made fresh after `/tmp` was cleared
+  had its submodules empty, configure's "Source in zuo is missing" went nowhere
+  and the log simply stopped. The script now checks the submodules first and
+  names the command that fills them, keeps each step's output in a log, and
+  prints the tail of that log when a step fails. The RUNBOOK has the two
+  commands that make the worktree.
+
 ## 2026-09-05
 
 ### Added

@@ -23,6 +23,18 @@ it does. A pack describes the Chez runtime and the SDK rather than an app, so
 they are interchangeable. To build your own instead, which needs a ChezScheme
 10.4.1 checkout and about twenty minutes, run `sh tools/ios/pack.sh`.
 
+`pack.sh` builds in a ChezScheme worktree at `/tmp/raylib-ios/chez`, which is
+gone whenever `/tmp` is cleared. Recreate it from your ChezScheme checkout, and
+check out the submodules too, because `git worktree add` leaves zuo, nanopass,
+stex, lz4 and zlib empty:
+
+```sh
+git -C ~/dev/ChezScheme worktree add --detach /tmp/raylib-ios/chez v10.4.1
+git -C /tmp/raylib-ios/chez submodule update --init --recursive
+```
+
+`pack.sh` checks for both and names the command it needs if either is missing.
+
 ## The loop
 
 ```sh

@@ -27,7 +27,24 @@ TARGET_SIM="-target arm64-apple-ios-simulator"
 
 die() { echo "pack.sh: $1" >&2; exit 1; }
 
-[ -d "$CHEZ_WT" ] || die "no Chez worktree at $CHEZ_WT (see RUNBOOK, P0.T2)"
+# Run a noisy build step with its output kept in a log rather than thrown away,
+# and show the tail of that log if the step fails. These steps used to write to
+# /dev/null, so a failing configure printed its reason there and set -e ended
+# the script with the last visible line being a harmless "== ..." banner.
+quiet() {
+  log="$WORK/last-step.log"
+  "$@" >"$log" 2>&1 || { tail -20 "$log" >&2; die "failed: $1 (full log: $log)"; }
+}
+
+[ -d "$CHEZ_WT" ] || die "no Chez worktree at $CHEZ_WT. See tools/ios/RUNBOOK.md, First time, for the two commands that make one"
+# `git worktree add` checks out ChezScheme itself but none of its submodules
+# (zuo, nanopass, stex, lz4, zlib), so a worktree made fresh after /tmp is
+# cleared has them empty and configure stops at 'Source in "zuo" is missing'.
+# Say so here, where the fix can be named.
+for m in $(git -C "$CHEZ_WT" config -f .gitmodules --get-regexp '\.path$' | awk '{print $2}'); do
+  [ -n "$(ls -A "$CHEZ_WT/$m" 2>/dev/null)" ] ||
+    die "Chez submodule $m is empty in $CHEZ_WT. Run: git -C $CHEZ_WT submodule update --init --recursive"
+done
 [ -x "$HOST_CHEZ" ] || die "no host Chez at $HOST_CHEZ"
 case "$("$HOST_CHEZ" --version 2>&1)" in
   10.4.1) : ;;
@@ -58,12 +75,13 @@ build_ffi() {                     # $1 = device|sim, $2 = sdk path, $3 = target 
   # configure caches host detection, so each SDK gets a clean tree
   rm -rf "build-$name" && cp -R "libffi-$FFI_VERSION" "build-$name"
   cd "build-$name"
-  ./configure --host=aarch64-apple-darwin --prefix="$out" \
+  quiet ./configure --host=aarch64-apple-darwin --prefix="$out" \
     --enable-static --disable-shared --disable-docs \
     CC="clang $triple -isysroot $sdk" \
     CFLAGS="$triple -isysroot $sdk -O2" \
-    LDFLAGS="$triple -isysroot $sdk" >/dev/null
-  make -j8 >/dev/null && make install >/dev/null
+    LDFLAGS="$triple -isysroot $sdk"
+  quiet make -j8
+  quiet make install
 }
 
 build_ffi device "$SDK_DEVICE" "$TARGET_DEVICE"
@@ -83,10 +101,10 @@ if [ ! -f "$CHEZ_WT/xc-tpb64l/s/xpatch" ]; then
   echo "== boots + xpatch for tpb64l (once, shared by both SDKs)"
   cd "$CHEZ_WT"
   rm -rf boot/tpb64l xc-tpb64l                 # bootquick cycles if these exist
-  ./configure --cross --force -m=tpb64l --disable-curses --disable-x11 \
+  quiet ./configure --cross --force -m=tpb64l --disable-curses --disable-x11 \
     CFLAGS="$TARGET_DEVICE -isysroot $SDK_DEVICE -DTARGET_OS_IPHONE=1" \
-    LDFLAGS="-liconv" CC_FOR_BUILD=clang >/dev/null
-  make bin/zuo >/dev/null
+    LDFLAGS="-liconv" CC_FOR_BUILD=clang
+  quiet make bin/zuo
   bin/zuo tpb64l bootquick --xpatch --host-scheme "$HOST_CHEZ" tpb64l
 fi
 [ -f "$CHEZ_WT/xc-tpb64l/s/xpatch" ] || die "bootquick produced no xpatch"
@@ -108,10 +126,10 @@ build_kernel() {                  # $1 = device|sim, $2 = sdk path, $3 = target 
   echo "== Chez tpb64l kernel for $name"
   cd "$CHEZ_WT"
   rm -rf tpb64l/c tpb64l/zlib tpb64l/lz4
-  ./configure --cross --force -m=tpb64l --enable-libffi --disable-curses --disable-x11 \
+  quiet ./configure --cross --force -m=tpb64l --enable-libffi --disable-curses --disable-x11 \
     CFLAGS="$triple -isysroot $sdk -DTARGET_OS_IPHONE=1 -I$WORK/ffi/$name/include" \
-    LDFLAGS="-L$WORK/ffi/$name/lib -liconv" CC_FOR_BUILD=clang >/dev/null
-  make >/dev/null
+    LDFLAGS="-L$WORK/ffi/$name/lib -liconv" CC_FOR_BUILD=clang
+  quiet make
   mkdir -p "$out"
   cp tpb64l/boot/tpb64l/libkernel.a "$out/"
   # lz4 and zlib do NOT live beside the kernel. These paths are make-pack.sh's own
