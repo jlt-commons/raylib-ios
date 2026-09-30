@@ -17,10 +17,26 @@
   (mod (+ (* 1103515245 (long seed)) 12345) 2147483648))
 
 (defn roll
-  "A value in 0-99 and the next seed."
+  "A value in 0-99 and the next seed.
+
+  The value comes from the high bits, `(quot seed' 65536)`. The low bit of an
+  LCG with an odd multiplier and odd increment flips on every step, and
+  `mod 100` keeps that bit, so `(mod seed' 100)` alternated odd and even."
   [seed]
   (let [seed' (next-random seed)]
-    [(mod seed' 100) seed']))
+    [(mod (quot seed' 65536) 100) seed']))
+
+(defn dimensions [metrics]
+  (let [[w h] (:screen metrics)
+        side (min w h)
+        big (int (* 0.25 side))]
+    {:label-size (max 20 (int (* 0.034 side)))
+     :big-size big
+     :caption-x (int (* 0.04 w))
+     :caption-y (int (* 0.12 h))
+     :value-y (int (- (* 0.5 h) (* 0.5 big)))
+     :recent-x (int (* 0.04 w))
+     :recent-y (int (- h (* 0.055 h)))}))
 
 (defn advance
   "Count a frame, and roll when the count reaches a multiple of `roll-every`.

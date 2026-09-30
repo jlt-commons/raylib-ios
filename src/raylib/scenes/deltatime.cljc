@@ -11,12 +11,20 @@
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
         side (min w h)
-        box (* 0.05 side)]
+        box (* 0.05 side)
+        label-size (max 20 (int (* 0.034 side)))]
     {:box box
      :top-y (- (* 0.35 h) (* 0.5 box))
      :bottom-y (- (* 0.65 h) (* 0.5 box))
-     :label-size (max 20 (int (* 0.034 side)))
-     :w w}))
+     :label-size label-size
+     :w w
+     ;; Both boxes wrap here rather than at `w`, so a box never hangs off the
+     ;; right edge of the safe region.
+     :wrap-at (- w box)
+     :label-x (int (* 0.04 w))
+     :top-label-y (int (- (* 0.35 h) (* 0.5 box) label-size 8))
+     :bottom-label-y (int (- (* 0.65 h) (* 0.5 box) label-size 8))
+     :fps-y (int (- h (* 0.055 h)))}))
 
 (defn advance
   "Move both boxes one frame. The per-frame box gains a fixed `w / 200` pixels.
@@ -24,14 +32,17 @@
   exactly 60 fps and proportionally more or less at any other rate.
 
   `dt` is clamped at 0 the way `raylib.scenes.analog/advance` clamps it, so a
-  bad frame clock cannot drive a box backwards."
+  bad frame clock cannot drive a box backwards. Both wrap at `w - box` so the
+  whole box stays on screen."
   [state input]
-  (let [w (double (first (:screen (:metrics input))))
+  (let [{:keys [wrap-at w]} (dimensions (:metrics input))
+        w (double w)
+        wrap-at (double wrap-at)
         dt (max 0.0 (double (:delta-seconds input 0.0)))
         step (/ w 200.0)]
     (assoc state
-           :xf (mod (+ (:xf state) step) w)
-           :xd (mod (+ (:xd state) (* 60.0 step dt)) w))))
+           :xf (mod (+ (:xf state) step) wrap-at)
+           :xd (mod (+ (:xd state) (* 60.0 step dt)) wrap-at))))
 
 (defn- init [_] [{:xf 0.0
                   :xd 0.0} [[:scene/init :deltatime]]])

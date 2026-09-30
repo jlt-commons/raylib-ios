@@ -50,7 +50,7 @@
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.piechart :as pie]
-            [raylib.scenes.randomvalues :as randv]
+            [raylib.scenes.randomvalues :as rv]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rounded :as rnd]
@@ -80,7 +80,7 @@
              (grad/scene) (ring/scene) (spl/scene)
              (rnd/scene) (vang/scene) (bars/scene)
              (bez/scene) (fan/scene) (clipbox/scene)
-             (rsz/scene) (align/scene) (dtime/scene) (randv/scene)])
+             (rsz/scene) (align/scene) (dtime/scene) (rv/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -1760,27 +1760,24 @@
 
 (defmethod draw-scene! :deltatime [_ {:keys [xf xd]} {:keys [m]}]
   (rl/clear-background rl/RAYWHITE)
-  (let [{:keys [box top-y bottom-y label-size w]} (dtime/dimensions m)
-        [_ h] (:screen m)
-        x (int (* 0.04 w))]
+  (let [{:keys [box top-y bottom-y label-size label-x top-label-y bottom-label-y fps-y]}
+        (dtime/dimensions m)]
     ;; Each label sits just above its own lane, clear of the Back button.
-    (rl/draw-text "per frame" x (int (- top-y label-size 8)) label-size rl/DARKGRAY)
+    (rl/draw-text "per frame" label-x top-label-y label-size rl/DARKGRAY)
     (rl/draw-rectangle (int xf) (int top-y) (int box) (int box) rl/MAROON)
-    (rl/draw-text "delta time" x (int (- bottom-y label-size 8)) label-size rl/DARKGRAY)
+    (rl/draw-text "delta time" label-x bottom-label-y label-size rl/DARKGRAY)
     (rl/draw-rectangle (int xd) (int bottom-y) (int box) (int box) (rl/rgba 0 82 172 255))
     ;; Read every frame, which is the only way GetFPS gives a true number.
-    (rl/draw-text (str (rl/get-fps) " fps") x (int (- h (* 0.055 h))) label-size rl/DARKGRAY)))
+    (rl/draw-text (str (rl/get-fps) " fps") label-x fps-y label-size rl/DARKGRAY)))
 
 (defmethod draw-scene! :randomvalues [_ {:keys [value history]} {:keys [m]}]
   (rl/clear-background rl/RAYWHITE)
-  (let [[w h] (:screen m)
-        side (min w h)
-        label-size (max 20 (int (* 0.034 side)))
-        big (int (* 0.25 side))
+  (let [[w _] (:screen m)
+        {:keys [label-size big-size caption-x caption-y value-y recent-x recent-y]}
+        (rv/dimensions m)
         text (str value)
-        tw (rl/measure-text text big)]
-    (rl/draw-text "a new random value every 2 seconds"
-                  (int (* 0.04 w)) (int (* 0.12 h)) label-size rl/DARKGRAY)
-    (rl/draw-text text (int (* 0.5 (- w tw))) (int (- (* 0.5 h) (* 0.5 big))) big rl/MAROON)
+        tw (rl/measure-text text big-size)]
+    (rl/draw-text "a new random value every 2 seconds" caption-x caption-y label-size rl/DARKGRAY)
+    (rl/draw-text text (int (* 0.5 (- w tw))) value-y big-size rl/MAROON)
     (rl/draw-text (str "recent: " (apply str (interpose " " history)))
-                  (int (* 0.04 w)) (int (- h (* 0.055 h))) label-size (rl/rgba 130 130 130 255))))
+                  recent-x recent-y label-size (rl/rgba 130 130 130 255))))

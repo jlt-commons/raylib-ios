@@ -32,11 +32,12 @@
 
 (deftest both-boxes-wrap-at-the-screen-width
   (let [w 300
-        s (run start w 1000 (/ 1.0 60.0))]
-    (is (<= 0.0 (:xf s) w))
-    (is (< (:xf s) w))
-    (is (<= 0.0 (:xd s)))
-    (is (< (:xd s) w))))
+        {:keys [box]} (dt/dimensions {:screen [w 100]})
+        states (take 1000 (iterate (fn [s] (dt/advance s (input w (/ 1.0 60.0)))) start))]
+    (testing "at every step the whole box, not just its left edge, is on screen"
+      (doseq [{:keys [xf xd]} states
+              x [xf xd]]
+        (is (<= 0 x (- w box)))))))
 
 (deftest a-negative-delta-cannot-move-the-box-backwards
   (let [s (dt/advance {:xf 0.0
@@ -50,3 +51,16 @@
       (is (<= 0 y))
       (is (<= (+ y box) h)))
     (is (< (+ top-y box) bottom-y) "and the lanes do not overlap")))
+
+(deftest text-lines-fit-the-safe-region
+  (let [[w h] [1206 2334]
+        {:keys [label-size label-x top-label-y bottom-label-y fps-y]}
+        (dt/dimensions {:screen [w h]})
+        ;; estimate: 0.6 of the size per character, for raylib's default font
+        char-w (* 0.6 label-size)]
+    (doseq [[text y] [["per frame" top-label-y]
+                      ["delta time" bottom-label-y]
+                      ["120 fps" fps-y]]]
+      (is (<= 0 y) text)
+      (is (<= (+ y label-size) h) text)
+      (is (<= (+ label-x (* char-w (count text))) w) text))))
