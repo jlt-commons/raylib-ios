@@ -5,8 +5,7 @@
   The phone holds a steady 60 fps, so the two boxes move together until the
   frame rate drops. Show it live from the nREPL with
   `(raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30)))`: the
-  per-frame box slows to half speed while the delta-time box does not."
-  (:require [clojure.string]))
+  per-frame box slows to half speed while the delta-time box does not.")
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)

@@ -1,14 +1,14 @@
 (ns raylib.scenes.formattext
-  "A zero-padded score and an MM:SS timer counting up, built with
-  clojure.core/format. Ported from raylib-jlt's `format_text`.
+  "A zero-padded score and an MM:SS timer counting up. Ported from
+  raylib-jlt's `format_text`.
 
   The score gains 7 a frame and the timer reads frames at 60 to the second.
   The timer has no hours field, as in the original, so it keeps counting
   minutes past 59.
 
-  The original uses clojure.core/format. This port pads with `str` instead,
-  because the linter also reads this .cljc as cljs, where `format` does not
-  exist.")
+  This port pads with a private `zero-pad` function instead of
+  clojure.core/format, because the linter also reads this .cljc as cljs,
+  where `format` does not exist.")
 
 (defn- zero-pad
   "Non-negative integer `n` as a string of at least `width` digits, padded with
