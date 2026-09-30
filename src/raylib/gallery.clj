@@ -712,23 +712,28 @@
   The scene's :dispose is not called. It is scene code too, and one that has
   just failed is a poor bet to tidy up after itself without throwing again. The
   outer frame state keeps :category, so the reader lands on the list they
-  opened the scene from."
-  [gstate e]
-  (println (str "gallery: " (pr-str (:active-scene-id gstate))
-                " failed, back to the list: " (ex-message e)))
+  opened the scene from.
+
+  `id` is passed in rather than read from `gstate`, because a scene that throws
+  in :init never finished opening and the state still says nothing is active.
+  The detail falls back to the exception's string, since an NPE has no message
+  and the line would otherwise end in nothing."
+  [gstate id e]
+  (println (str "gallery: " (pr-str id)
+                " failed, back to the list: " (or (ex-message e) (str e))))
   (assoc gstate :mode :gallery :active-scene-id nil :scene-state nil
          :scene-events []))
 
 (defn- guard-scene
-  "Call `f`, which runs scene code, and return its result. If it throws, return
-  `gstate` abandoned instead. Before this, one bug in a scene's :update or
+  "Call `f`, which runs scene code for scene `id`, and return its result. If it
+  throws, return `gstate` abandoned instead. Before this, one bug in a scene's :update or
   draw-scene! method ended the process on the phone, so each porting mistake
   cost a rebuild and a redeploy just to read the message."
-  [gstate f]
+  [gstate id f]
   (try
     (f)
     (catch :default e
-      (abandon-scene gstate e))))
+      (abandon-scene gstate id e))))
 
 (defn- render!
   "Three things can be on screen: a running scene, one category's scenes, or
@@ -768,7 +773,7 @@
         ;; A throw is caught here, so the pop and the scissor end below run on
         ;; both paths. Without them every later frame would stay translated and
         ;; clipped.
-        (let [result (guard-scene gstate
+        (let [result (guard-scene gstate active-scene-id
                                   (fn []
                                     (draw-scene! active-scene-id scene-state
                                                  {:k k
@@ -853,7 +858,7 @@
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
         input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
-        gstate (-> (guard-scene gstate
+        gstate (-> (guard-scene gstate (or (:active-scene-id gstate) hit)
                                 (fn []
                                   (if opening?
                                     (gallery/open-scene registry gstate hit scene-input)

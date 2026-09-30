@@ -85,16 +85,33 @@
 (deftest a-scene-that-throws-returns-to-the-list
   (let [s (gallery/open-scene rg/registry gallery/initial-gallery-state :analog
                               (input :idle nil))
-        result (#'rg/guard-scene s (fn [] (throw (ex-info "boom" {}))))]
+        result (#'rg/guard-scene s :analog (fn [] (throw (ex-info "boom" {}))))]
     (is (= :scene (:mode s)))
     (is (= :gallery (:mode result)))
     (is (nil? (:active-scene-id result)))
-    (is (nil? (:scene-state result)))))
+    (is (nil? (:scene-state result)))
+    (is (= [] (:scene-events result)))))
 
 (deftest a-scene-that-throws-on-open-stays-on-the-list
-  (let [result (#'rg/guard-scene gallery/initial-gallery-state
+  (let [result (#'rg/guard-scene gallery/initial-gallery-state :analog
                                  (fn [] (throw (ex-info "boom" {}))))]
     (is (= :gallery (:mode result)))))
 
 (deftest a-scene-that-does-not-throw-is-untouched
-  (is (= :next (#'rg/guard-scene gallery/initial-gallery-state (fn [] :next)))))
+  (is (= :next (#'rg/guard-scene gallery/initial-gallery-state :analog (fn [] :next)))))
+
+(deftest the-failure-line-names-the-scene-that-was-being-opened
+  (let [out (with-out-str
+              (#'rg/guard-scene gallery/initial-gallery-state :analog
+                                (fn [] (throw (ex-info "boom" {})))))]
+    (is (= "gallery: :analog failed, back to the list: boom\n" out))))
+
+(deftest the-failure-line-has-a-detail-when-the-exception-has-no-message
+  ;; Under jolt (NullPointerException.) has a nil ex-message.
+  (let [e (NullPointerException.)
+        out (with-out-str
+              (#'rg/guard-scene gallery/initial-gallery-state :analog
+                                (fn [] (throw e))))
+        detail (second (re-find #"back to the list: (.*)\n" out))]
+    (is (nil? (ex-message e)))
+    (is (seq detail) out)))
