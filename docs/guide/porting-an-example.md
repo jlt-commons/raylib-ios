@@ -1,8 +1,10 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples. 50 were in the gallery before this batch and 54 are now, and the ones
-that need no input at all port almost mechanically. This is what "almost"
+examples. 50 were in the gallery before this batch and 54 are now. Those count
+examples and not scenes, because the `easings` scene covers three of them and
+the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
+The ones that need no input at all port almost mechanically. This is what "almost"
 means, worked through with the first seven.
 
 ![Spirograph running on an iPhone 17 Pro](../images/spirograph.png)

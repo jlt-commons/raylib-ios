@@ -6,7 +6,10 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 ## Port backlog
 
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 54 of
-them are in the gallery as of 2026-09-30, which leaves 133. They sort into three
+them are in the gallery as of 2026-09-30, which leaves 133. That counts
+examples and not scenes: the gallery has 49 scenes ported from raylib-jlt, one
+of which (`easings`) covers three examples, and the three Android scenes are
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 49 + 2 + 3 = 54. They sort into three
 groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
