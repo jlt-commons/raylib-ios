@@ -8,3 +8,7 @@
 # built bundle: the plist is copied in, the binary is compiled, nothing is source
 RaylibIOS.app
 _site/
+
+# agent guides, symlinked from a private notes store; a committed link would dangle in every other clone
+CLAUDE.md
+AGENTS.md
