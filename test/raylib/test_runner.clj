@@ -1,6 +1,8 @@
 (ns raylib.test-runner
-  "Entry point for `jolt -M:test`. Runs the six pure namespaces this project
-  carries unchanged from jasalt/jolt-android-experiment at 6d2b291.
+  "Entry point for `jolt -M:test` and `clojure -M:test`. Runs the pure scene and
+  gallery namespaces, which the JVM and jolt both load, plus the jolt-only set
+  (`jolt-only` below) when it is running under jolt. Six of the pure ones are
+  carried unchanged from jasalt/jolt-android-experiment at 6d2b291.
 
   Nothing here touches raylib, SDL, UIKit or a device: the whole point of the
   scene contract is that the simulation is pure, so its tests run on the build
@@ -36,6 +38,16 @@
   there is nothing to detect."
   [code]
   (System/exit code))
+
+(def ^:private jolt-only
+  "Test namespaces that load jolt.ffi, directly or through raylib.gallery, so
+  only jolt can require them. The JVM run skips them and says so."
+  '#{raylib.gallery-smoke-test})
+
+(def ^:private jolt?
+  "True under jolt, which sets the jolt.version system property (documented
+  idiom, present since v0.8.2). It is nil on JVM Clojure."
+  (some? (System/getProperty "jolt.version")))
 
 (defn -main [& _]
   (let [namespaces '[raylib.scenes.kaleidoscope-test
@@ -92,19 +104,27 @@
                                         (clojure.string/replace "/" ".")
                                         symbol)))
                        set)
-          missing (clojure.set/difference on-disk (set namespaces))]
+          missing (clojure.set/difference on-disk (clojure.set/union (set namespaces) jolt-only))]
       (when (seq missing)
         (println "ERROR: test files on disk that this runner does not list:")
         (doseq [m (sort missing)] (println "  " m))
         (exit 1)))
-    (doseq [ns namespaces]
-      (try (require ns :reload)
-           (catch Exception e
-             (println "ERROR requiring" ns ":" (ex-message e)))))
-    (let [results (apply t/run-tests namespaces)
-          failed  (+ (:fail results 0) (:error results 0))]
-      (println "----")
-      (println "tests:" (:test results 0)
-               "assertions:" (:pass results 0) "passed /"
-               failed "failed")
-      (when (pos? failed) (exit 1)))))
+    (let [to-run (if jolt? (into namespaces (sort jolt-only)) namespaces)
+          ;; A namespace that fails to load used to print and carry on, so the
+          ;; run exited 0 with that namespace's tests silently absent.
+          load-failures (atom 0)]
+      (when-not jolt?
+        (println "skipped on the JVM (needs jolt.ffi):"
+                 (clojure.string/join " " (sort jolt-only))))
+      (doseq [ns to-run]
+        (try (require ns :reload)
+             (catch Exception e
+               (swap! load-failures inc)
+               (println "ERROR requiring" ns ":" (ex-message e)))))
+      (let [results (apply t/run-tests to-run)
+            failed  (+ (:fail results 0) (:error results 0) @load-failures)]
+        (println "----")
+        (println "tests:" (:test results 0)
+                 "assertions:" (:pass results 0) "passed /"
+                 failed "failed")
+        (when (pos? failed) (exit 1))))))
