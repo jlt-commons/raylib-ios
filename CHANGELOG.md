@@ -29,10 +29,12 @@ Notable changes, newest first. Dates are the day the work landed.
 
 - **Four more scenes, fifty-two in all.** Delta Time draws two rectangles, one
   that moves a fixed step each frame and one that moves by the time since the
-  last frame, so dropping the target fps pulls them apart. Random Values is seeded and replays. Formatted Text shows a zero-padded
-  score and a MM:SS clock, and Triangle Strip draws through `draw-triangle` so
-  winding cannot cull it. Their frame rates are not in the scene catalog yet,
-  because they still need a measurement on the device.
+  last frame. The two only agree at exactly 60 fps, and the phone averages about
+  58.5, so they drift apart by roughly 9 pixels a second before anyone touches
+  the frame rate. Random Values is seeded and replays. Formatted Text shows a
+  zero-padded score and a MM:SS clock, and Triangle Strip draws through
+  `draw-triangle` so winding cannot cull it. All four hold 58 fps on an iPhone
+  17 Pro.
 
   Random Values takes the high bits of the LCG rather than the low ones. The low
   bit of this generator alternates on every step, so a coin flip built from it

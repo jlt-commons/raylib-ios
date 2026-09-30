@@ -71,10 +71,10 @@ that were tuned to get there.
 | Resize | a rectangle and a corner handle | 58 | a sticky grab, because a finger has no hover |
 | Text Alignment | 3 boxes, one word | 58 | MeasureText, the rare call with nothing to work around |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
-| Delta Time | 2 rectangles, 2 labels and an fps line | | per-frame against per-second; drop the target fps to see them part |
-| Random Values | a number and a label | | seeded, so it replays |
-| Formatted Text | 2 lines of text | | zero-padded score and MM:SS, padded by a private `zero-pad` built from `str` |
-| Triangle Strip | 32 triangles | | two per band, through `draw-triangle` so winding cannot cull them |
+| Delta Time | 2 rectangles, 2 labels and an fps line | 58 | per-frame against delta time; at 58 fps the delta box already gains about 9 px a second |
+| Random Values | a number and a label | 58 | seeded, so it replays |
+| Formatted Text | 2 lines of text | 58 | zero-padded score and MM:SS, padded by a private `zero-pad` built from `str` |
+| Triangle Strip | 32 triangles | 58 | two per band, through `draw-triangle` so winding cannot cull them |
 
 ## Games
 

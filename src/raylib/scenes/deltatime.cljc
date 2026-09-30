@@ -1,11 +1,14 @@
 (ns raylib.scenes.deltatime
   "Two boxes cross the screen, one by a fixed step per frame and one by a
-  distance per second. Ported from raylib-jlt's `delta_time`.
+  distance scaled by the time since the last frame. Ported from raylib-jlt's
+  `delta_time`.
 
-  The phone holds a steady 60 fps, so the two boxes move together until the
-  frame rate drops. Show it live from the nREPL with
-  `(raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30)))`: the
-  per-frame box slows to half speed while the delta-time box does not.")
+  The two agree only at exactly 60 fps, and a phone does not quite get there.
+  Measured on an iPhone 17 Pro, the mean frame is 17.1 ms, about 58.5 fps, so
+  the delta-time box gains roughly 9 pixels a second and the pair drift apart
+  with nothing else going on. Drop the rate from the nREPL with
+  `(raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30)))` and the
+  per-frame box falls to half speed while the delta-time box keeps its pace.")
 
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
