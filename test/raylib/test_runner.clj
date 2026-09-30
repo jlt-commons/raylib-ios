@@ -109,20 +109,35 @@
         (println "ERROR: test files on disk that this runner does not list:")
         (doseq [m (sort missing)] (println "  " m))
         (exit 1)))
-    (let [to-run (if jolt? (into namespaces (sort jolt-only)) namespaces)
+    (let [jolt-ns (vec (sort jolt-only))
           ;; A namespace that fails to load used to print and carry on, so the
           ;; run exited 0 with that namespace's tests silently absent.
-          load-failures (atom 0)]
-      (when-not jolt?
-        (println "skipped on the JVM (needs jolt.ffi):"
-                 (clojure.string/join " " (sort jolt-only))))
-      (doseq [ns to-run]
-        (try (require ns :reload)
-             (catch Exception e
-               (swap! load-failures inc)
-               (println "ERROR requiring" ns ":" (ex-message e)))))
-      (let [results (apply t/run-tests to-run)
-            failed  (+ (:fail results 0) (:error results 0) @load-failures)]
+          load-failures (atom 0)
+          load! (fn [nss]
+                  (doseq [ns nss]
+                    (try (require ns :reload)
+                         (catch Exception e
+                           (swap! load-failures inc)
+                           (println "ERROR requiring" ns ":" (ex-message e))))))]
+      (if jolt?
+        (println "running jolt-only:" (clojure.string/join " " jolt-ns))
+        (println "skipped (jolt.version not set, so not running under jolt;"
+                 "needs jolt.ffi):" (clojure.string/join " " jolt-ns)))
+      (load! namespaces)
+      (when jolt? (load! jolt-ns))
+      (let [counters [:test :pass :fail :error]
+            pure     (apply t/run-tests namespaces)
+            ;; Its own run so that "it ran" can be checked. Were the jolt-only
+            ;; set dropped or emptied, the combined count would still look fine.
+            only     (if jolt? (apply t/run-tests jolt-ns) {})
+            missing? (and jolt? (zero? (:test only 0)))
+            _        (when missing?
+                       (println "ERROR: jolt-only namespaces ran zero tests:"
+                                (clojure.string/join " " jolt-ns)))
+            results  (merge-with + (select-keys pure counters)
+                                 (select-keys only counters))
+            failed   (+ (:fail results 0) (:error results 0)
+                        @load-failures (if missing? 1 0))]
         (println "----")
         (println "tests:" (:test results 0)
                  "assertions:" (:pass results 0) "passed /"
