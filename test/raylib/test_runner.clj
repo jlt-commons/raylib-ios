@@ -73,6 +73,8 @@
                      raylib.scenes.clipbox-test
                      raylib.scenes.align-test
                      raylib.scenes.resize-test
+                     raylib.scenes.deltatime-test
+                     raylib.scenes.randomvalues-test
                      raylib.scroll-test
                      raylib.easings-test
                      raylib.scenes.clock-test

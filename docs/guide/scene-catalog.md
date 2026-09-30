@@ -71,6 +71,8 @@ that were tuned to get there.
 | Resize | a rectangle and a corner handle | 58 | a sticky grab, because a finger has no hover |
 | Text Alignment | 3 boxes, one word | 58 | MeasureText, the rare call with nothing to work around |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
+| Delta Time | 2 rectangles and a label | | per-frame against per-second; drop the target fps to see them part |
+| Random Values | a number and a label | | seeded, so it replays |
 
 ## Games
 

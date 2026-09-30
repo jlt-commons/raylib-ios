@@ -32,6 +32,7 @@
             [raylib.scenes.collision :as coll]
             [raylib.scenes.colorwheel :as wheel]
             [raylib.scenes.dashed :as dash]
+            [raylib.scenes.deltatime :as dtime]
             [raylib.scenes.easings :as ease]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.fan :as fan]
@@ -49,6 +50,7 @@
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.piechart :as pie]
+            [raylib.scenes.randomvalues :as randv]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rounded :as rnd]
@@ -78,7 +80,7 @@
              (grad/scene) (ring/scene) (spl/scene)
              (rnd/scene) (vang/scene) (bars/scene)
              (bez/scene) (fan/scene) (clipbox/scene)
-             (rsz/scene) (align/scene)])
+             (rsz/scene) (align/scene) (dtime/scene) (randv/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -107,7 +109,8 @@
              :colorwheel :unitcircle :clock :piechart :logoanim :easings
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
-             :rounded :vecangle :bars :bezier :fan :clipbox :resize :align]}
+             :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
+             :deltatime :randomvalues]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird]}])
@@ -1754,3 +1757,30 @@
                       label-size (rl/rgba 130 130 140 255))))
     (rl/draw-text (str "MeasureText: " tw " px")
                   (int box-x) (int (- h (* 0.16 h))) label-size (rl/rgba 60 60 60 255))))
+
+(defmethod draw-scene! :deltatime [_ {:keys [xf xd]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [box top-y bottom-y label-size w]} (dtime/dimensions m)
+        [_ h] (:screen m)
+        x (int (* 0.04 w))]
+    ;; Each label sits just above its own lane, clear of the Back button.
+    (rl/draw-text "per frame" x (int (- top-y label-size 8)) label-size rl/DARKGRAY)
+    (rl/draw-rectangle (int xf) (int top-y) (int box) (int box) rl/MAROON)
+    (rl/draw-text "delta time" x (int (- bottom-y label-size 8)) label-size rl/DARKGRAY)
+    (rl/draw-rectangle (int xd) (int bottom-y) (int box) (int box) (rl/rgba 0 82 172 255))
+    ;; Read every frame, which is the only way GetFPS gives a true number.
+    (rl/draw-text (str (rl/get-fps) " fps") x (int (- h (* 0.055 h))) label-size rl/DARKGRAY)))
+
+(defmethod draw-scene! :randomvalues [_ {:keys [value history]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [[w h] (:screen m)
+        side (min w h)
+        label-size (max 20 (int (* 0.034 side)))
+        big (int (* 0.25 side))
+        text (str value)
+        tw (rl/measure-text text big)]
+    (rl/draw-text "a new random value every 2 seconds"
+                  (int (* 0.04 w)) (int (* 0.12 h)) label-size rl/DARKGRAY)
+    (rl/draw-text text (int (* 0.5 (- w tw))) (int (- (* 0.5 h) (* 0.5 big))) big rl/MAROON)
+    (rl/draw-text (str "recent: " (apply str (interpose " " history)))
+                  (int (* 0.04 w)) (int (- h (* 0.055 h))) label-size (rl/rgba 130 130 130 255))))
