@@ -2,6 +2,53 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-09-30
+
+### Added
+
+- **A smoke test for the gallery**, which nothing in CI had ever loaded. A scene
+  left out of a category just vanished from the menu, and a missing `draw-scene!`
+  method crashed on the phone, so the test checks the four registration points
+  and then runs every scene for 120 frames of scripted touch. That also covers
+  the crash-on-open path for scenes with no test of their own. It needs
+  `jolt.ffi`, so it runs under jolt only, and on the JVM the runner prints a line
+  saying it skipped it and why.
+
+  The runner changed with it. It now prints which jolt-only namespaces it runs,
+  fails if they ran zero tests, and exits 1 when any test namespace fails to
+  load. It used to print the load error and carry on, so a namespace that broke
+  on require was reported as green.
+
+- **A guard around scene code.** A bug in a scene's `:update` or `draw-scene!`
+  method used to end the process on the phone. Now the gallery catches it, drops
+  back to the list the scene was opened from and prints one line to the console,
+  such as `gallery: :strip failed, back to the list: <message>`. Some exceptions
+  carry no message, a null pointer among them, so the line falls back to the
+  exception's own string rather than ending in nothing.
+
+- **Four more scenes, fifty-two in all.** Delta Time draws one rectangle moved
+  per frame beside one moved per second, so dropping the target fps pulls them
+  apart. Random Values is seeded and replays. Formatted Text shows a zero-padded
+  score and a MM:SS clock, and Triangle Strip draws through `draw-triangle` so
+  winding cannot cull it. Their frame rates are not in the scene catalog yet,
+  because they still need a measurement on the device.
+
+  Random Values takes the high bits of the LCG rather than the low ones. The low
+  bit of this generator alternates on every step, so a coin flip built from it
+  lands heads, tails, heads, tails for ever.
+
+- **A `ROADMAP.md`** for the port backlog and the gallery's growing pains. It
+  sorts the 133 examples not yet ported by what a port would need, and lists the
+  infrastructure work in view, such as splitting the drawing out of
+  `raylib.gallery` and picking the nREPL port at run time.
+
+### Changed
+
+- **The counts and the porting guide**, which still said seventeen and
+  forty-eight scenes in places. The README layout lists the directories that
+  were missing, and the `proxy` comment in `deps.edn` now matches `proxy.sh`,
+  which forwards 7888 to 7888 unless told otherwise.
+
 ## 2026-09-05
 
 ### Added

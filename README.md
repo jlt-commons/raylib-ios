@@ -9,10 +9,12 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of forty-eight scenes (Following Eyes, Touch Trail and
-Flappy Bird), each one a pure `.cljc` simulation taken byte for byte from
+What runs today: a gallery of fifty-two scenes, each one a pure `.cljc`
+simulation under an iOS owner loop of about thirty lines. Three of them,
+Following Eyes, Touch Trail and Flappy Bird, came byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-at `6d2b291`, under an iOS owner loop of about thirty lines. Tap a card to
+at `6d2b291`, and the other forty-nine are ports from
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Tap a card to
 open a scene, tap Back to leave it. The bird flaps on a press edge.
 
 <p>
@@ -147,7 +149,7 @@ from a ChezScheme checkout, so nothing from a jolt tree ends up in a pack.
 ## Quick start
 
 ```sh
-jolt test                            # the six pure namespaces, on the host
+jolt test                            # the pure namespaces, every scene, and the gallery smoke test
 
 SDK=device jolt deps                 # SDL 2.32.10 and raylib 6.0, static, iphoneos
 NS=raylib.link  TARGET=device jolt build-app     # does it link?
@@ -234,6 +236,10 @@ src/raylib/objc.clj      three Objective-C runtime calls, and nothing else
 src/raylib/probe.clj     the measuring apparatus, all of it off by default
 src/raylib/host.clj      the owner loop: SDL_UIKitRunApp, InitWindow, the frame
 src/raylib/{link,touch,flappy,gallery}.clj   scenes for that host
+src/raylib/scenes/*.cljc one pure namespace per ported scene
+src/raylib/scroll.cljc   the card list's scrolling and its tap-versus-drag rule
+src/raylib/easings.cljc  raylib's easing curves, shared by two scenes
+src/raylib/live.clj      the gallery with an nREPL listening, dev builds only
 src/poc/raylib/*.cljc    six pure namespaces, byte-identical to 6d2b291
 test/poc/raylib/*.cljc   their tests, likewise
 tools/ios/deps.sh        SDL2 and raylib, cross-built static

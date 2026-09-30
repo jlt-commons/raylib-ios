@@ -1,5 +1,5 @@
 (ns raylib.gallery
-  "The scene gallery: a two-level menu over seventeen scenes, on the iOS host.
+  "The scene gallery: a two-level menu over every scene, on the iOS host.
 
   This namespace is the half that has to touch raylib, and it exists so that
   nothing else does. It polls the scalar input, hands the result to the pure

@@ -1,8 +1,9 @@
 # Porting an example from raylib-jlt
 
-[jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 125
-examples. 48 of them need no input at all, and those port almost mechanically.
-This is what "almost" means, worked through with the five that are done.
+[jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
+examples. 50 were in the gallery before this batch and 54 are now, and the ones
+that need no input at all port almost mechanically. This is what "almost"
+means, worked through with the first seven.
 
 ![Spirograph running on an iPhone 17 Pro](../images/spirograph.png)
 
@@ -69,7 +70,7 @@ everywhere:
 
 ## What it costs in bindings
 
-Almost nothing, which was the surprise. Across five ports:
+Almost nothing, which was the surprise. Across seven ports:
 
 | example | new bindings needed |
 | --- | --- |
@@ -92,12 +93,12 @@ polygons and raylib's shapes API has no call for that.
 <img src="../images/boids.gif" width="220" alt="Boids">
 <img src="../images/fireworks.gif" width="220" alt="Fireworks">
 
-*Three of the five ports, running on the phone. None of them needed a single
+*Four of the seven ports, running on the phone. None of them needed a single
 new raylib binding.*
 
 ## Then measure it, because the port is the easy half
 
-Two of the five did not hold 60 fps on first run, and neither for the reason
+Two of the first five did not hold 60 fps on first run, and neither for the reason
 anyone would guess. Read
 [performance-on-a-phone.md](performance-on-a-phone.md) before tuning anything:
 the short version is that an indexed `loop` over a vector beats every sequence
@@ -188,3 +189,7 @@ Three edits, all in `raylib.gallery`:
 
 plus a `draw-scene!` method. Then a test namespace beside the others, since the
 scene is pure and there is no excuse not to.
+
+Under jolt, `jolt -M:test` also runs a smoke test that fails if a scene is
+missing from any of the four registration points: the `:require`, the `scenes`
+vector, a category and the `draw-scene!` method.

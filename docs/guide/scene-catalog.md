@@ -1,8 +1,8 @@
 # The scenes
 
-Forty-eight, in four categories. Three come byte-identical from
+Fifty-two, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other forty-five are ports from
+with their sha256 verified, and the other forty-nine are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -71,9 +71,9 @@ that were tuned to get there.
 | Resize | a rectangle and a corner handle | 58 | a sticky grab, because a finger has no hover |
 | Text Alignment | 3 boxes, one word | 58 | MeasureText, the rare call with nothing to work around |
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
-| Delta Time | 2 rectangles and a label | | per-frame against per-second; drop the target fps to see them part |
+| Delta Time | 2 rectangles, 2 labels and an fps line | | per-frame against per-second; drop the target fps to see them part |
 | Random Values | a number and a label | | seeded, so it replays |
-| Formatted Text | 2 lines of text | | zero-padded score and MM:SS, both from `format` |
+| Formatted Text | 2 lines of text | | zero-padded score and MM:SS, padded by a private `zero-pad` built from `str` |
 | Triangle Strip | 32 triangles | | two per band, through `draw-triangle` so winding cannot cull them |
 
 ## Games

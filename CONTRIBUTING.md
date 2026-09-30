@@ -60,6 +60,9 @@ Then add it to `test/raylib/test_runner.clj`, which lists its namespaces
 explicitly. It also fails if a `*_test` file exists that it does not list, so
 forgetting is caught rather than silently skipped.
 
+Under jolt, `jolt -M:test` also runs a smoke test that fails if a scene is
+missing from any of the four registration points.
+
 ## The performance budget
 
 Read [performance on a phone](docs/guide/performance-on-a-phone.md) before

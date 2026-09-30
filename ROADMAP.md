@@ -5,17 +5,17 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 50 of
-them were in the gallery on 2026-09-30, which leaves 137. They sort into three
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 54 of
+them are in the gallery as of 2026-09-30, which leaves 133. They sort into three
 groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
-**Ready to port, no new bindings (34).** Most of these need a touch mapping
+**Ready to port, no new bindings (30).** Most of these need a touch mapping
 rather than anything from raylib.
 
-- No input at all: `core`, `format_text`, `random_values`, `delta_time`,
-  `logo`, `triangle_strip`, `text`, `inline_styling`, `outlines_thickness`.
+- No input at all: `core`, `logo`, `text`, `inline_styling`,
+  `outlines_thickness`.
 - A finger stands in for the mouse: `mouse`, `breakout`, `particles`,
   `rlgl_triangle`, `rectangle_bounds`, `input_virtual_controls`, which already
   draws its own on-screen pad.
@@ -46,10 +46,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 1711 lines and every
+- **Split the drawing out of `raylib.gallery`.** It is 1807 lines and every
   port adds about thirty. The `draw-scene!` methods could move to their own
   namespace before it reaches about 2500.
-- **Rebalance the categories.** Toys holds most of the gallery, so a scroll
+- **Rebalance the categories.** Toys holds 38 of the 52 scenes, so a scroll
   through it is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -60,4 +60,9 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Done
 
-Nothing yet. This file started on 2026-09-30.
+- 2026-09-30: a jolt-only smoke test that loads the gallery, checks its four
+  registration points and runs every scene for 120 frames.
+- 2026-09-30: a guard so a scene that throws returns to its list instead of
+  ending the app.
+- 2026-09-30: four ports, `delta_time`, `random_values`, `format_text` and
+  `triangle_strip`, which make fifty-two scenes.
