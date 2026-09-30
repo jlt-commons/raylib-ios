@@ -75,6 +75,8 @@
                      raylib.scenes.resize-test
                      raylib.scenes.deltatime-test
                      raylib.scenes.randomvalues-test
+                     raylib.scenes.formattext-test
+                     raylib.scenes.strip-test
                      raylib.scroll-test
                      raylib.easings-test
                      raylib.scenes.clock-test

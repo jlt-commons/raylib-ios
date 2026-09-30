@@ -38,6 +38,7 @@
             [raylib.scenes.fan :as fan]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.flowfield :as flow]
+            [raylib.scenes.formattext :as ftext]
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.hilbert :as hil]
             [raylib.scenes.kaleidoscope :as kal]
@@ -59,6 +60,7 @@
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
             [raylib.scenes.stars :as stars]
+            [raylib.scenes.strip :as strip]
             [raylib.scenes.tesseract :as tess]
             [raylib.scenes.tree :as tree]
             [raylib.scenes.unitcircle :as circle]
@@ -80,7 +82,8 @@
              (grad/scene) (ring/scene) (spl/scene)
              (rnd/scene) (vang/scene) (bars/scene)
              (bez/scene) (fan/scene) (clipbox/scene)
-             (rsz/scene) (align/scene) (dtime/scene) (rv/scene)])
+             (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
+             (ftext/scene) (strip/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -110,7 +113,7 @@
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
-             :deltatime :randomvalues]}
+             :deltatime :randomvalues :formattext :strip]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird]}])
@@ -1781,3 +1784,24 @@
     (rl/draw-text text (int (* 0.5 (- w tw))) value-y big-size rl/MAROON)
     (rl/draw-text (str "recent: " (apply str (interpose " " history)))
                   recent-x recent-y label-size (rl/rgba 130 130 130 255))))
+
+(defmethod draw-scene! :formattext [_ {:keys [frame]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [size x score-y time-y]} (ftext/dimensions m)
+        [score time] (ftext/readouts frame)]
+    ;; raylib's DARKBLUE below, which raylib.host does not name.
+    (rl/draw-text score x score-y size rl/MAROON)
+    (rl/draw-text time x time-y size (rl/rgba 0 82 172 255))))
+
+(defmethod draw-scene! :strip [_ _ {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [caption-size caption-x caption-y]
+         :as dims} (strip/dimensions m)]
+    ;; Two triangles a band. draw-triangle fixes its own winding, so the
+    ;; order the corners are written in here does not matter.
+    (doseq [[x0 x1 top bot [r g b a]] (strip/bands dims)
+            :let [c (rl/rgba r g b a)]]
+      (rl/draw-triangle x0 top x0 bot x1 top c)
+      (rl/draw-triangle x1 top x0 bot x1 bot c))
+    (rl/draw-text "a rainbow strip via rlgl immediate mode"
+                  caption-x caption-y caption-size rl/DARKGRAY)))

@@ -73,6 +73,8 @@ that were tuned to get there.
 | Dashed Line | ~24 short lines | 58 | equal dashes, by walking the unit vector |
 | Delta Time | 2 rectangles and a label | | per-frame against per-second; drop the target fps to see them part |
 | Random Values | a number and a label | | seeded, so it replays |
+| Formatted Text | 2 lines of text | | zero-padded score and MM:SS, both from `format` |
+| Triangle Strip | 32 triangles | | two per band, through `draw-triangle` so winding cannot cull them |
 
 ## Games
 
