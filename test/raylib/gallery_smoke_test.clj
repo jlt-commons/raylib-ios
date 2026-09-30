@@ -81,3 +81,20 @@
         (when (map? result)
           (is (= :scene (:mode result)))
           (is (= id (:active-scene-id result))))))))
+
+(deftest a-scene-that-throws-returns-to-the-list
+  (let [s (gallery/open-scene rg/registry gallery/initial-gallery-state :analog
+                              (input :idle nil))
+        result (#'rg/guard-scene s (fn [] (throw (ex-info "boom" {}))))]
+    (is (= :scene (:mode s)))
+    (is (= :gallery (:mode result)))
+    (is (nil? (:active-scene-id result)))
+    (is (nil? (:scene-state result)))))
+
+(deftest a-scene-that-throws-on-open-stays-on-the-list
+  (let [result (#'rg/guard-scene gallery/initial-gallery-state
+                                 (fn [] (throw (ex-info "boom" {}))))]
+    (is (= :gallery (:mode result)))))
+
+(deftest a-scene-that-does-not-throw-is-untouched
+  (is (= :next (#'rg/guard-scene gallery/initial-gallery-state (fn [] :next)))))

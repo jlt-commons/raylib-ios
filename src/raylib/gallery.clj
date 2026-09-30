@@ -706,11 +706,39 @@
         (assoc gstate :close-requested? false))
     gstate))
 
+(defn- abandon-scene
+  "Drop back to the scene list after a scene threw, and say why.
+
+  The scene's :dispose is not called. It is scene code too, and one that has
+  just failed is a poor bet to tidy up after itself without throwing again. The
+  outer frame state keeps :category, so the reader lands on the list they
+  opened the scene from."
+  [gstate e]
+  (println (str "gallery: " (pr-str (:active-scene-id gstate))
+                " failed, back to the list: " (ex-message e)))
+  (assoc gstate :mode :gallery :active-scene-id nil :scene-state nil
+         :scene-events []))
+
+(defn- guard-scene
+  "Call `f`, which runs scene code, and return its result. If it throws, return
+  `gstate` abandoned instead. Before this, one bug in a scene's :update or
+  draw-scene! method ended the process on the phone, so each porting mistake
+  cost a rebuild and a redeploy just to read the message."
+  [gstate f]
+  (try
+    (f)
+    (catch :default e
+      (abandon-scene gstate e))))
+
 (defn- render!
   "Three things can be on screen: a running scene, one category's scenes, or
   the categories. The first two carry a Back target and the last does not,
-  because there is nowhere above it."
-  [{:keys [mode active-scene-id scene-state]} category layout k m top safe scroll]
+  because there is nowhere above it.
+
+  Returns the gallery state, which is the argument unless the scene's draw threw
+  and was abandoned."
+  [{:keys [mode active-scene-id scene-state]
+    :as gstate} category layout k m top safe scroll]
   (let [p (ui/live-presentation)
         accent (color (:accent p))]
     (cond
@@ -737,19 +765,29 @@
         ;; scissor does not nest: BeginScissorMode inside another one simply
         ;; takes over, so a scene clipping to its own box would be free to paint
         ;; over the status bar the host just moved it clear of.
-        (draw-scene! active-scene-id scene-state {:k k
+        ;; A throw is caught here, so the pop and the scissor end below run on
+        ;; both paths. Without them every later frame would stay translated and
+        ;; clipped.
+        (let [result (guard-scene gstate
+                                  (fn []
+                                    (draw-scene! active-scene-id scene-state
+                                                 {:k k
                                                   :m m
                                                   :safe safe})
-        (rl/rl-pop-matrix)
-        (rl/end-scissor-mode)
-        (draw-back! layout accent))
+                                    gstate))]
+          (rl/rl-pop-matrix)
+          (rl/end-scissor-mode)
+          (draw-back! layout accent)
+          result))
 
       category
       (do (draw-gallery! layout p top scroll (title-of category) "Choose a scene")
-          (draw-back! layout accent))
+          (draw-back! layout accent)
+          gstate)
 
       :else
-      (draw-gallery! layout p top scroll (:title p) "Choose a category"))))
+      (do (draw-gallery! layout p top scroll (:title p) "Choose a category")
+          gstate))))
 
 (defn- frame
   "One frame: sample, decide where the press goes, advance the pure gallery,
@@ -815,12 +853,14 @@
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
         input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
-        gstate (-> (if opening?
-                     (gallery/open-scene registry gstate hit scene-input)
-                     (gallery/run-frame registry gstate scene-input))
+        gstate (-> (guard-scene gstate
+                                (fn []
+                                  (if opening?
+                                    (gallery/open-scene registry gstate hit scene-input)
+                                    (gallery/run-frame registry gstate scene-input))))
                    drain-events!
-                   ignore-close)]
-    (render! gstate category' layout k scene-m top safe scroll')
+                   ignore-close)
+        gstate (render! gstate category' layout k scene-m top safe scroll')]
     (assoc s :insets insets
            :category category'
              ;; The offset belongs to the level being shown, so moving between
