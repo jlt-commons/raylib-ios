@@ -75,8 +75,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   a look too.
 - **Synthetic input once produced an extra event.** Twice in the batch-7 pass,
   a `drag!` sent soon after a `tap!` was followed by one more swipe or tap than
-  was queued. Sent slowly, step by step, the same sequence was clean. The likely
-  place is the release frame after a synthetic gesture, which reads the device.
+  was queued. A later session could not reproduce either: drag, tap and drag in
+  Undo Redo logged exactly at gaps from 1 s down to 0.25 s, and the Strings
+  Management sequence came out right. The Strings one may have been a hold
+  aimed at a particle that had already moved. Watch for it rather than fix it.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
