@@ -94,6 +94,7 @@
                      raylib.scenes.easingsbox-test
                      raylib.scenes.easingstestbed-test
                      raylib.scenes.rectbounds-test
+                     raylib.scenes.huewheel-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test

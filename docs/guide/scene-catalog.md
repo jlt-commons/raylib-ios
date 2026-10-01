@@ -84,6 +84,7 @@ that were tuned to get there.
 | Easings Box | 2 triangles and 1 line of text | | a tap restarts, in place of SPACE; frame-locked as in the original, and the box grows to fill the region below Back |
 | Easings Testbed | up to 66 lines, a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
 | Rectangle Bounds | 4 lines, 2 rectangles and 2 to 13 lines of text | | dragging the corner handle resizes the box and a tap on the wrap button toggles word or character wrap, in place of the mouse and SPACE; the layout is cached, so an idle frame measures nothing |
+| rlgl Hue Wheel | a fan of 3 to 128 triangles with a colour on every vertex, or 2 lines a wedge as a wireframe, and 3 lines of text | | a vertical swipe doubles or halves the triangle count in place of the mouse wheel, a horizontal drag sets the centre brightness in place of the arrow keys and a tap toggles the wireframe in place of SPACE; the wheel fits the safe region, so UP and DOWN resizing is dropped; a different example from Colour Wheel |
 
 ## Games
 

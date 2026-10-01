@@ -47,6 +47,7 @@
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.huewheel :as hue]
             [raylib.scenes.invaders :as inv]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
@@ -104,7 +105,7 @@
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
-             (ebox/scene) (etb/scene) (rbounds/scene)])
+             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -136,7 +137,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds]}
+             :rectbounds :huewheel]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2256,3 +2257,27 @@
     (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack rbounds/button-colour))
     (rl/draw-text label (int (rbounds/centred-x bx bw label size measure))
                   (int (+ by (* 0.5 (- bh size)))) size (pack rbounds/label-colour))))
+
+(defmethod draw-scene! :huewheel [_ {:keys [tris brightness lines?]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [d (hue/dimensions m)
+        [hint1 hint2 count-row] (:lines d)
+        pack (fn [[r g b a]] (rl/rgba r g b a))]
+    (if lines?
+      ;; RL_LINES is not bound, so the wireframe is one draw-line-ex a segment.
+      (doseq [[x0 y0 x1 y1 c] (hue/wire-segments d tris)]
+        (rl/draw-line-ex x0 y0 x1 y1 (:thick d) (pack c)))
+      ;; One colour per vertex, so draw-triangle (one colour) does not fit. Each
+      ;; wedge arrives wound to survive culling.
+      (do
+        (rl/rl-begin rl/RL-TRIANGLES)
+        (doseq [t (hue/fan d tris brightness)
+                {[x y] :pos
+                 [r g b a] :color} t]
+          (rl/rl-color-4ub r g b a)
+          (rl/rl-vertex-2f (float x) (float y)))
+        (rl/rl-end)))
+    (doseq [{:keys [s x y size]} [hint1 hint2]]
+      (rl/draw-text s x y size rl/DARKGRAY))
+    (rl/draw-text (hue/count-line tris) (:x count-row) (:y count-row) (:size count-row)
+                  (rl/rgba 190 33 55 255))))
