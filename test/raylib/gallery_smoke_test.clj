@@ -36,6 +36,9 @@
                              :pointer-y (second pos)})
       (assoc :touch-points (if (#{:press :down} phase) [pos] [])
              :local-time [10 9 30]
+             ;; Deliberately not the scenes' own estimate, so a scene that prefers
+             ;; the host's measure over its default runs that path here.
+             :measure (fn [s sz] (* 0.5 sz (count s)))
              :delta-seconds (/ 1.0 60))))
 
 (defn- frame-input

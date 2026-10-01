@@ -676,6 +676,10 @@
    :width  (- w left right)
    :height (- h top bottom)})
 
+(def ^:private host-measure
+  "raylib's own text width, `(fn [s size] -> px)`, for scenes that need it."
+  (fn [s sz] (rl/measure-text s (int sz))))
+
 (defn- into-safe-region
   "The pointer, expressed in the coordinates the scene believes it is drawing in.
 
@@ -923,7 +927,7 @@
         input  (assoc input
                       :delta-seconds (rl/get-frame-time)
                       :back? (= hit :back)
-                      :measure (fn [s sz] (rl/measure-text s (int sz))))
+                      :measure host-measure)
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
         gstate (-> (guard-scene gstate (or (:active-scene-id gstate) hit)
                                 (fn []
@@ -2659,7 +2663,7 @@
 (defmethod draw-scene! :strings [_ {:keys [particles dims shatter? case]} _]
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
         _ (rl/clear-background (pack strings/background-colour))
-        measure (fn [s sz] (rl/measure-text s (int sz)))
+        measure host-measure
         text (fn [{:keys [s x y size]} colour] (rl/draw-text s (int x) (int y) size (pack colour)))
         {:keys [pad size]} (:size-info dims)
         border (pack strings/border-colour)

@@ -105,6 +105,12 @@
     (is (nil? (:grab held)) "the cut lets go of the finger")
     (testing "the rest of the touch does nothing more"
       (is (= ["abc" "def"] (texts done))))
+    (testing "a long press never also shatters, even with shatter armed"
+      (let [armed (tap s (centre (:shatter d)))
+            c (middle armed 0)
+            held (reduce (fn [st _] (step st :down c)) (step armed :press c) (range gesture/long-press-frames))
+            done (step held :release [0 0])]
+        (is (= ["abc" "def"] (texts done)))))
     (testing "a short hold does not cut"
       (let [short (reduce (fn [st _] (step st :down c)) (step s :press c) (range 10))]
         (is (= ["abcdef"] (texts short)))))
@@ -264,6 +270,25 @@
         under (tap armed [100 50])]
     (is (= (:particles armed) (:particles under)))
     (is (true? (:shatter? under)))))
+
+(deftest the-hosts-measure-on-the-input-wins
+  (let [sc (st/scene)
+        in (fn [pointer] {:metrics m
+                          :measure wide-measure
+                          :delta-seconds dt
+                          :pointer pointer})
+        [init-state] ((:init sc) (in {:phase :idle}))
+        [updated] ((:update sc) init-state (in {:phase :idle}))
+        want (:w (first (:particles (fresh m wide-measure))))
+        dflt (:w (first (:particles (first ((:init (st/scene)) {:metrics m})))))]
+    (is (= want (:w (first (:particles init-state)))) "init measures with the input's")
+    (is (not= dflt want))
+    (is (= want (:w (first (:particles updated)))) "and update agrees")
+    (is (= (:size-info init-state) (:size-info (fresh m wide-measure))))
+    (testing "a rotation re-measures with the input's too"
+      (let [[turned] ((:update sc) updated (assoc (in {:phase :idle}) :metrics {:screen [800 450]}))]
+        (is (= (:w (first (:particles (fresh {:screen [800 450]} wide-measure))))
+               (:w (first (:particles turned)))))))))
 
 (deftest a-different-measure-changes-layout
   (let [narrow (fresh m measure)
