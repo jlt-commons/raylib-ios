@@ -83,6 +83,7 @@ that were tuned to get there.
 | Starfield | up to 350 circles or streaks and 3 lines of text | | a vertical drag sets the speed in place of the mouse wheel and a tap toggles streaks in place of SPACE; motion is delta-time based as in the original, and a rotation needs no reset |
 | Easings Box | 2 triangles and 1 line of text | | a tap restarts, in place of SPACE; frame-locked as in the original, and the box grows to fill the region below Back |
 | Easings Testbed | up to 66 lines, a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
+| Rectangle Bounds | 4 lines, 2 rectangles and 2 to 13 lines of text | | dragging the corner handle resizes the box and a tap on the wrap button toggles word or character wrap, in place of the mouse and SPACE; the layout is cached, so an idle frame measures nothing |
 
 ## Games
 
