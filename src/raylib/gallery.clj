@@ -56,6 +56,7 @@
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.piechart :as pie]
+            [raylib.scenes.pong :as pong]
             [raylib.scenes.randomvalues :as rv]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
@@ -93,7 +94,7 @@
              (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
-             (g2048/scene) (msw/scene)])
+             (g2048/scene) (msw/scene) (pong/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -127,7 +128,7 @@
              :particles :bounce]}
    {:id :games
     :title "Games"
-    :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper]}])
+    :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong]}])
 
 (def ^:private category-ids (mapv :id categories))
 
@@ -2003,3 +2004,29 @@
                         :else (msw/mines-line (msw/flags-left state)))
                   status-x status-y status-size
                   (pack (if won? msw/win-colour msw/lose-colour)))))
+
+(defmethod draw-scene! :pong [_ {:keys [ly ry ls rs over? winner]
+                                 :as state} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack pong/background-colour))
+        dims (pong/dimensions m)
+        {:keys [score-size hint-size msg-size msg-y]} dims
+        rect (fn [[x y w h] colour]
+               (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack colour)))]
+    (doseq [r (pong/centre-dashes dims)]
+      (rect r pong/dash-colour))
+    (rect (pong/paddle-rect dims :player ly) pong/paddle-colour)
+    (rect (pong/paddle-rect dims :cpu ry) pong/paddle-colour)
+    (rect (pong/ball-rect dims state) pong/ball-colour)
+    (rl/draw-text (str ls) (:you-score-x dims) (:you-score-y dims) score-size
+                  (pack pong/text-colour))
+    (rl/draw-text (str rs) (:cpu-score-x dims) (:cpu-score-y dims) score-size
+                  (pack pong/text-colour))
+    (rl/draw-text pong/you-line (:you-hint-x dims) (:you-hint-y dims) hint-size
+                  (pack pong/hint-colour))
+    (rl/draw-text pong/cpu-line (:cpu-hint-x dims) (:cpu-hint-y dims) hint-size
+                  (pack pong/hint-colour))
+    (when over?
+      (let [line (if (= winner :player) pong/player-wins-line pong/cpu-wins-line)]
+        (rl/draw-text line (pong/msg-x dims line) msg-y msg-size
+                      (pack pong/win-colour))))))

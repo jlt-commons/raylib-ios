@@ -85,6 +85,7 @@
                      raylib.scenes.snake-test
                      raylib.scenes.game2048-test
                      raylib.scenes.minesweeper-test
+                     raylib.scenes.pong-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
