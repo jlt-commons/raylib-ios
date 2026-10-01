@@ -66,14 +66,19 @@
                :when (= ch (tile-at x y))]
            [x y])))
 
-(def pac-start (or (find-tile \P) [9 15]))
-(def door (or (find-tile \-) [9 8]))
+(def pac-start
+  "The tile Pac-Man starts on, the `P` in the map."
+  (or (find-tile \P) [9 15]))
+(def door
+  "The tile of the ghost house's door, the `-` in the map."
+  (or (find-tile \-) [9 8]))
 
 (def door-exit
   "The tile just outside the door, where a ghost heads on its way out."
   [(first door) (dec (second door))])
 
 (def house-tiles
+  "Every tile inside the ghost house, the `G`s in the map."
   (vec (for [y (range height)
              x (range width)
              :when (= \G (tile-at x y))]

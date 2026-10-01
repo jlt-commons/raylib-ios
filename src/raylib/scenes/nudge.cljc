@@ -127,19 +127,26 @@
 (defn advance
   "One frame. The ball moves by the stick, `:ball-speed` pixels along its
   direction, and is then held inside the play field, which also pulls it back in
-  after a rotation. The release position is never read."
+  after a rotation. A rotation also drops the stick, whose centre is in the old
+  screen's pixels, so a finger held through it moves nothing until it lands
+  again. The release position is never read."
   [state input]
   (let [dims (dimensions (:metrics input))
+        screen (:screen (:metrics input))
+        turned? (not= screen (:screen state))
+        state (if turned? (dissoc state :stick) state)
         [dx dy] (or (stick-dir state input (:metrics input)) [0.0 0.0])
         [x y] (:pos state)
         speed (:ball-speed dims)]
     (assoc state
            :pos (clamp-ball dims [(+ x (* dx speed)) (+ y (* dy speed))])
+           :screen screen
            :stick (next-stick state input))))
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [fx ftop fw fh]} (dimensions metrics)]
     [{:pos [(+ fx (* 0.5 fw)) (+ ftop (* 0.5 fh))]
+      :screen (:screen metrics)
       :stick nil}
      [[:scene/init :nudge]]]))
 (defn- update-scene [state input] [(advance state input) []])

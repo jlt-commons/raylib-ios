@@ -27,7 +27,7 @@
       (is (near? (- (:y start) 200) (:y (adv pressed :down [600.0 1000.0])))))
     (testing "down by 200 px moves it down by 200"
       (is (near? (+ (:y start) 200) (:y (adv pressed :down [600.0 1400.0])))))
-    (testing "the box follows the finger, not the sum of its steps"
+    (testing "dragging out and back to the start puts the box back where it began"
       (is (near? (:y start)
                  (:y (-> pressed (adv :down [600.0 1000.0]) (adv :down [600.0 1200.0]))))))
     (testing "sideways travel does nothing"

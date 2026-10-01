@@ -10,8 +10,8 @@
   the original's 200/450 of the way down the field below `gesture/back-region`.
   Its size is the original's 20 scaled by the smaller of the two axes' scales,
   never under 20, then cut back when the line would cover more than nine tenths
-  of the width, so it fits a phone held upright. The draw method passes raylib's own text width;
-  the tests pass an estimate."
+  of the width, so it fits a phone held upright. The draw method passes raylib's own text
+  width; the tests pass an estimate."
   (:require [raylib.gesture :as gesture]))
 
 (def background-colour [245 245 245 255])

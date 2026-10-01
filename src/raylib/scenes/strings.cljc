@@ -540,9 +540,8 @@
                                             (:particles state))))))))
 
 (defn default-measure
-  "The stand-in `measure` for a host that supplies none, such as the headless
-  smoke test, where raylib's `MeasureText` is not linked: 0.6 of the size per
-  character."
+  "The stand-in `measure` for a host that supplies none, which the tests do not
+  use because they pass their own: 0.6 of the size per character."
   [s size]
   (* 0.6 size (count s)))
 

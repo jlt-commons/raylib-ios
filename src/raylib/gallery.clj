@@ -2479,7 +2479,7 @@
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
         _ (rl/clear-background (pack surv/background-colour))
         dims (surv/dimensions m)
-        measure (fn [s sz] (rl/measure-text s (int sz)))
+        measure host-measure
         {:keys [enemy-r bullet-r hero-r gem-side hp-bar xp-bar lv hint]
          kills-row :kills
          time-row :time} dims
@@ -2521,7 +2521,7 @@
         _ (rl/clear-background (pack pacman/background-colour))
         dims (pacman/dimensions m)
         {:keys [cell ox oy]} dims
-        measure (fn [s sz] (rl/measure-text s (int sz)))
+        measure host-measure
         k (/ cell 30.0)
         px (fn [gx] (+ ox (* gx cell)))
         py (fn [gy] (+ oy (* gy cell)))
@@ -2586,7 +2586,7 @@
 (defmethod draw-scene! :hello [_ _ {:keys [m]}]
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
         _ (rl/clear-background (pack hello/background-colour))
-        {:keys [s x y size]} (:text (hello/dimensions m (fn [s sz] (rl/measure-text s (int sz)))))]
+        {:keys [s x y size]} (:text (hello/dimensions m host-measure))]
     (rl/draw-text s (int x) (int y) size (pack hello/text-colour))))
 
 (defmethod draw-scene! :nudge [_ {:keys [pos stick]} {:keys [m]}]
@@ -2617,7 +2617,7 @@
 (defmethod draw-scene! :undoredo [_ {:keys [player history cursor]} {:keys [m]}]
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
         _ (rl/clear-background (pack undoredo/background-colour))
-        dims (undoredo/dimensions m (fn [s sz] (rl/measure-text s (int sz))))
+        dims (undoredo/dimensions m host-measure)
         text (fn [{:keys [s x y size]} colour] (rl/draw-text s (int x) (int y) size (pack colour)))
         {:keys [cell grid-x grid-y]} dims
         hair (max 1.0 (* 0.04 cell))

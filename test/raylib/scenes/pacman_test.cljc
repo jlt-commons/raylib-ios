@@ -79,7 +79,8 @@
         (is (= 5 (mz/tile-of (get-in turned [:pac :x]))))))))
 
 (deftest a-swipe-is-the-only-input-that-steers
-  (is (= [-1 0] [(get-in (tap start [600 1500]) [:pac :ndx]) (get-in (tap start [600 1500]) [:pac :ndy])]))
+  (let [tapped (tap start [600 1500])]
+    (is (= [-1 0] [(get-in tapped [:pac :ndx]) (get-in tapped [:pac :ndy])])))
   (testing "a swipe on a stopped Pac-Man at a wall sets him off at the next frame"
     (let [wall (-> start (assoc-in [:pac :x] 1.5) (assoc-in [:pac :y] 1.5)
                    (assoc-in [:pac :dx] 0) (assoc-in [:pac :dy] 0)
@@ -113,6 +114,25 @@
         (is (= 2 (:lives next-level)))
         (is (= (count (:dots start)) (count (:dots next-level))))
         (is (not (:cleared? next-level)))))))
+
+(deftest the-board-freezes-while-level-cleared-shows
+  (let [cleared (pm/tick (-> (put-pac start 1 1) (assoc :dots #{[1 1]} :lives 2)) 0.05)
+        pac (:pac cleared)
+        hunted (assoc cleared :ghosts
+                      (mapv #(assoc % :x (:x pac) :y (:y pac) :frightened 0.0) (:ghosts cleared)))
+        later (run hunted 0.05 20)]
+    (is (:cleared? hunted))
+    (testing "a ghost on Pac-Man costs no life and ends nothing"
+      (is (= 2 (:lives later)))
+      (is (not (:over? later))))
+    (testing "Pac-Man and the ghosts stay where they were"
+      (is (= (:pac hunted) (:pac later)))
+      (is (= (:ghosts hunted) (:ghosts later))))
+    (testing "the clock still runs and the next level starts after two seconds"
+      (is (> (:clock later) (:clock hunted)))
+      (let [next-level (run-until hunted 0.05 100 #(= 2 (:level %)))]
+        (is (= 2 (:level next-level)))
+        (is (= 2 (:lives next-level)))))))
 
 (deftest a-power-pellet-frightens-the-ghosts
   (let [s (pm/eat (-> (put-pac start 1 2) (assoc :combo 3)))]

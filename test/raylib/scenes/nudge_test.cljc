@@ -74,6 +74,17 @@
                                                 :position [900.0 1400.0]}} m))
         "no centre, no direction")))
 
+(deftest a-rotation-drops-the-stick
+  (let [held (-> start (adv :press below-back) (adv :down [(+ (first below-back) 300) (second below-back)]))
+        land {:screen [2334 1206]}
+        turned (adv held land :down [900.0 700.0])]
+    (is (some? (:stick held)))
+    (testing "a finger held through a rotation has no centre in the new screen"
+      (is (nil? (:stick turned)))
+      (is (= (:pos (adv held land :idle nil)) (:pos turned)) "it only clamps the ball in"))
+    (testing "and it does not move the ball while it stays down"
+      (is (= (:pos turned) (:pos (adv turned land :down [1000.0 700.0])))))))
+
 (deftest a-tap-does-not-move-it
   (is (= start-at (:pos (tap start below-back))))
   (testing "a slight drag inside the slop does not either"

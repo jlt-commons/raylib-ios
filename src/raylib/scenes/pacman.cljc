@@ -30,7 +30,8 @@
   region below Back and a HUD row, so a rotation re-lays it out and keeps the
   game. The one fix to the original is the level clear. It re-arms the two
   second `LEVEL CLEARED` timer on every frame while the dots are gone, so the
-  next level never begins. Here it is set once.
+  next level never begins. Here it is set once, and the board freezes while
+  `LEVEL CLEARED` shows, so no ghost can take a life from a cleared board.
 
   The original draws Pac-Man with `sector!`, which isn't bound here. His mouth
   is a fan of triangles (`pac-fan`) the draw method gives to `rl/draw-triangle`.
@@ -324,7 +325,8 @@
 (defn tick
   "One step of the world, `dt` seconds long. The `LEVEL CLEARED` message shows
   for its two seconds, set once when the dots run out, and then the next level
-  begins."
+  begins. The board is frozen meanwhile, so a ghost cannot cost a life during
+  it."
   [s dt]
   (let [s (update s :clock + dt)]
     (cond
@@ -332,6 +334,10 @@
 
       (and (:cleared? s) (zero? (:message-timer s)))
       (new-game (:seed s) (:gesture s) s)
+
+      (:cleared? s)
+      (let [s (update s :message-timer #(max 0.0 (- % dt)))]
+        (if (zero? (:message-timer s)) (assoc s :message nil) s))
 
       :else
       (let [s (update s :message-timer #(max 0.0 (- % dt)))
