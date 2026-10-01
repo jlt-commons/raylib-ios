@@ -31,8 +31,8 @@ Notable changes, newest first. Dates are the day the work landed.
   ellipse follows your finger and both turn red when they overlap, and a tap
   that starts inside the other ellipse hands the steering to it. Screen Manager
   steps through LOGO, TITLE, GAMEPLAY and ENDING on a tap or on the original's
-  90-frame timer. No device run exists for these seven yet, so their frame rates
-  are blank in the catalog.
+  90-frame timer. Their frame rates were measured later the same day, under
+  Changed.
 - **Where the seven differ from their originals.** Below zero, Outline Thickness
   behaves per shape as the original does. The plain rectangle draws nothing, the
   rounded one is a one pixel hairline and only the ring grows outward. Ellipse
@@ -49,8 +49,8 @@ Notable changes, newest first. Dates are the day the work landed.
   Rectangle Bounds wraps text in a box you resize by its corner handle, with a
   button that switches between word and character wrap. Hue Wheel doubles or
   halves its triangles on a swipe up or down, sets the centre brightness on a
-  horizontal drag and toggles the wireframe on a tap. No device run exists for
-  these six yet, so their frame rates are blank in the catalog.
+  horizontal drag and toggles the wireframe on a tap. Their frame rates were
+  measured later the same day, under Changed.
 - **Where the six differ from their originals.** Easings Testbed narrows its plot
   so elastic curves stay on screen. Easings Box grows to fill the area below
   Back. Hue Wheel doubles or halves per swipe where the original stepped one at a
@@ -64,8 +64,8 @@ Notable changes, newest first. Dates are the day the work landed.
   Asteroids has four on-screen buttons for rotating, thrust and fire that work
   together, so two thumbs can steer and shoot. It fires once per press of Fire, as
   the original does, so a held Fire button doesn't repeat. A tap on the field
-  restarts each game after it ends. There is no device run for these four yet,
-  so their frame rates are blank in the catalog.
+  restarts each game after it ends. Their frame rates were measured later the
+  same day, under Changed.
 
 ### Changed
 
@@ -77,7 +77,7 @@ Notable changes, newest first. Dates are the day the work landed.
   A press still fires at once, and a held button now fires again every 10
   frames, six shots a second.
 - **Strings Management glues only on a slow drop.** The original glues while
-  CTRL is held; the port first glued any drag released over another particle,
+  CTRL is held. The port first glued any drag released over another particle,
   so after a shatter an ordinary throw stuck by accident. Now the drop must be
   slower than 200 px a second, scaled to the screen, and a throw flies on.
 - **Starfield Effect is the new title of batch 5's Starfield.** The old title
@@ -86,8 +86,8 @@ Notable changes, newest first. Dates are the day the work landed.
 ### Fixed
 
 - **Four things the phone showed.** Strings Management fitted its text to the
-  plain sentence, so the upper-case one ran off the left edge; it now fits the
-  widest of the six. Pac-Man's ghosts had a third foot outside the body, as in
+  plain sentence, so the upper-case one ran off the left edge, and now it fits
+  the widest of the six. Pac-Man's ghosts had a third foot outside the body, as in
   the original, which read as a loose dot at phone scale. Keyboard Ball's ball
   could cover its own caption, so the field now starts below it. Basic Window's
   line was about 10 pt and pale grey, so it now spans most of the width in dark
@@ -113,8 +113,7 @@ Notable changes, newest first. Dates are the day the work landed.
   Minesweeper keeps the original's rules, so a tap on a flagged cell opens it and
   the first tap can hit a mine. 2048 adds a win at 2048 that the original lacks,
   and says so in its docstring and its catalog row. Each board starts below Back.
-  There is no device run for these four yet, so their frame rates are blank in
-  the catalog.
+  Their frame rates were measured on 2026-10-01.
 
 - **Four touch-driven scenes, fifty-six in all.** Touch Ball is raylib-jlt's
   `mouse`: a circle that follows a finger, green while it is down and staying put

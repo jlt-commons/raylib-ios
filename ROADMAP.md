@@ -63,11 +63,11 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 - **Lift the relative thumb-stick into `raylib.gesture`.** `stick-dir`,
   `next-stick` and `knob` are the same text in `survivors` and `nudge`. One home
   means a fix to the stick lands once.
-- **Give the batch 4 games the idle `:press` exception.** Tetris, Asteroids,
-  Snake and Space Invaders still restart on a lift after a touch held through the
-  end. The newer games store `gesture/idle` on the frame the game ends unless
-  that frame is a press, so a held touch can't restart one but a fresh press
-  still does.
+- **Give the older games the idle `:press` exception.** Tetris, Asteroids,
+  Snake, Space Invaders and Pong store `gesture/idle` on the frame the game ends
+  even when that frame is a fresh press, so a tap landing on that one frame is
+  lost. A held touch can't restart them, which is right. Pac-Man and Vampire
+  Survivors keep a press that lands on the ending frame.
 - **Try batch 7 with a real finger.** The device pass drove it with synthetic
   touches, which never reach iOS, so whether swipes and thumb-sticks near the
   bottom edge fight the home gesture is still open. The small hint lines in

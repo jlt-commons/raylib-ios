@@ -29,7 +29,7 @@ check out the submodules too, because `git worktree add` leaves zuo, nanopass,
 stex, lz4 and zlib empty:
 
 ```sh
-git -C ~/dev/ChezScheme worktree add --detach /tmp/raylib-ios/chez v10.4.1
+git -C /path/to/ChezScheme worktree add --detach /tmp/raylib-ios/chez v10.4.1
 git -C /tmp/raylib-ios/chez submodule update --init --recursive
 ```
 

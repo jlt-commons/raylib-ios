@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples. 54 were in the gallery before the latest batch and 58 are now. Those count
+examples, and 86 of them are in the gallery. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
