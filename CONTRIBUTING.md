@@ -47,8 +47,12 @@ test needs, so nothing tunnels. `breakout` caps at a quarter of a brick and
 `invaders` at half an alien.
 
 **Text layout.** A pure scene can't call `MeasureText`, so a scene that wraps or
-centres text takes a `measure` function `(fn [s size] -> px)` that its draw
-method supplies, as `rectbounds` does. If the draw method caches the layout, the
+centres text takes a `measure` function `(fn [s size] -> px)`. Every scene's
+input carries one as `:measure`, which is raylib's own text width. A scene that
+keeps text widths in its state, as `strings` does, reads it in `init` and
+`update`, with a fallback so tests can run without the FFI. A scene that lays
+text out only in `dimensions` still gets `measure` from its draw method, as
+`rectbounds` does. If the draw method caches the layout, the
 cache key has to hold every input to the computation, which here means the text,
 the box size, the font size and the wrap mode.
 

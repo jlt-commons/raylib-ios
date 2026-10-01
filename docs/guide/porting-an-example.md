@@ -90,8 +90,12 @@ nothing new at all; only `analog_clock` does, wanting `DrawLineEx`, `DrawRing`
 and a local-time call. Penrose needed rlgl immediate mode only because it fills
 polygons and raylib's shapes API has no call for that.
 
-A pure scene can't call `MeasureText`, so `rectbounds` takes a `measure` function
-from its draw method and wraps text with that.
+A pure scene can't call `MeasureText`, so it takes a `measure` function. Every
+scene's input carries one as `:measure`, which is raylib's own text width. A
+scene that keeps text widths in its state, as `strings` does, reads it in `init`
+and `update`, with a fallback so tests can run without the FFI. A scene that
+lays text out only in `dimensions`, as `rectbounds` does, still gets `measure`
+from its draw method.
 
 <img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
 <img src="../images/spirograph.gif" width="220" alt="Spirograph">

@@ -6,6 +6,18 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Seven scenes, eighty-four in all.** Games now holds eleven and Toys sixty.
+  Vampire Survivors steers the hero with a relative thumb-stick, and Pac-Man
+  steers with swipes. Basic Window is a flat colour with one line of text and
+  reads nothing. Keyboard Ball moves a ball with a thumb-stick in place of the
+  arrow keys, Mouse Wheel moves a box with a vertical drag in place of the wheel,
+  and Undo Redo and Strings Management map their keys to taps and swipes, with
+  the typing dropped from Strings Management. No device run exists for these
+  seven yet, so their frame rates are blank in the catalog.
+- **Every scene's input carries `:measure`.** It is raylib's own text width, as
+  `(fn [s size] -> px)`. Strings Management keeps text widths in its state, so it
+  reads the key in `init` and `update`, and falls back to an estimate so tests
+  run without the FFI.
 - **Seven scenes, seventy-seven in all.** Toys now holds fifty-five. Still Logo
   draws the raylib logo finished, with nothing to touch. Font Sizes shows lines
   at five sizes and reads nothing. Inline Styling colours runs of text with tags
@@ -61,6 +73,10 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **Pac-Man reaches level 2.** The original's LEVEL CLEARED timer never ran out,
+  so the original never got past level 1. The port lets it run out, and it
+  freezes the board while LEVEL CLEARED shows, so no ghost can take a life from
+  a cleared board.
 - **A touch held through a game's end no longer restarts it.** Pong, Space
   Invaders, Tetris, Asteroids and Snake all treated the finger still on the glass
   as the tap that restarts, so the game began again the moment it ended.

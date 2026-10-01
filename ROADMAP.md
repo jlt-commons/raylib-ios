@@ -5,22 +5,16 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 79 of
-them are in the gallery as of 2026-10-01, which leaves 108. That counts
-examples and not scenes: the gallery has 74 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 86 of
+them are in the gallery as of 2026-10-01, which leaves 101. That counts
+examples and not scenes: the gallery has 81 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 74 + 2 + 3 = 79. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 81 + 2 + 3 = 86. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
-**Ready to port, no new bindings (7).** Most of these need a touch mapping
-rather than anything from raylib.
-
-- No input at all: `core`.
-- A tap or a swipe stands in for a key: `wheel`, `input`, `undo_redo`, `strings_management` (the typing has to go).
-- Games that need a touch control scheme designed first: `vampire_survivors` and
-  `pacman`.
+**Ready to port, no new bindings (0).** The list is empty after batch 7.
 
 **A few new scalar bindings (6).**
 
@@ -41,10 +35,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 2456 lines and grows
+- **Split the drawing out of `raylib.gallery`.** It is 2686 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace.
-- **Rebalance the categories.** Toys holds 55 of the 77 scenes, and Games has 9, so a scroll
+- **Rebalance the categories.** Toys holds 60 of the 84 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -66,6 +60,20 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   is worth doing as its own task, with one catch: those `in-rect?` copies are
   closed on the right and bottom edge, while `gesture/in-rect?` is half-open, so
   a touch exactly on that edge changes sides by one pixel.
+- **Lift the relative thumb-stick into `raylib.gesture`.** `stick-dir`,
+  `next-stick` and `knob` are the same text in `survivors` and `nudge`. One home
+  means a fix to the stick lands once.
+- **Give the batch 4 games the idle `:press` exception.** Tetris, Asteroids,
+  Snake and Space Invaders still restart on a lift after a touch held through the
+  end. The newer games store `gesture/idle` on the frame the game ends unless
+  that frame is a press, so a held touch can't restart one but a fresh press
+  still does.
+- **Check batch 7 on the device.** The seven scenes have no device run, so their
+  fps cells are blank. Pac-Man draws about 658 shapes a frame and allocates every
+  frame, so its frame cost is the one to read first. The text in Basic Window,
+  Vampire Survivors, Keyboard Ball and Mouse Wheel sits at about 8 to 10 pt and
+  may not be legible. Swipes and thumb-sticks near the bottom edge may fight the
+  iOS home gesture.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
@@ -74,6 +82,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   registration points and runs every scene for 120 frames.
 - 2026-09-30: a guard so a scene that throws returns to its list instead of
   ending the app.
+- 2026-10-01: seven scenes, `vampire_survivors`, `pacman`, `core`, `input`,
+  `wheel`, `undo_redo` and `strings_management`, which make eighty-four scenes,
+  give Toys sixty and Games eleven, and empty the ready list. Every scene's input
+  now carries `:measure`.
 - 2026-10-01: seven scenes, `logo`, `text`, `inline_styling`,
   `outlines_thickness`, `shapes`, `ellipse_collision` and
   `basic_screen_manager`, which make seventy-seven scenes and give Toys

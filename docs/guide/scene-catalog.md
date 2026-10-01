@@ -1,8 +1,8 @@
 # The scenes
 
-Seventy-seven, in four categories. Three come byte-identical from
+Eighty-four, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other seventy-four are ports from
+with their sha256 verified, and the other eighty-one are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
