@@ -59,6 +59,7 @@
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.minesweeper :as msw]
             [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.outlines :as outl]
             [raylib.scenes.palette :as pal]
             [raylib.scenes.particles :as parts]
             [raylib.scenes.pendulum :as pend]
@@ -73,6 +74,7 @@
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
+            [raylib.scenes.shapes :as shp]
             [raylib.scenes.snake :as snk]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
@@ -109,7 +111,7 @@
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
-             (istyle/scene)])
+             (istyle/scene) (outl/scene) (shp/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -141,7 +143,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes :inlinestyle]}
+             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2340,3 +2342,77 @@
     (rl/draw-line-ex x2 by x2 y2 thick edge)
     (rl/draw-line-ex x2 y2 bx y2 thick edge)
     (rl/draw-line-ex bx y2 bx by thick edge)))
+
+(defmethod draw-scene! :outlines [_ {:keys [thick manual?]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack outl/background-colour))
+        {:keys [k rows labels rect rounded ring]} (outl/dimensions m)
+        t (* thick k)
+        fill (pack outl/fill-colour)
+        edge (pack outl/outline-colour)
+        [rx ry rw rh] rect
+        [ox oy ow oh] rounded
+        [cx cy r] ring
+        text [[(outl/hint-line manual?) outl/hint-colour]
+              [(outl/thickness-line thick) outl/thickness-colour]
+              [(first outl/notes) outl/hint-colour]
+              [(second outl/notes) outl/hint-colour]]]
+    (doseq [[{:keys [x y size]} [s colour]] (map vector rows text)]
+      (rl/draw-text s (int x) (int y) size (pack colour)))
+    (doseq [{:keys [s x y size]} labels]
+      (rl/draw-text s (int x) (int y) size (pack outl/label-colour)))
+    ;; The plain rectangle.
+    (rl/draw-rectangle (int rx) (int ry) (int rw) (int rh) fill)
+    (doseq [[x1 y1 x2 y2 th] (outl/rect-lines rect t)]
+      (rl/draw-line-ex x1 y1 x2 y2 th edge))
+    ;; The rounded one: filled with the rounded scene's own parts, then outlined.
+    ;; The fill is grown a pixel and its corners a degree, as in :rounded, so no
+    ;; seam of background shows through it.
+    (let [rr (outl/rounded-radius rounded)
+          {:keys [rects corners]} (rnd/parts {:x ox
+                                              :y oy
+                                              :rect-w ow
+                                              :rect-h oh}
+                                             rr)
+          {:keys [lines rings]} (outl/rounded-outline rounded t)]
+      (doseq [[x y w h] rects]
+        (rl/draw-rectangle (int (Math/floor x)) (int (Math/floor y))
+                           (int (Math/ceil (inc w))) (int (Math/ceil (inc h))) fill))
+      (doseq [[ccx ccy start end] corners]
+        (rl/draw-ring ccx ccy 0.0 (inc rr) (- start 1.0) (+ end 1.0) outl/corner-segments fill))
+      (doseq [[x1 y1 x2 y2 th] lines]
+        (rl/draw-line-ex x1 y1 x2 y2 th edge))
+      ;; Half a degree past each quarter, which stays inside the straight band
+      ;; beside it, so the arc and the line never leave a seam.
+      (doseq [[ccx ccy inner outer start end] rings]
+        (rl/draw-ring ccx ccy inner outer (- start 0.5) (+ end 0.5) outl/corner-segments edge)))
+    ;; The ring is the only one that grows outward below zero.
+    (rl/draw-circle (int cx) (int cy) (float r) fill)
+    (when-let [[inner outer] (outl/circle-ring cx cy r t)]
+      (rl/draw-ring cx cy inner outer 0 360 outl/ring-segments edge))))
+
+(defmethod draw-scene! :shapes [_ _ {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack shp/background-colour))
+        {:keys [title thick rect rect-outline circle circle-ring ellipse line triangle]}
+        (shp/dimensions m)
+        [rx ry rw rh] rect
+        [ccx ccy cr] circle
+        [rcx rcy rr] circle-ring
+        [ecx ecy erx ery en] ellipse
+        [lx1 ly1 lx2 ly2] line
+        [tx1 ty1 tx2 ty2 tx3 ty3] triangle]
+    (rl/draw-text (:s title) (int (:x title)) (int (:y title)) (:size title) (pack shp/title-colour))
+    (rl/draw-rectangle (int rx) (int ry) (int rw) (int rh) (pack shp/rect-colour))
+    (doseq [[x1 y1 x2 y2 th] (outl/rect-lines rect-outline thick)]
+      (rl/draw-line-ex x1 y1 x2 y2 th (pack shp/rect-outline-colour)))
+    (rl/draw-circle (int ccx) (int ccy) (float cr) (pack shp/circle-colour))
+    ;; A ring rather than the bound one pixel draw-circle-lines, for legibility.
+    (when-let [[inner outer] (outl/circle-ring rcx rcy rr thick)]
+      (rl/draw-ring rcx rcy inner outer 0 360 shp/ring-segments (pack shp/ring-colour)))
+    ;; Each wedge goes through draw-triangle, which fixes its own winding.
+    (let [c (pack shp/ellipse-colour)]
+      (doseq [[x1 y1 x2 y2 x3 y3] (shp/ellipse-fan ecx ecy erx ery en)]
+        (rl/draw-triangle x1 y1 x2 y2 x3 y3 c)))
+    (rl/draw-line-ex lx1 ly1 lx2 ly2 thick (pack shp/line-colour))
+    (rl/draw-triangle tx1 ty1 tx2 ty2 tx3 ty3 (pack shp/triangle-colour))))

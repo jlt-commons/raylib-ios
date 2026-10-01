@@ -98,6 +98,8 @@
                      raylib.scenes.logo-test
                      raylib.scenes.fontsizes-test
                      raylib.scenes.inlinestyle-test
+                     raylib.scenes.outlines-test
+                     raylib.scenes.shapes-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
