@@ -13,10 +13,10 @@
   bullets that live 55 frames, asteroids of three sizes that split in two until
   the smallest is gone, waves of 4 plus one per 500 points, three lives and 90
   frames of blinking invulnerability after a crash. Its fire rule is a SPACE
-  PRESS, an edge with no cooldown: holding the key fires once. A held fire
-  button does the same here, one bullet per touch-down, and a player mashes it
-  with a thumb as they would the key. Bullets expire by their life, so the count
-  stays bounded however fast the button is pressed.
+  PRESS, an edge with no cooldown: holding the key fires once. Here a press
+  fires at once too, but a held fire button keeps firing every `fire-every`
+  frames, so a thumb can rest on it instead of mashing. Bullets expire by their
+  life, so the count stays bounded whether the button is held or mashed.
 
   The 800x450 game is scaled into the play field, the area below
   `gesture/back-region` and above the buttons, and it wraps there. Thrust makes
@@ -45,6 +45,9 @@
 (def friction "Velocity kept each frame. The original's." 0.99)
 (def bullet-speed "A bullet's speed relative to the ship at scale 1. The original's." 7.0)
 (def bullet-life "Frames a bullet lives. The original's." 55)
+(def fire-every
+  "Frames between shots while fire is held. The original has no repeat, since it
+  fires on a SPACE press; a held button repeats here, 6 shots a second." 10)
 (def ship-radius "The ship's size at scale 1. The original's." 14.0)
 (def start-lives "Lives in a new game. The original's." 3)
 (def invuln-start "Frames of invulnerability in a new game. The original's." 60)
@@ -237,6 +240,7 @@
      :invuln invuln-start
      :seed seed'
      :held held
+     :fire-cd 0
      :gesture g}))
 
 (defn- close?
@@ -273,7 +277,7 @@
   "One frame of the original's rules. `held` is the set of button ids down."
   [{:keys [u ship-r bullet-speed fx ftop fw fh]
     :as dims}
-   {:keys [ship bullets asteroids score lives invuln seed held]
+   {:keys [ship bullets asteroids score lives invuln seed held fire-cd]
     :as st}
    now]
   (let [angle (cond-> (:angle ship)
@@ -289,8 +293,10 @@
                :angle angle
                :vx vx
                :vy vy}
-        ;; The original fires on a SPACE press, not while it is down.
-        fire? (and (now :fire) (not (contains? held :fire)))
+        ;; A press fires at once, as the original's SPACE press does, and a
+        ;; button still held fires again each time the gap runs out.
+        cd (max 0 (dec (or fire-cd 0)))
+        fire? (and (now :fire) (or (not (contains? held :fire)) (zero? cd)))
         fired (if fire?
                 [{:x x
                   :y y
@@ -330,6 +336,7 @@
            :lives lives'
            :over? (boolean (and crash? (<= lives' 0)))
            :invuln (if crash? invuln-crash invuln')
+           :fire-cd (if fire? fire-every cd)
            :seed seed'')))
 
 (defn held-buttons

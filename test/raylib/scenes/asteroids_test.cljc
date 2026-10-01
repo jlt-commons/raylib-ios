@@ -108,15 +108,19 @@
       (let [ship (:ship (idle start))]
         (is (= (:ship start) ship))
         (is (empty? (:bullets (idle start))))))
-    (testing "fire is an edge: one bullet on the press, none while it stays down"
-      (let [s1 (adv start [(centre :fire)])
-            s2 (adv s1 [(centre :fire)])
-            s3 (idle s2)
-            s4 (adv s3 [(centre :fire)])]
+    (testing "a press fires at once, and a held button fires every `fire-every` frames"
+      (let [held (iterate #(adv % [(centre :fire)]) start)
+            s1 (nth held 1)]
         (is (= 1 (count (:bullets s1))))
-        (is (= 1 (count (:bullets s2))) "held, no second bullet")
-        (is (= 2 (count (:bullets s4))) "released and pressed again fires again")
+        (is (= 1 (count (:bullets (nth held ast/fire-every)))) "not again before the gap")
+        (is (= 2 (count (:bullets (nth held (inc ast/fire-every))))) "again once the gap has passed")
+        (is (= 3 (count (:bullets (nth held (inc (* 2 ast/fire-every)))))))
         (is (= (dec ast/bullet-life) (:life (first (:bullets s1)))))))
+    (testing "released and pressed again fires at once, without waiting out the gap"
+      (let [s2 (adv (adv start [(centre :fire)]) [(centre :fire)])
+            s4 (adv (idle s2) [(centre :fire)])]
+        (is (= 1 (count (:bullets s2))))
+        (is (= 2 (count (:bullets s4))))))
     (testing "the bullet leaves the nose at BSPEED scaled, plus the ship's velocity"
       (let [b (first (:bullets (adv start [(centre :fire)])))]
         (is (near? 0.0 (:vx b)))
@@ -283,12 +287,15 @@
       (is (= 100 (:score after))))))
 
 (deftest bullets-expire
-  (testing "600 frames of a held fire button fire once and the bullet dies"
-    (let [run (reductions (fn [s _] (adv s [(centre :fire)])) start (range 600))
+  (testing "600 frames of a held fire button stay bounded by the life over the gap"
+    (let [st (assoc start :lives 1000000)
+          run (reductions (fn [s _] (adv s [(centre :fire)])) st (range 600))
           peak (apply max (map (comp count :bullets) run))]
-      (is (= 1 peak))
-      (is (empty? (:bullets (last run))))
-      (is (every? #(pos? (:life %)) (mapcat :bullets run)))))
+      ;; One bullet every `fire-every` frames, each living `bullet-life`.
+      (is (<= 2 peak (quot (+ ast/bullet-life ast/fire-every -1) ast/fire-every)))
+      (is (every? #(pos? (:life %)) (mapcat :bullets run)))
+      (testing "and they all die once the button lifts"
+        (is (empty? (:bullets (nth (iterate idle (last run)) ast/bullet-life)))))))
   (testing "600 frames of mashing the button every other frame stay bounded"
     (let [mash (fn [s i] (if (even? i) (adv s [(centre :fire)]) (idle s)))
           st (assoc start :lives 1000000)

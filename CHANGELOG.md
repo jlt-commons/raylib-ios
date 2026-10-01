@@ -69,6 +69,10 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Asteroids keeps firing while fire is held.** The original fires once per
+  SPACE press, so the port fired once per touch-down and a thumb had to mash.
+  A press still fires at once, and a held button now fires again every 10
+  frames, six shots a second.
 - **Strings Management glues only on a slow drop.** The original glues while
   CTRL is held; the port first glued any drag released over another particle,
   so after a shatter an ordinary throw stuck by accident. Now the drop must be
