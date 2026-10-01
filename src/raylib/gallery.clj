@@ -43,6 +43,7 @@
             [raylib.scenes.fan :as fan]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.flowfield :as flow]
+            [raylib.scenes.fontsizes :as fsizes]
             [raylib.scenes.formattext :as ftext]
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gradient :as grad]
@@ -51,6 +52,7 @@
             [raylib.scenes.invaders :as inv]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
+            [raylib.scenes.logo :as still-logo]
             [raylib.scenes.logoanim :as logo]
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
@@ -105,7 +107,7 @@
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
-             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene)])
+             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -137,7 +139,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel]}
+             :rectbounds :huewheel :logo :fontsizes]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2283,3 +2285,23 @@
       (rl/draw-text s x y size (pack hue/hint-colour)))
     (rl/draw-text (hue/count-line tris) (:x count-row) (:y count-row) (:size count-row)
                   (pack hue/count-colour))))
+
+(defmethod draw-scene! :logo [_ _ {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack still-logo/background-colour))
+        measure (fn [s sz] (rl/measure-text s (int sz)))
+        {:keys [outer inner label]} (still-logo/layout (still-logo/dimensions m) measure)
+        [ox oy ow oh] outer
+        [ix iy iw ih] inner]
+    ;; A thick border is a logo-coloured square with a background one on top.
+    (rl/draw-rectangle (int ox) (int oy) (int ow) (int oh) (pack still-logo/logo-colour))
+    (rl/draw-rectangle (int ix) (int iy) (int iw) (int ih) (pack still-logo/background-colour))
+    (rl/draw-text (:s label) (int (:x label)) (int (:y label)) (:size label)
+                  (pack still-logo/logo-colour))))
+
+(defmethod draw-scene! :fontsizes [_ _ {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack fsizes/background-colour))
+        measure (fn [s sz] (rl/measure-text s (int sz)))]
+    (doseq [{:keys [s x y size colour]} (fsizes/layout (fsizes/dimensions m) measure)]
+      (rl/draw-text s (int x) (int y) size (pack colour)))))

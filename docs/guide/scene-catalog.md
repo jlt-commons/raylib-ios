@@ -85,6 +85,8 @@ that were tuned to get there.
 | Easings Testbed | 69 lines (4 frame, 64 plot segments, 1 rail), a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
 | Rectangle Bounds | 4 lines, 2 rectangles and 3 or more lines of text, depending on the box | | dragging the corner handle resizes the box and a tap on the wrap button toggles word or character wrap, in place of the mouse and SPACE; the layout is cached, so an idle frame measures nothing |
 | rlgl Hue Wheel | a fan of 3 to 128 triangles with a colour on every vertex, or 2 lines a wedge as a wireframe, and 3 lines of text | | a vertical swipe doubles or halves the triangle count in place of the mouse wheel, a horizontal drag sets the centre brightness in place of the arrow keys and a tap toggles the wireframe in place of SPACE, and the wireframe spokes ignore the brightness because a thick line takes one colour; the wheel fits the safe region, so UP and DOWN resizing is dropped; a different example from Colour Wheel |
+| Still Logo | 2 rectangles and 1 line of text | | nothing moves and nothing is read, so the logo is the finished picture where raylib Logo is the assembly; the label is placed by the measured text width, and the logo is sized to fit below Back |
+| Font Sizes | 6 lines of text at 4 sizes and 6 colours | | nothing moves and nothing is read; sizes are the original's 10, 20, 30 and 40 scaled by one factor to fit below Back and rounded to whole numbers, and two lines are centred by the measured width; it is about size where Text Alignment is about placement |
 
 ## Games
 
