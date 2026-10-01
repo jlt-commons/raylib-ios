@@ -86,6 +86,7 @@
             [raylib.scenes.splines :as spl]
             [raylib.scenes.starfield :as sfield]
             [raylib.scenes.stars :as stars]
+            [raylib.scenes.strings :as strings]
             [raylib.scenes.strip :as strip]
             [raylib.scenes.survivors :as surv]
             [raylib.scenes.tesseract :as tess]
@@ -121,7 +122,8 @@
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
              (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
-             (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)])
+             (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
+             (strings/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -154,7 +156,7 @@
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo]}
+             :hello :nudge :wheelbox :undoredo :strings]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -916,7 +918,12 @@
         list-back? (and tapped? (= :gallery (:mode gstate)) category
                         (within? (:back layout) tap-at))
         [category' opening?] (navigate category (:mode gstate) hit list-back?)
-        input  (assoc input :delta-seconds (rl/get-frame-time) :back? (= hit :back))
+        ;; `:measure` is raylib's own text width, for the scenes that lay out text
+        ;; in their state and so need it outside the draw method.
+        input  (assoc input
+                      :delta-seconds (rl/get-frame-time)
+                      :back? (= hit :back)
+                      :measure (fn [s sz] (rl/measure-text s (int sz))))
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
         gstate (-> (guard-scene gstate (or (:active-scene-id gstate) hit)
                                 (fn []
@@ -2648,3 +2655,28 @@
       (rl/draw-rectangle (int x) (int y) (int w) (int h)
                          (pack (if on? undoredo/button-colour undoredo/button-off-colour)))
       (text label (if on? undoredo/button-label-colour undoredo/button-off-label-colour)))))
+
+(defmethod draw-scene! :strings [_ {:keys [particles dims shatter? case]} _]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack strings/background-colour))
+        measure (fn [s sz] (rl/measure-text s (int sz)))
+        text (fn [{:keys [s x y size]} colour] (rl/draw-text s (int x) (int y) size (pack colour)))
+        {:keys [pad size]} (:size-info dims)
+        border (pack strings/border-colour)
+        ink (pack strings/text-colour)]
+    (text (:hint dims) strings/hint-colour)
+    (doseq [{:keys [text x y w h color]} particles]
+      (rl/draw-rectangle (int (- x pad)) (int (- y pad)) (int (+ w (* 2 pad))) (int (+ h (* 2 pad))) border)
+      (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack color))
+      (rl/draw-text text (int (+ x pad)) (int (+ y pad)) (int size) ink))
+    (text (assoc (:count-line dims) :s (str strings/count-prefix (count particles))) strings/count-colour)
+    (doseq [[rect label armed?] [[(:shatter dims) (:shatter-label dims) shatter?]
+                                 [(:shake dims) (:shake-label dims) false]
+                                 [(:case dims) (assoc (:case-label dims) :s (strings/case-label case)) false]]
+            :let [[x y w h] rect
+                  ls (:s label)
+                  lsz (:size label)]]
+      (rl/draw-rectangle (int x) (int y) (int w) (int h)
+                         (pack (if armed? strings/armed-colour strings/button-colour)))
+      (rl/draw-text ls (strings/centred-x rect ls lsz measure) (int (:y label)) lsz
+                    (pack (if armed? strings/armed-label-colour strings/button-label-colour))))))
