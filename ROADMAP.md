@@ -61,12 +61,13 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 - **Silence the per-frame `GetWindowScaleDPI` warning.** The gallery logs
   `WARNING: GetWindowScaleDPI() not implemented on target platform` every frame.
   raylib's `BeginScissorMode` calls `GetWindowScaleDPI` on Apple, and raylib's
-  SDL platform doesn't implement it. Found on device on 2026-09-30. The noise is
+  SDL2 platform doesn't implement it. Found on device on 2026-09-30. The noise is
   harmless because clipping is correct, but it floods the console.
-- **Share the touch helpers.** The Back region `[0 0 400 120]` appears in three
-  scenes, a private `in-rect?` is copied into three, and the press-or-down
-  predicate shows up in about eleven places. A small shared pure namespace would
-  hold them, and it is worth doing as its own task.
+- **Share the touch helpers.** The Back region `[0 0 400 120]` is defined only in
+  `breakout`, though breakout, particles and rlgltriangle all lay themselves out
+  to stay clear of it. A private `in-rect?` is copied into three scenes, and the
+  press-or-down predicate shows up in about eleven places. A small shared pure
+  namespace would hold them, and it is worth doing as its own task.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done

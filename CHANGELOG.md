@@ -12,8 +12,10 @@ Notable changes, newest first. Dates are the day the work landed.
   stay grabbed once a finger lands on them, and two buttons where the original
   used keys. Particles emits at the finger while it is down, and tapping its box
   cycles water, smoke and fire. The cap is 600, but a held finger settles at
-  about 190 live particles for water and fire and about 324 for smoke, which
-  emits three a frame and keeps each for about 108.
+  about 190 live particles for fire and 324 for smoke, which emits three a frame
+  and keeps each for about 108. Water depends on where the finger is, because a
+  drop lives until it leaves the screen, and it reaches about 280 near the top of
+  a phone.
 
   Breakout is the gallery's second game, in Games beside Flappy Bird. The paddle
   follows the finger and a tap restarts after game over or a win. It is

@@ -77,7 +77,7 @@ that were tuned to get there.
 | Triangle Strip | 32 triangles | 58 | two per band, through `draw-triangle` so winding cannot cull them |
 | Touch Ball | 1 circle and a caption | | follows a finger; green while held, and it stays put when the finger lifts |
 | rlgl Triangle | 3 vertices, 3 handles, 2 buttons | | a colour per vertex; sticky corner grab, and the keys became buttons |
-| Particles | about 190 circles for water and fire, about 324 for smoke, and an info box | | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
+| Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
 
 ## Games
 
