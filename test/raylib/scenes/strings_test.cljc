@@ -229,6 +229,35 @@
     (testing "the label names the next transform"
       (is (= 6 (count (distinct (map st/case-label (range 6)))))))))
 
+(defn- caps-measure
+  "A font whose capitals are wider than its lower case, so UPPER is the widest."
+  [s size]
+  (reduce + (map (fn [c]
+                   (let [t (str c)
+                         capital? (and (= t (str/upper-case t)) (not= t (str/lower-case t)))]
+                     (* size (if capital? 0.8 0.55))))
+                 s)))
+
+(deftest every-case-version-fits-the-arena
+  (doseq [screen screens
+          :let [metrics {:screen screen}
+                s0 (fresh metrics caps-measure)
+                [ax' _ aw _] (:arena (:dims s0))
+                button (centre (:case (:dims s0)))
+                press (fn [st phase]
+                        (st/advance st {:metrics metrics
+                                        :delta-seconds 0.0
+                                        :pointer {:phase phase
+                                                  :position button}}
+                                    caps-measure))
+                run (take 6 (iterate #(-> % (press :press) (press :release)) s0))]]
+    (testing (str screen)
+      (is (= 5 (count (distinct (map #(first (texts %)) run)))))
+      (doseq [state run
+              :let [{:keys [x w text]} (first (:particles state))]]
+        (is (<= ax' x) text)
+        (is (<= (+ x w) (+ ax' aw)) text)))))
+
 (deftest typing-is-dropped-and-disclosed
   (is (str/includes? st/dropped "typing"))
   (is (str/includes? st/dropped "keyboard"))

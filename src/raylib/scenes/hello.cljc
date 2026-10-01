@@ -8,14 +8,15 @@
   replace. The line is centred across the width by the injected `measure`, which
   puts it where the original's hand-picked 190 px does at 800 wide, and it sits
   the original's 200/450 of the way down the field below `gesture/back-region`.
-  Its size is the original's 20 scaled by the smaller of the two axes' scales,
-  never under 20, then cut back when the line would cover more than nine tenths
-  of the width, so it fits a phone held upright. The draw method passes raylib's own text
+  Size and colour depart from the original for legibility: on a phone the
+  original's size 20 in LIGHTGRAY was about 10 pt and pale. The size is fitted
+  by `measure` so the line spans about 85 percent of the width, which is always
+  inside it, and the colour is DARKGRAY. The draw method passes raylib's own text
   width; the tests pass an estimate."
   (:require [raylib.gesture :as gesture]))
 
 (def background-colour [245 245 245 255])
-(def text-colour [200 200 200 255])
+(def text-colour [80 80 80 255])
 
 (def line "Congrats! You created your first window!")
 
@@ -27,9 +28,7 @@
         [_ back-y _ back-h] gesture/back-region
         top (+ back-y back-h)
         fh (- h top)
-        ts (min (/ w 800.0) (/ fh 450.0))
-        fit (int (/ (* 0.9 w 100.0) (measure line 100)))
-        size (max 8 (min (max 20 (int (* 20 ts))) fit))]
+        size (max 8 (int (/ (* 0.85 w 100.0) (measure line 100))))]
     {:w w
      :h h
      :text {:s line

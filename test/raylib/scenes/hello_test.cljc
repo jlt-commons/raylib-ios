@@ -26,9 +26,18 @@
              (get-in (hello/dimensions {:screen [1206 2334]} narrow) [:text :x]))))
     (testing "the original's 800x450 puts it a little left of the original's 190 px, which assumed a wider font"
       (let [{:keys [x size y]} (:text (hello/dimensions {:screen [800 450]} measure))]
-        (is (= 20 size))
-        (is (<= 150 x 200))
+        (is (<= 20 size))
+        (is (<= 0 x 200))
         (is (>= y (let [[_ by _ bh] gesture/back-region] (+ by bh))))))))
+
+(deftest the-line-spans-most-of-the-width-in-dark-grey
+  (doseq [screen screens
+          :let [[w _] screen
+                {:keys [text]} (hello/dimensions {:screen screen} measure)
+                span (/ (measure (:s text) (:size text)) w)]]
+    (testing (str screen)
+      (is (<= 0.8 span 0.9) "about 85 percent, never past it")))
+  (is (= [80 80 80 255] hello/text-colour)))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens

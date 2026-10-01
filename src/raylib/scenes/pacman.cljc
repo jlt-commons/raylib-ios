@@ -35,6 +35,9 @@
 
   The original draws Pac-Man with `sector!`, which isn't bound here. His mouth
   is a fan of triangles (`pac-fan`) the draw method gives to `rl/draw-triangle`.
+  The ghosts' three feet are spaced evenly inside the body (`foot-xs`). The
+  original's third foot sticks out past the body's right edge and shows as a
+  loose dot.
   The original's `rand-nth` for a frightened ghost is the project's LCG, taking
   its high bits. Colours are `[r g b a]` vectors. The draw method packs them
   with `rl/rgba`."
@@ -127,6 +130,13 @@
         x1 (long (Math/floor (+ ox (* (inc gx) cell))))
         y1 (long (Math/floor (+ oy (* (inc gy) cell))))]
     [x0 y0 (- x1 x0) (- y1 y0)]))
+
+(defn foot-xs
+  "The x of each of a ghost's three feet, for a body centred on `cx` with
+  radius `r`: evenly spaced inside the body, a sixth of the width in from each
+  edge and a third apart."
+  [cx r]
+  (mapv (fn [i] (+ (- cx r) (/ r 3.0) (* i (/ (* 2.0 r) 3.0)))) (range 3)))
 
 (defn pac-fan
   "Triangles `[cx cy x1 y1 x2 y2]` for Pac-Man at `[cx cy]` with radius `r`,

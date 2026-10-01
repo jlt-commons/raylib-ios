@@ -139,3 +139,15 @@
       (is (>= y back-bottom))
       (is (<= (+ y size) h))
       (is (<= (* 2 ball-r) (min fw fh)) "the ball fits the field"))))
+
+(deftest the-field-starts-below-the-caption
+  (doseq [screen screens
+          :let [dims (nudge/dimensions {:screen screen})
+                {:keys [y size]} (:caption dims)
+                caption-bottom (+ y size)
+                [x top] (nudge/clamp-ball dims [-1e6 -1e6])]]
+    (testing (str screen)
+      (is (<= caption-bottom (:ftop dims)) "the field's top is at or below the caption")
+      (is (>= (- top (:ball-r dims)) caption-bottom) "a ball clamped at the top clears the caption")
+      (is (>= (- x (:ball-r dims)) 0.0))
+      (is (== (:h dims) (+ (:ftop dims) (:fh dims)))))))

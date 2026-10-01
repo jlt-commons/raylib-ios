@@ -2561,7 +2561,7 @@
         (rl/draw-circle (int cx) (int (- cy (* 2 k))) (float r) colour)
         (rl/draw-rectangle (int (- cx r)) (int (- cy (* 2 k))) (int (* 2 r)) (int (+ r (* 2 k))) colour)
         (dotimes [i 3]
-          (rl/draw-circle (int (+ (- cx r) (* i r) (quot r 2))) (int (+ cy r)) (float (/ r 2.6)) colour))
+          (rl/draw-circle (int (nth (pacman/foot-xs cx r) i)) (int (+ cy r)) (float (/ r 2.6)) colour))
         (rl/draw-circle (int (- cx eye)) (int (- cy eye)) (float eye) (pack pacman/label-colour))
         (rl/draw-circle (int (+ cx eye)) (int (- cy eye)) (float eye) (pack pacman/label-colour))
         (when-not scared?

@@ -46,8 +46,8 @@
 
   Deviations: the opening sentence is centred in the arena where the original
   starts its top-left corner at the window centre, which shoved it against the
-  wall on its first frame. The text size is cut back until the whole sentence
-  fits the arena width, and the arena sits below Back and above the buttons in
+  wall on its first frame. The text size is cut back until the widest of the
+  six case sentences fits the arena width (UPPER is wider than the plain one), and the arena sits below Back and above the buttons in
   place of the whole window. A grabbed particle is held inside the arena. The
   hint is one line in place of six.
 
@@ -197,8 +197,9 @@
 
 (defn dimensions
   "`geometry` plus the text. `:size-info` is `{:size :pad :u}` for the
-  particles: the original's 30 scaled by `u`, cut back until the whole
-  sentence and its padding fit 0.9 of the width, with the padding a sixth of
+  particles: the original's 30 scaled by `u`, cut back until the widest of the six
+  case sentences and its padding fit 0.9 of the width, so the case button never
+  pushes one off the glass, with the padding a sixth of
   the size. `:hint`, `:count-line` (the widest count) and the labels
   `:shatter-label`, `:shake-label` and `:case-label` (the widest case label) are
   each `{:s :x :y :size}`, and `:lines` has all six so a test can check they
@@ -217,7 +218,8 @@
                   (fit-size measure shatter-label ui limit)
                   (fit-size measure shake-label ui limit)
                   (fit-size measure widest-case ui limit))
-        psize (let [full (+ (/ (measure sentence 100) 100.0) (/ 2.0 6.0))]
+        widest-sentence (apply max (map #(measure % 100) case-sentences))
+        psize (let [full (+ (/ widest-sentence 100.0) (/ 2.0 6.0))]
                 (max 8 (min (int (* 30 u)) (int (/ (* 0.9 w) full)))))
         line (fn [s x y] {:s s
                           :x (int x)

@@ -17,7 +17,9 @@
 
   The original lets the ball leave the window. Here its centre is held a radius
   inside the play field, which is the full width below Back, so the whole ball
-  stays on the glass. The clamp runs every frame, so a rotation pulls the ball
+  stays on the glass. The field starts below the caption, which the original
+  gets for free by drawing its ball over the text, so the ball can never cover
+  the line. The clamp runs every frame, so a rotation pulls the ball
   back in.
 
   This is frame-locked, like the original, which never reads a frame time. The
@@ -41,21 +43,25 @@
 
 (defn dimensions
   "The layout for `metrics`' `:screen`. The play field is `:fx :ftop :fw :fh`:
-  the full width, from the bottom of `gesture/back-region` to the bottom. `:u`
+  the full width, from a gap below the caption to the bottom, so the ball
+  never covers the caption. `:u`
   scales the radius and the speed (see the namespace docstring). `:stick-r` is
   the ring drawn round the stick's centre and `:knob-r` its knob. `:caption` is
   `{:s :x :y :size}`, left-aligned below Back, so nothing is measured here."
   [metrics]
   (let [[w h] (:screen metrics)
         [_ back-y _ back-h] gesture/back-region
-        top (+ back-y back-h)
-        fh (- h top)
+        back-bottom (+ back-y back-h)
         sx (/ w 800.0)
-        sy (/ fh 450.0)
-        u (Math/sqrt (* sx sy))
-        ts (min sx sy)
+        ts (min sx (/ (- h back-bottom) 450.0))
         side (min w h)
-        pad (max 8 (int (* 10 ts)))]
+        pad (max 8 (int (* 10 ts)))
+        cap-size (max 20 (int (* 20 ts)))
+        cap-y (+ back-bottom pad)
+        top (+ cap-y cap-size pad)
+        fh (- h top)
+        sy (/ fh 450.0)
+        u (Math/sqrt (* sx sy))]
     {:w w
      :h h
      :fx 0.0
@@ -69,8 +75,8 @@
      :knob-r (* 0.032 side)
      :caption {:s caption
                :x pad
-               :y (+ top pad)
-               :size (max 20 (int (* 20 ts)))}}))
+               :y cap-y
+               :size cap-size}}))
 
 (defn- clamp [lo hi v] (max lo (min hi v)))
 

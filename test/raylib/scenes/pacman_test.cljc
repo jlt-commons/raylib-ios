@@ -432,3 +432,12 @@
   (testing "Blinky starts outside the door, the others wait in the house at 1.5, 3.5 and 5.5 s"
     (is (= [0.0 1.5 3.5 5.5] (mapv :home-timer (:ghosts start))))
     (is (= ["blinky" "pinky" "inky" "clyde"] (mapv :name (:ghosts start))))))
+
+(deftest ghost-feet-lie-inside-the-body
+  (doseq [r [4 11 23.5]
+          :let [cx 100.0
+                xs (pm/foot-xs cx r)]]
+    (is (= 3 (count xs)))
+    (is (every? #(<= (- cx r) % (+ cx r)) xs) "every foot centre is within the body")
+    (is (< (abs (- (- (second xs) (first xs)) (- (nth xs 2) (second xs)))) 1e-9) "evenly spaced")
+    (is (< (abs (- (+ (first xs) (nth xs 2)) (* 2 cx))) 1e-9) "and symmetric about the centre")))
