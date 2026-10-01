@@ -102,6 +102,7 @@
                      raylib.scenes.shapes-test
                      raylib.scenes.ellipses-test
                      raylib.scenes.screens-test
+                     raylib.scenes.survivors-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
