@@ -80,6 +80,7 @@
                      raylib.scenes.touchball-test
                      raylib.scenes.rlgltriangle-test
                      raylib.scenes.particles-test
+                     raylib.scenes.breakout-test
                      raylib.scroll-test
                      raylib.easings-test
                      raylib.scenes.clock-test

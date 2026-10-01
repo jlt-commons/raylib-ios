@@ -25,6 +25,7 @@
             [raylib.scenes.bars :as bars]
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
             [raylib.scenes.clipbox :as clipbox]
             [raylib.scenes.clock :as clock]
@@ -87,7 +88,7 @@
              (bez/scene) (fan/scene) (clipbox/scene)
              (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
-             (parts/scene)])
+             (parts/scene) (brk/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -121,7 +122,7 @@
              :particles]}
    {:id :games
     :title "Games"
-    :scenes [:flappy-bird]}])
+    :scenes [:flappy-bird :breakout]}])
 
 (def ^:private category-ids (mapv :id categories))
 
@@ -1874,3 +1875,21 @@
                        (rl/rgba 205 232 255 255))
     (rl/draw-text parts/info-line line1-x line1-y text-size (rl/rgba 0 0 0 255))
     (rl/draw-text (parts/type-line state) line2-x line2-y text-size rl/DARKGRAY)))
+
+(defmethod draw-scene! :breakout [_ {:keys [bricks ball paddle-x lives over? won?]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [dims (brk/dimensions m)
+        {:keys [paddle-w paddle-h paddle-y ball-r lives-x lives-y lives-size
+                msg-x msg-y msg-size]} dims
+        pack (fn [[r g b a]] (rl/rgba r g b a))]
+    (doseq [[c r] bricks
+            :let [[x y w h] (brk/brick-rect dims c r)]]
+      (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack (nth brk/row-colors r))))
+    (rl/draw-rectangle (int paddle-x) (int paddle-y) (int paddle-w) (int paddle-h)
+                       (pack brk/paddle-colour))
+    (rl/draw-circle (int (:x ball)) (int (:y ball)) (float ball-r) (pack brk/ball-colour))
+    (rl/draw-text (brk/lives-line lives) lives-x lives-y lives-size (pack brk/text-colour))
+    (when over?
+      (rl/draw-text brk/over-line msg-x msg-y msg-size (pack brk/over-colour)))
+    (when won?
+      (rl/draw-text brk/won-line msg-x msg-y msg-size (pack brk/won-colour)))))

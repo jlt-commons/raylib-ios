@@ -84,6 +84,7 @@ that were tuned to get there.
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
 | Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
+| Breakout | up to 60 bricks, a paddle, a ball | | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original |
 
 ## What byte-identical means
 
