@@ -81,6 +81,8 @@
                      raylib.scenes.rlgltriangle-test
                      raylib.scenes.particles-test
                      raylib.scenes.breakout-test
+                     raylib.scenes.bounce-test
+                     raylib.scenes.snake-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test

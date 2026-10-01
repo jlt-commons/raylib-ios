@@ -25,6 +25,7 @@
             [raylib.scenes.bars :as bars]
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.boids :as boids]
+            [raylib.scenes.bounce :as bounce]
             [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
             [raylib.scenes.clipbox :as clipbox]
@@ -60,6 +61,7 @@
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
+            [raylib.scenes.snake :as snk]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
             [raylib.scenes.stars :as stars]
@@ -88,7 +90,7 @@
              (bez/scene) (fan/scene) (clipbox/scene)
              (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
-             (parts/scene) (brk/scene)])
+             (parts/scene) (brk/scene) (bounce/scene) (snk/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -119,10 +121,10 @@
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
-             :particles]}
+             :particles :bounce]}
    {:id :games
     :title "Games"
-    :scenes [:flappy-bird :breakout]}])
+    :scenes [:flappy-bird :breakout :snake]}])
 
 (def ^:private category-ids (mapv :id categories))
 
@@ -1906,3 +1908,34 @@
       (rl/draw-text brk/over-line msg-x msg-y msg-size (pack brk/over-colour)))
     (when won?
       (rl/draw-text brk/won-line msg-x msg-y msg-size (pack brk/won-colour)))))
+
+(defmethod draw-scene! :bounce [_ {:keys [pos paused?]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [radius hint-size hint-x hint-y paused-size paused-x paused-y]} (bounce/dimensions m)
+        [r g b a] bounce/ball-colour
+        [hr hg hb ha] bounce/hint-colour]
+    (rl/draw-circle (int (nth pos 0)) (int (nth pos 1)) (float radius) (rl/rgba r g b a))
+    (rl/draw-text bounce/hint-line hint-x hint-y hint-size (rl/rgba hr hg hb ha))
+    (when paused?
+      (rl/draw-text bounce/paused-line paused-x paused-y paused-size (rl/rgba r g b a)))))
+
+(defmethod draw-scene! :snake [_ {:keys [snake food dead?]} {:keys [m]}]
+  (rl/clear-background (rl/rgba 0 0 0 255))
+  (let [dims (snk/dimensions m)
+        {:keys [cols rows cell ox oy score-x score-y score-size msg-x msg-y msg-size]} dims
+        pack (fn [[r g b a]] (rl/rgba r g b a))]
+    (rl/draw-rectangle (int ox) (int oy) (int (* cols cell)) (int (* rows cell))
+                       (pack snk/board-colour))
+    (when food
+      (let [[x y w h] (snk/cell-rect dims (nth food 0) (nth food 1))]
+        (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack snk/food-colour))))
+    ;; A pixel inside its cell on each side, as in the original, so the body
+    ;; shows as segments.
+    (doseq [[c r] snake
+            :let [[x y w h] (snk/cell-rect dims c r)]]
+      (rl/draw-rectangle (inc (int x)) (inc (int y)) (- (int w) 2) (- (int h) 2)
+                         (pack snk/snake-colour)))
+    (rl/draw-text (snk/score-line (count snake)) score-x score-y score-size
+                  (pack snk/text-colour))
+    (when dead?
+      (rl/draw-text snk/over-line msg-x msg-y msg-size (pack snk/text-colour)))))

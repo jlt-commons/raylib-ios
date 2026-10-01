@@ -78,6 +78,7 @@ that were tuned to get there.
 | Touch Ball | 1 circle and a caption | 58 | follows a finger; green while held, and it stays put when the finger lifts |
 | rlgl Triangle | 3 vertices, 3 handles, 2 buttons | 58 | a colour per vertex; sticky corner grab, and the keys became buttons |
 | Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | 59 | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
+| Bouncing Ball | 1 circle and 2 lines of text | | a tap pauses, in place of SPACE; speed and radius scale with the shorter side, and a rotation clamps the ball back inside |
 
 ## Games
 
@@ -85,6 +86,7 @@ that were tuned to get there.
 | --- | --- | ---: | --- |
 | Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
 | Breakout | up to 60 bricks, a paddle, a ball | 58 | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
+| Snake | up to 576 cells, a board and a score line | | a swipe steers and a tap restarts, in place of the arrow keys and SPACE; the 32 by 18 grid turns to 18 by 32 on a tall phone, and a rotation starts a new game |
 
 ## What byte-identical means
 
