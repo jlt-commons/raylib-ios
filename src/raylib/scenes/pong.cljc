@@ -265,7 +265,14 @@
             (assoc (new-game dims (:seed state) g) :ly ly)
             state)
 
-          :else (step dims state))))))
+          :else
+          (let [after (step dims state)]
+            (if (:over? after)
+              ;; The one exception to storing `g'`: on the frame the game ends,
+              ;; forget the touch. A short tap still down would otherwise lift
+              ;; into a `:tap` and restart the game before its result was seen.
+              (assoc after :gesture gesture/idle)
+              after)))))))
 
 (defn- init [{:keys [metrics]}]
   [(new-game (dimensions metrics) start-seed gesture/idle)

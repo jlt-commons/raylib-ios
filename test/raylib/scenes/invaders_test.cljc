@@ -301,3 +301,42 @@
         after (nth (iterate idle st) 5)]
     (is (not (contains? (:aliens after) [0 0])))
     (is (= 10 (:score after)))))
+
+(deftest a-touch-held-through-game-over-does-not-restart
+  (let [{:keys [alien-h]} d
+        [ax ay aw ah] (inv/alien-rect d (:ax start) (:ay start) [4 1])
+        winning (-> start (only [[4 1]])
+                    (assoc :bullets [{:x (+ ax (/ aw 2))
+                                      :y (+ ay ah (:bullet-speed d) -1.0)}])
+                    (assoc :cooldown 5))
+        ;; The frame just before the formation reaches the ship.
+        before-loss (last (take-while (complement :over?) (take 20000 (iterate idle start))))]
+    (is (pos? alien-h))
+    (testing "a win on the frame the finger lands"
+      (let [won (step winning :press [600 1400])
+            lifted (-> won (step :down [600 1400]) (step :release [600 1400]))]
+        (is (:won? won))
+        (is (:won? lifted))
+        (is (= 10 (:score lifted)))))
+    (testing "a loss on the frame the finger lands"
+      (let [over (step before-loss :press [600 1400])
+            lifted (-> over (step :down [600 1400]) (step :release [600 1400]))]
+        (is (:over? over))
+        (is (:over? lifted))
+        (is (= (:score over) (:score lifted)))))))
+
+(deftest a-fresh-tap-after-game-over-restarts
+  (let [{:keys [alien-h]} d
+        [ax ay aw ah] (inv/alien-rect d (:ax start) (:ay start) [4 1])
+        won (-> start (only [[4 1]])
+                (assoc :bullets [{:x (+ ax (/ aw 2))
+                                  :y (+ ay ah (:bullet-speed d) -1.0)}])
+                (assoc :cooldown 5)
+                (step :press [600 1400])
+                (step :release [600 1400]))
+        after (tap won [600 1400])]
+    (is (pos? alien-h))
+    (is (:won? won))
+    (is (not (:won? after)))
+    (is (= 0 (:score after)))
+    (is (= 32 (count (:aliens after))))))

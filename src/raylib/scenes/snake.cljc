@@ -177,7 +177,13 @@
                       :gesture g)
             ticks (inc (:ticks st))]
         (if (>= ticks tick-frames)
-          (step dims (assoc st :ticks 0))
+          (let [after (step dims (assoc st :ticks 0))]
+            (if (:dead? after)
+              ;; The one exception to storing `g'`: on the frame the game ends,
+              ;; forget the touch. A short tap still down would otherwise lift
+              ;; into a `:tap` and restart the game before its result was seen.
+              (assoc after :gesture gesture/idle)
+              after))
           (assoc st :ticks ticks))))))
 
 (defn- init [{:keys [metrics]}]

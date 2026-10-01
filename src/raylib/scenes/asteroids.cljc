@@ -25,7 +25,10 @@
   of the two axes' scales, applies to every radius, speed and acceleration. Pace
   therefore lands between the original's across and down. A bullet's speed plus
   the ship's top speed stays below the smallest asteroid's diameter at any
-  scale, so the point test cannot skip it (see the test that pins this).
+  scale, so the point test cannot skip it unless the rock is closing too. As in
+  the original, a skip needs a near head-on pass at the rock's own top speed,
+  which adds about 25u of closing speed against a 22u diameter (see the test
+  that pins the inequality).
 
   This is frame-locked, like the original: `advance` moves everything a fixed
   distance per call, so the game runs faster on a 120 Hz display than on a 60 Hz
@@ -363,7 +366,13 @@
         (assoc state :gesture g :held now))
 
       :else
-      (assoc (step dims state now) :gesture g :held now))))
+      (let [after (assoc (step dims state now) :gesture g :held now)]
+        (if (:over? after)
+          ;; The one exception to storing `g'`: on the frame the game ends,
+          ;; forget the touch. A short tap still down would otherwise lift
+          ;; into a `:tap` and restart the game before its result was seen.
+          (assoc after :gesture gesture/idle)
+          after)))))
 
 (defn asteroid-points
   "The asteroid's outline vertices in screen coordinates, turned by its angle."

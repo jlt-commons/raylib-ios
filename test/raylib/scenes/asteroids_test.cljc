@@ -245,6 +245,9 @@
     (is (empty? (:bullets after)))))
 
 (deftest a-bullet-cannot-skip-the-smallest-asteroid
+  ;; This pins the inequality only. It ignores the rock's own speed: as in the
+  ;; original, a skip needs a near head-on pass at the rock's top speed, about
+  ;; 25u of closing speed against a 22u diameter.
   (testing "a bullet's speed plus the ship's top speed is under the diameter"
     (doseq [screen screens
             :let [dm (ast/dimensions {:screen screen})
@@ -439,3 +442,36 @@
                                                           :touch-points [[600 1000]]
                                                           :pointer {:phase :press
                                                                     :position [600 1000]}}))))))
+
+(deftest a-touch-held-through-game-over-does-not-restart
+  (let [{:keys [ship]} start
+        dying (assoc start :lives 1 :asteroids [far-rock (rock (:x ship) (:y ship) 3)])
+        press (fn [st] (ast/advance st {:metrics m
+                                        :touch-points [[600 1000]]
+                                        :pointer {:phase :press
+                                                  :position [600 1000]}}))
+        release (fn [st] (ast/advance st {:metrics m
+                                          :touch-points []
+                                          :pointer {:phase :release
+                                                    :position [600 1000]}}))
+        over (press dying)]
+    (is (:over? over))
+    (testing "lifted: the short tap is not a restart"
+      (is (:over? (release over))))))
+
+(deftest a-fresh-tap-after-game-over-restarts
+  (let [{:keys [ship]} start
+        dying (assoc start :lives 1 :asteroids [far-rock (rock (:x ship) (:y ship) 3)])
+        over (-> dying
+                 (ast/advance {:metrics m
+                               :touch-points [[600 1000]]
+                               :pointer {:phase :press
+                                         :position [600 1000]}})
+                 (ast/advance {:metrics m
+                               :touch-points []
+                               :pointer {:phase :release
+                                         :position [600 1000]}}))
+        after (tap over [600 1000])]
+    (is (:over? over))
+    (is (not (:over? after)))
+    (is (= 3 (:lives after)))))

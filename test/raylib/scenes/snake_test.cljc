@@ -244,3 +244,25 @@
 (deftest the-gesture-is-kept-in-state
   (is (= gesture/idle (:gesture start)))
   (is (= [600 1500] (:start (:gesture (step start :press [600 1500]))))))
+
+(def ^:private about-to-die
+  "A snake one cell from the wall on the last frame of its tick, so the next
+  frame kills it."
+  (assoc start
+         :snake [[(dec (:cols d)) 5] [(- (:cols d) 2) 5] [(- (:cols d) 3) 5]]
+         :dir [1 0] :heading [1 0] :ticks (dec s/tick-frames)))
+
+(deftest a-touch-held-through-game-over-does-not-restart
+  (let [dead (step about-to-die :press [600 1400])]
+    (is (:dead? dead))
+    (testing "still down, then lifted: the short tap is not a restart"
+      (let [lifted (-> dead (step :down [600 1400]) (step :release [600 1400]))]
+        (is (:dead? lifted))
+        (is (= (:snake dead) (:snake lifted)))))))
+
+(deftest a-fresh-tap-after-game-over-restarts
+  (let [dead (-> about-to-die (step :press [600 1400]) (step :release [600 1400]))
+        after (tap dead [600 1400])]
+    (is (:dead? dead))
+    (is (not (:dead? after)))
+    (is (= (:snake start) (:snake after)))))

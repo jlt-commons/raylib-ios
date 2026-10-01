@@ -263,3 +263,26 @@
     (let [dragged (-> start (step :press [300 1800]) (step :down [900 1800]))
           released (step dragged :release [900 1800])]
       (is (= (:ly dragged) (:ly released))))))
+
+(deftest a-touch-held-through-game-over-does-not-restart
+  (let [long (:long d)
+        ending (with-ball (assoc start :ls 6) (- long 1.0) 900.0 10.0 0.0)
+        ;; The press lands on the very frame the seventh point is scored.
+        over (step ending :press [600 1400])]
+    (is (:over? over))
+    (testing "still down, then lifted: the short tap is not a restart"
+      (let [held (step over :down [600 1400])
+            lifted (step held :release [600 1400])]
+        (is (:over? held))
+        (is (:over? lifted))
+        (is (= 7 (:ls lifted)))))))
+
+(deftest a-fresh-tap-after-game-over-restarts
+  (let [long (:long d)
+        over (-> (with-ball (assoc start :ls 6) (- long 1.0) 900.0 10.0 0.0)
+                 (step :press [600 1400])
+                 (step :release [600 1400]))
+        after (tap over [600 1400])]
+    (is (:over? over))
+    (is (not (:over? after)))
+    (is (= [0 0] [(:ls after) (:rs after)]))))

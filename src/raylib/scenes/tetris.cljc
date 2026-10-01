@@ -44,6 +44,11 @@
   tall phone the score, lines, level and next piece sit in a band above the
   well, and on a wide one they sit to its right.
 
+  The original keeps drawing the falling piece over the stack once the game is
+  over. The port hides it, because the piece that could not spawn sits on top of
+  locked cells and would be drawn on them, which reads as a glitch more than as
+  the cause of the loss.
+
   The state remembers its `:screen` and a rotation starts a new game, as
   Breakout's does. Cells hold a piece keyword and colours are `[r g b a]`
   vectors, so the namespace stays pure. The draw method packs them."
@@ -317,7 +322,13 @@
         (assoc state :gesture g))
 
       :else
-      (play dims (assoc state :gesture g) input event))))
+      (let [after (play dims (assoc state :gesture g) input event)]
+        (if (:over? after)
+          ;; The one exception to storing `g'`: on the frame the game ends,
+          ;; forget the touch. A short tap still down would otherwise lift
+          ;; into a `:tap` and restart the game before its result was seen.
+          (assoc after :gesture gesture/idle)
+          after)))))
 
 (defn- init [{:keys [metrics]}]
   [(new-game (dimensions metrics) start-seed gesture/idle)

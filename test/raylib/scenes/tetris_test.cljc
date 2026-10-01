@@ -440,3 +440,26 @@
 (deftest the-scene-has-its-identity
   (is (= :tetris (:id (t/scene))))
   (is (= "Tetris" (:title (t/scene)))))
+
+(def ^:private about-to-end
+  "The I piece resting on a block that will make the next spawn impossible, with
+  gravity due this frame, so the game ends on whatever frame comes next."
+  (-> start
+      (with-piece :i 0 0 18)
+      (assoc :next :o :tick 100
+             :board (block (:board start) [[1 4]]))))
+
+(deftest a-touch-held-through-game-over-does-not-restart
+  (let [over (step about-to-end :press [600 1500])]
+    (is (:over? over))
+    (testing "still down, then lifted: the short tap is not a restart"
+      (let [lifted (-> over (step :down [600 1500]) (step :release [600 1500]))]
+        (is (:over? lifted))
+        (is (= (:board over) (:board lifted)))))))
+
+(deftest a-fresh-tap-after-game-over-restarts
+  (let [over (-> about-to-end (step :press [600 1500]) (step :release [600 1500]))
+        after (tap over [600 1400])]
+    (is (:over? over))
+    (is (not (:over? after)))
+    (is (zero? (count (filter some? (flatten (:board after))))))))
