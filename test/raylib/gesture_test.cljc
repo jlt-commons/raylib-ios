@@ -122,3 +122,22 @@
     (is (g/in-back-region? [bx by]))
     (is (g/in-back-region? [(+ bx bw) (+ by bh)]))
     (is (not (g/in-back-region? [500 60])))))
+
+(deftest a-diagonal-tie-swipes-horizontally
+  (is (= [{:type :swipe
+           :dir :right
+           :from [0 0]}]
+         (events [[:press [0 0]] [:down [200 200]] [:release nil]]))))
+
+(deftest a-new-press-replaces-a-gesture-in-progress
+  (is (= [{:type :tap
+           :at [500 500]}]
+         (events [[:press [0 0]] [:down [5 5]] [:press [500 500]] [:release nil]]))))
+
+(deftest the-long-press-fires-on-the-twenty-seventh-down
+  (is (= 27 g/long-press-frames))
+  (let [downs (fn [n] (events (cons [:press [100 100]] (repeat n [:down [100 100]]))))]
+    (is (= [] (downs 26)))
+    (is (= [{:type :long-press
+             :at [100 100]}]
+           (downs 27)))))

@@ -27,14 +27,17 @@
 
 (defn slop
   "How far a finger may travel and still be a tap or a long press, in pixels.
-  Reuses the list's threshold so a tap on a scene feels like a tap on a card."
+  Needs `:metrics` with `:screen`, and the gallery passes the SAFE-REGION size
+  there, so the threshold is relative to the safe region. Reuses the list's threshold so a tap on a scene feels like a tap on a card."
   [metrics]
   (* scroll/tap-slop (shorter-side metrics)))
 
 (defn swipe-min
   "How far a finger must travel, along its dominant axis, to count as a swipe.
   estimate: 0.08 of the shorter side, about 96 px on the phone, which is well
-  clear of the slop so a shaky tap is never read as a swipe."
+  clear of the slop so a shaky tap is never read as a swipe. Needs `:metrics`
+  with `:screen`, which the gallery sets to the SAFE-REGION size, so the
+  threshold is relative to the safe region."
   [metrics]
   (* 0.08 (shorter-side metrics)))
 
@@ -77,7 +80,8 @@
 (defn- swipe-event
   "A swipe from the gesture's start to its last `:down` point, or nil when the
   finger did not go far enough. The larger axis decides the direction. Screen y
-  grows downward, so a positive dy is `:down`."
+  grows downward, so a positive dy is `:down`. An exact tie, |dx| = |dy|, goes
+  to the horizontal axis."
   [{:keys [start last]} metrics]
   (let [dx (- (double (first last)) (double (first start)))
         dy (- (double (second last)) (double (second start)))
@@ -125,7 +129,12 @@
 
   A `:down` with no gesture in progress is ignored. A scene's first frames can
   see the finger that opened it still lifting, and treating that as a gesture
-  would swipe or tap something the player never touched. A long press that has
+  would swipe or tap something the player never touched. A `:press` while a
+  gesture is in progress replaces it silently, with no event for the old one:
+  there is a single pointer, so the latest press wins. `:idle` leaves the
+  gesture unchanged, so one whose release was missed (the app backgrounded, say)
+  can resume on a later `:down`. Scenes start from `idle`, so that only matters
+  within one scene. A long press that has
   fired swallows its release, so holding to flag a tile never also reveals it."
   [g input]
   (let [{:keys [phase position]} (:pointer input)
