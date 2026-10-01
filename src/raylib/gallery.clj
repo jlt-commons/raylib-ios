@@ -49,6 +49,7 @@
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.hilbert :as hil]
             [raylib.scenes.huewheel :as hue]
+            [raylib.scenes.inlinestyle :as istyle]
             [raylib.scenes.invaders :as inv]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
@@ -107,7 +108,8 @@
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
-             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)])
+             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
+             (istyle/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -139,7 +141,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes]}
+             :rectbounds :huewheel :logo :fontsizes :inlinestyle]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2305,3 +2307,36 @@
         measure (fn [s sz] (rl/measure-text s (int sz)))]
     (doseq [{:keys [s x y size colour]} (fsizes/layout (fsizes/dimensions m) measure)]
       (rl/draw-text s (int x) (int y) size (pack colour)))))
+
+(def ^:private inlinestyle-layout
+  "The last layout as `[key layout]`. Its key holds every input to it, the screen
+  and the tint, because the markup, the sizes and the measure do not change."
+  (atom nil))
+
+(defn- inlinestyle-lines [m tint]
+  (let [k [(:screen m) tint]
+        [ck cl] @inlinestyle-layout]
+    (if (= k ck)
+      cl
+      (let [l (istyle/layout (istyle/dimensions m) (fn [s sz] (rl/measure-text s (int sz))) tint)]
+        (reset! inlinestyle-layout [k l])
+        l))))
+
+(defmethod draw-scene! :inlinestyle [_ {:keys [tint]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack istyle/background-colour))
+        {:keys [lines box thick]} (inlinestyle-lines m tint)
+        [bx by bw bh] box
+        x2 (+ bx bw)
+        y2 (+ by bh)
+        edge (pack istyle/box-colour)]
+    (doseq [{:keys [size y runs]} lines
+            {:keys [text fg bg x w]} runs]
+      (when bg
+        (rl/draw-rectangle (int x) (int y) (int w) (int size) (pack bg)))
+      (rl/draw-text text (int x) (int y) size (pack fg)))
+    ;; DrawRectangleLines is a hairline here, so the box is four lines.
+    (rl/draw-line-ex bx by x2 by thick edge)
+    (rl/draw-line-ex x2 by x2 y2 thick edge)
+    (rl/draw-line-ex x2 y2 bx y2 thick edge)
+    (rl/draw-line-ex bx y2 bx by thick edge)))

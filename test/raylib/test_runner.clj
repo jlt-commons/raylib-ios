@@ -97,6 +97,7 @@
                      raylib.scenes.huewheel-test
                      raylib.scenes.logo-test
                      raylib.scenes.fontsizes-test
+                     raylib.scenes.inlinestyle-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
