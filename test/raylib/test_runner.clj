@@ -90,6 +90,7 @@
                      raylib.scenes.tetris-test
                      raylib.scenes.asteroids-test
                      raylib.scenes.virtualpad-test
+                     raylib.scenes.starfield-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test

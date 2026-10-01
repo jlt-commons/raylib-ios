@@ -69,6 +69,7 @@
             [raylib.scenes.snake :as snk]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
+            [raylib.scenes.starfield :as sfield]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.strip :as strip]
             [raylib.scenes.tesseract :as tess]
@@ -99,7 +100,7 @@
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
-             (tet/scene) (astr/scene) (vpad/scene)])
+             (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -130,7 +131,7 @@
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
-             :particles :bounce :virtualpad]}
+             :particles :bounce :virtualpad :starfield]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2147,3 +2148,19 @@
                     (pack (if a? vpad/a-active-colour vpad/a-colour)))
     (rl/draw-text "A" (:x a-glyph) (:y a-glyph) (:size a-glyph)
                   (pack (if a? vpad/a-text-active-colour vpad/a-text-colour)))))
+
+(defmethod draw-scene! :starfield [_ {:keys [stars streaks? speed]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack sfield/background-colour))
+        dims (sfield/dimensions m)
+        white (pack sfield/star-colour)
+        thick (:u dims)]
+    (doseq [s stars
+            :let [{:keys [x y r tx ty]} (sfield/star-shape dims s)]]
+      (if streaks?
+        (rl/draw-line-ex tx ty x y thick white)
+        (rl/draw-circle (int x) (int y) (float r) white)))
+    (let [[speed-l mode-l fps-l] (:lines dims)]
+      (rl/draw-text (sfield/speed-line speed) (:x speed-l) (:y speed-l) (:size speed-l) white)
+      (rl/draw-text (sfield/mode-line streaks?) (:x mode-l) (:y mode-l) (:size mode-l) white)
+      (rl/draw-text (sfield/fps-line (rl/get-fps)) (:x fps-l) (:y fps-l) (:size fps-l) white))))

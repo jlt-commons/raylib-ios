@@ -80,6 +80,7 @@ that were tuned to get there.
 | Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | 59 | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
 | Bouncing Ball | 1 circle and 1 or 2 lines of text | | a tap pauses, in place of SPACE; speed and radius scale with the shorter side, and a rotation clamps the ball back inside |
 | Virtual Controls | a D-pad of 4 circles and a ring, an A button, a square, 3 lines of text | | every finger down is tested, so a direction and A work together, in place of the arrow keys and SPACE; motion is delta-time based as in the original, and a rotation starts over |
+| Starfield | up to 350 circles or streaks and 3 lines of text | | a vertical drag sets the speed in place of the mouse wheel and a tap toggles streaks in place of SPACE; motion is delta-time based as in the original, and a rotation needs no reset |
 
 ## Games
 
