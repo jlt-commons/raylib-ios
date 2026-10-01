@@ -79,9 +79,18 @@
     [a c b]
     (vec corners)))
 
-(defn advance [state input]
+(defn- clamp-corner [w h corner]
+  (update corner :pos (fn [[x y]]
+                        [(max 0.0 (min (double w) (double x)))
+                         (max 0.0 (min (double h) (double y)))])))
+
+(defn advance
+  "One frame. Every corner is clamped into the screen first, so a rotation to a
+  smaller screen cannot strand a corner off it where no finger can reach."
+  [state input]
   (let [d (dimensions (:metrics input))
         {:keys [w h]} d
+        state (update state :corners (fn [cs] (mapv #(clamp-corner w h %) cs)))
         phase (get-in input [:pointer :phase])
         point (get-in input [:pointer :position])
         down? (boolean (and point (#{:press :down} phase)))
@@ -103,14 +112,12 @@
                        (some? (:dragging state)) (:dragging state)
                        (= :press phase) (first (keep-indexed
                                                 (fn [i c] (when (within? (:pos c) (:grab d) point) i))
-                                                (:corners state))))
-            [px py] point]
+                                                (:corners state))))]
         (assoc state
                :dragging dragging
                :corners (if (some? dragging)
-                          (assoc-in (:corners state) [dragging :pos]
-                                    [(max 0.0 (min (double w) (double px)))
-                                     (max 0.0 (min (double h) (double py)))])
+                          (update (:corners state) dragging
+                                  #(clamp-corner w h (assoc % :pos (mapv double point))))
                           (:corners state)))))))
 
 (defn- init [{:keys [metrics]}]

@@ -112,8 +112,10 @@
    :vx speed
    :vy (- speed)})
 
-(defn- new-game [dims paddle-x]
-  {:bricks (all-bricks cols rows)
+(defn- new-game [{:keys [w h]
+                  :as dims} paddle-x]
+  {:screen [w h]
+   :bricks (all-bricks cols rows)
    :ball (new-ball dims)
    :paddle-x paddle-x
    :lives lives-start
@@ -159,27 +161,38 @@
   (and (>= px bx) (<= px (+ bx bw))
        (>= py by) (<= py (+ by bh))))
 
-(defn advance [state input]
+(defn- centred-paddle-x [{:keys [w paddle-w]}]
+  (* 0.5 (- w paddle-w)))
+
+(defn advance
+  "One frame. The state remembers the `:screen` it was laid out for, and when the
+  metrics report a different one (the phone rotated) this starts a new game for
+  the new screen, because the bricks, paddle and ball positions are all in the
+  old screen's pixels and a ball left mid-air could fall off the new bottom and
+  cost a life. The paddle is clamped to the screen on every frame."
+  [state input]
   (let [dims (dimensions (:metrics input))
         phase (get-in input [:pointer :phase])
         point (get-in input [:pointer :position])
         down? (boolean (and point (#{:press :down} phase)))
         max-x (- (:w dims) (:paddle-w dims))
-        state (if down?
-                (assoc state :paddle-x
-                       (double (max 0 (min max-x (- (nth point 0) (/ (:paddle-w dims) 2.0))))))
-                state)]
-    (cond
-      (or (:over? state) (:won? state))
-      (if (and down? (= :press phase) (not (in-rect? back-region point)))
-        (new-game dims (:paddle-x state))
-        state)
+        clamp-x (fn [x] (double (max 0 (min max-x x))))]
+    (if (not= [(:w dims) (:h dims)] (:screen state))
+      (new-game dims (centred-paddle-x dims))
+      (let [state (if down?
+                    (assoc state :paddle-x (clamp-x (- (nth point 0) (/ (:paddle-w dims) 2.0))))
+                    (update state :paddle-x clamp-x))]
+        (cond
+          (or (:over? state) (:won? state))
+          (if (and down? (= :press phase) (not (in-rect? back-region point)))
+            (new-game dims (:paddle-x state))
+            state)
 
-      :else (step dims state (:paddle-x state)))))
+          :else (step dims state (:paddle-x state)))))))
 
 (defn- init [{:keys [metrics]}]
   (let [dims (dimensions metrics)]
-    [(new-game dims (* 0.5 (- (:w dims) (:paddle-w dims))))
+    [(new-game dims (centred-paddle-x dims))
      [[:scene/init :breakout]]]))
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])

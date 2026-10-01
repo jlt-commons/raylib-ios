@@ -12,6 +12,8 @@
 (def lime [0 158 47 255])
 (def darkblue [0 82 172 255])
 
+(def caption "touch and drag; the ball turns green while you hold it")
+
 (defn dimensions [metrics]
   (let [[w h] (:screen metrics)
         side (min w h)

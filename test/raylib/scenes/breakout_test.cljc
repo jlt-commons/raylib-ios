@@ -160,6 +160,36 @@
       (is (:over? (step over :press [100 60])))
       (is (:won? (step won :press [399 119]))))))
 
+(def landscape {:screen [2334 1206]})
+
+(defn- on-screen [state screen phase position]
+  (b/advance state {:metrics {:screen screen}
+                    :pointer {:phase phase
+                              :position position}}))
+
+(deftest rotating-to-portrait-keeps-the-paddle-on-screen
+  (let [land (first ((:init (b/scene)) {:metrics landscape}))
+        far (assoc land :paddle-x 2042.25)
+        after (on-screen far (:screen m) :idle nil)
+        {:keys [w paddle-w]} d]
+    (is (<= 0 (:paddle-x after) (- w paddle-w)))
+    (is (= (:screen m) (:screen after)))
+    (is (= 3 (:lives after)))))
+
+(deftest rotating-to-landscape-does-not-cost-a-life
+  (let [low (with-ball 600.0 1800.0 0.0 4.5)
+        after (on-screen low (:screen landscape) :idle nil)
+        fresh (first ((:init (b/scene)) {:metrics landscape}))]
+    (is (= 3 (:lives after)))
+    (is (= fresh after) "a fresh game for the new screen")
+    (is (not (:over? after)))
+    (is (not (:won? after)))))
+
+(deftest the-paddle-is-clamped-every-frame
+  (let [max-x (- (:w d) (:paddle-w d))]
+    (is (= max-x (:paddle-x (idle (assoc start :paddle-x 5000.0)))))
+    (is (= 0.0 (:paddle-x (idle (assoc start :paddle-x -50.0)))))))
+
 (deftest ball-speed-cannot-tunnel-through-a-brick-row
   (testing "per-frame vertical speed stays well under a brick's height"
     ;; The original steps 3 px a frame against 24-px bricks, so 0.125. Both

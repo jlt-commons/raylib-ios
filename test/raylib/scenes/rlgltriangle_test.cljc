@@ -91,6 +91,17 @@
         (is (<= 0 cx 1206))
         (is (<= 0 cy 2334))))))
 
+(deftest corners-are-clamped-after-the-screen-shrinks
+  (let [small {:screen [800 450]}
+        after (t/advance start {:metrics small
+                                :pointer {:phase :idle
+                                          :position nil}})]
+    (is (some (fn [c] (> (get-in c [:pos 1]) 450)) (:corners start)) "the fixture does strand them")
+    (doseq [c (:corners after)
+            :let [[x y] (:pos c)]]
+      (is (<= 0 x 800))
+      (is (<= 0 y 450)))))
+
 (deftest text-lines-fit-the-safe-region
   (let [[w h] (:screen m)
         {:keys [label-size buttons]} d

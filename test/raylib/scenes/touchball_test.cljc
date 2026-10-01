@@ -43,9 +43,8 @@
 (deftest text-lines-fit-the-safe-region
   (let [[w h] (:screen m)
         {:keys [caption-size caption-x caption-y]} (tb/dimensions m)
-        text "touch and drag; the ball turns green while you hold it"
         ;; estimate: 0.6 of the size per character, for raylib's default font
         char-w (* 0.6 caption-size)]
     (is (<= 0 caption-y))
     (is (<= (+ caption-y caption-size) h))
-    (is (<= (+ caption-x (* char-w (count text))) w))))
+    (is (<= (+ caption-x (* char-w (count tb/caption))) w))))

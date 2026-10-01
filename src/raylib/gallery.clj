@@ -1818,7 +1818,7 @@
   (let [{:keys [radius caption-size caption-x caption-y]} (tball/dimensions m)
         [r g b a] (tball/colour state)]
     (rl/draw-circle (int (nth pos 0)) (int (nth pos 1)) (double radius) (rl/rgba r g b a))
-    (rl/draw-text "touch and drag; the ball turns green while you hold it"
+    (rl/draw-text tball/caption
                   caption-x caption-y caption-size rl/DARKGRAY)))
 
 (defmethod draw-scene! :rlgltriangle [_ {:keys [corners dragging lines?]} {:keys [m]}]
