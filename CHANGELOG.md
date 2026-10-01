@@ -69,6 +69,10 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Strings Management glues only on a slow drop.** The original glues while
+  CTRL is held; the port first glued any drag released over another particle,
+  so after a shatter an ordinary throw stuck by accident. Now the drop must be
+  slower than 200 px a second, scaled to the screen, and a throw flies on.
 - **Starfield Effect is the new title of batch 5's Starfield.** The old title
   matched the older stars scene, so two cards in Toys read the same.
 

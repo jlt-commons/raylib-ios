@@ -21,7 +21,9 @@
   - CTRL while dragging one particle over another to glue them: release a
     dragged particle while it overlaps another and the two are glued, the
     dragged text first. Only a drag that left the tap slop glues, so a tap on
-    two particles that happen to overlap does nothing. A glue that would make a
+    two particles that happen to overlap does nothing, and only a slow drop
+    glues, under 200 px a second scaled by `u`, so a particle thrown across
+    another flies on instead of sticking. A glue that would make a
     particle wider than the arena, or pass the 100 particle cap, is refused.
   - Keys 1 to 6 to reset the sentence through a case transform: the \"case\"
     button steps through the six in the original's order, plain, upper, lower,
@@ -428,14 +430,22 @@
                       :moved? (or moved? (> (dist start pos) (gesture/slop metrics)))
                       :samples (vec (take-last sample-count (conj samples [(:x p) (:y p) dt])))}))))
 
+(def ^:private glue-speed
+  "The fastest drop that still glues, in px a second before scaling by `u`. A
+  particle set down on another glues to it; one flung across it flies on."
+  200.0)
+
 (defn- release
   "Let go of the held particle: it keeps the velocity of its last `:down`
-  frames, and glues to what it rests on when the finger really dragged it."
+  frames, and glues to what it rests on when the finger really dragged it and
+  set it down slowly."
   [state measure]
   (let [{:keys [i samples moved?]} (:grab state)
         [vx vy] (throw-velocity samples)
+        slow? (< (Math/sqrt (+ (* vx vx) (* vy vy)))
+                 (* glue-speed (get-in state [:size-info :u])))
         state (update-in state [:particles i] assoc :vx vx :vy vy)
-        state (if moved?
+        state (if (and moved? slow?)
                 (update state :particles #(glue (context state measure) % i))
                 state)]
     (assoc state :grab nil)))

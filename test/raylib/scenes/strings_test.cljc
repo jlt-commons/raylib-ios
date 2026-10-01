@@ -184,7 +184,10 @@
         s (put start [a b])
         [px py] (middle s 0)
         [tx ty] (middle s 1)
-        drag (fn [st to] (-> st (step :press [px py]) (step :down [px py]) (step :down to) (step :release [0 0])))
+        ;; The finger reaches `to`, then settles there for the frames a throw is
+        ;; read from, so the drop is slow.
+        settle (fn [st to] (nth (iterate #(step % :down to) st) 4))
+        drag (fn [st to] (-> st (step :press [px py]) (step :down [px py]) (step :down to) (settle to) (step :release [0 0])))
         glued (drag s [tx ty])]
     (is (= ["abcd"] (texts glued)) "the dragged text comes first")
     (is (nil? (:grab glued)))
@@ -198,8 +201,35 @@
             big (put start [(assoc a :text long-text) (assoc b :text long-text :x ax :y (+ ay 300))])
             [px py] (middle big 0)
             [tx ty] (middle big 1)
-            out (-> big (step :press [px py]) (step :down [px py]) (step :down [tx ty]) (step :release [0 0]))]
+            out (-> big (step :press [px py]) (step :down [px py]) (step :down [tx ty]) (settle [tx ty]) (step :release [0 0]))]
         (is (= 2 (count (:particles out))))))))
+
+(deftest only-a-slow-drop-glues
+  (let [a {:text "ab"
+           :x (+ ax 100)
+           :y (+ ay 100)}
+        b {:text "cd"
+           :x (+ ax 500)
+           :y (+ ay 300)}
+        s (put start [a b])
+        [px py] (middle s 0)
+        [tx ty] (middle s 1)
+        ;; Four `:down` frames ending on the other particle, `step` px apart
+        ;; each, then the release: the throw is read from those frames.
+        drop-at (fn [step-px]
+                  (let [frames (map (fn [k] [(- tx (* step-px (- 3 k))) ty]) (range 4))]
+                    (-> (reduce (fn [st p] (step st :down p))
+                                (-> s (step :press [px py]) (step :down [px py]))
+                                frames)
+                        (step :release [0 0]))))
+        u (get-in start [:size-info :u])
+        limit (* 200.0 u)]
+    (testing "a drop slower than the limit glues"
+      (is (= ["abcd"] (texts (drop-at (* 0.5 limit dt))))))
+    (testing "a throw faster than the limit flies past instead"
+      (let [out (drop-at (* 2.0 limit dt))]
+        (is (= 2 (count (:particles out))))
+        (is (pos? (:vx (first (:particles out)))) "and keeps its throw")))))
 
 (def ^:private plain "raylib => fun videogames programming!")
 
