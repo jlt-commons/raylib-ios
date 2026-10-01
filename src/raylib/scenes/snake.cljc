@@ -46,15 +46,19 @@
 (defn dimensions
   "The grid and where it sits. A tall screen gets 18 columns by 32 rows and a
   wide one 32 by 18. `:cell` is the largest square that fits the board in the
-  screen's width and in its height less the score band at the bottom. `:ox` and
-  `:oy` centre the board in the space above the band."
+  screen's width and in its height less the score band at the bottom AND the
+  Back button's rows at the top. The play area starts at the bottom edge of
+  `gesture/back-region`, so no cell, and so no food, can sit under Back where
+  the player could not see it. `:ox` and `:oy` centre the board in that area."
   [metrics]
   (let [[w h] (:screen metrics)
         side (min w h)
         [cols rows] (if (> h w) [18 32] [32 18])
         score-size (max 20 (int (* 0.03 side)))
         band (* 2 score-size)
-        play-h (- h band)
+        [_ back-y _ back-h] gesture/back-region
+        top (+ back-y back-h)
+        play-h (- h top band)
         cell (min (/ w (double cols)) (/ play-h (double rows)))
         msg-size (max 20 (int (* 0.04 side)))
         ;; estimate: 0.6 of the size per character, for raylib's default font.
@@ -65,7 +69,7 @@
      :rows rows
      :cell cell
      :ox (* 0.5 (- w (* cols cell)))
-     :oy (* 0.5 (- play-h (* rows cell)))
+     :oy (+ top (* 0.5 (- play-h (* rows cell))))
      :score-size score-size
      :score-x (int (* 0.04 w))
      :score-y (int (- h (* 1.5 score-size)))

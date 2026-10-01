@@ -201,6 +201,20 @@
         (is (<= (Math/abs (double (- ox (- w ox (* cols cell))))) 1.0)))
       (is (<= (+ score-y score-size) h)))))
 
+(deftest the-board-starts-below-back
+  (let [[_ by _ bh] gesture/back-region]
+    (doseq [screen [[1206 2334] [2334 1206]]
+            :let [dm (s/dimensions {:screen screen})
+                  {:keys [cols rows oy]} dm]]
+      (testing (str screen)
+        (is (>= oy (+ by bh)))
+        (is (>= oy 120))
+        (doseq [c (range cols) r (range rows)
+                :let [[x y cw ch] (s/cell-rect dm c r)]]
+          (is (not (and (< x (+ 0 400)) (< 0 (+ x cw))
+                        (< y (+ by bh)) (< by (+ y ch))))
+              (str "cell " [c r] " overlaps Back")))))))
+
 (deftest the-start-is-on-the-board
   (doseq [screen [[1206 2334] [2334 1206]]
           :let [st (first ((:init (s/scene)) {:metrics {:screen screen}}))
