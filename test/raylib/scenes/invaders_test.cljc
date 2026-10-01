@@ -282,3 +282,22 @@
     (let [dragged (-> start (step :press [300 1800]) (step :down [900 1800]))
           released (step dragged :release [900 1800])]
       (is (= (:ship-x dragged) (:ship-x released))))))
+
+(deftest the-bullet-speed-is-capped-below-half-an-alien
+  (doseq [screen [[1206 2334] [2334 1206] [800 450] [450 800]]
+          :let [dm (inv/dimensions {:screen screen})]]
+    (testing (str screen)
+      (is (<= (:bullet-speed dm) (* 0.5 (:alien-h dm)))))))
+
+(deftest a-fast-bullet-cannot-skip-an-alien
+  ;; Uncapped, the bullet moves 8 * sy = 39.36 px a frame on the phone, more than
+  ;; an alien's height of 39.2. Starting 0.1 px below the alien, one uncapped step
+  ;; would land 0.07 px above it and the point test would never see it.
+  (let [[px py pw ph] (inv/alien-rect d (:ax start) (:ay start) [0 0])
+        st (-> start
+               (only [[0 0] [7 3]])
+               (assoc :bullets [{:x (+ px (/ pw 2))
+                                 :y (+ py ph 0.1)}]))
+        after (nth (iterate idle st) 5)]
+    (is (not (contains? (:aliens after) [0 0])))
+    (is (= 10 (:score after)))))
