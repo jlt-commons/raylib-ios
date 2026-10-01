@@ -28,7 +28,8 @@
   speed because the motion is free in two dimensions. Enemies appear on the edge
   of the field, one radius inside it, where the original starts them 20 pixels
   outside, and never within touching distance of the hero. Outside the field
-  they would be drawn over the Back button. A rotation starts a new game, since every position is in the old screen's pixels.
+  they would be drawn over the Back button. A rotation starts a new game,
+  since every position is in the old screen's pixels.
 
   The counts are bounded through frame 720 (about 12 s). Bullets live 90 frames
   and a shot takes at least 5, so at most 18 are alive. A gem needs a kill and a
