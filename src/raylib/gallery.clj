@@ -44,6 +44,7 @@
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.hilbert :as hil]
+            [raylib.scenes.invaders :as inv]
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
             [raylib.scenes.logoanim :as logo]
@@ -94,7 +95,7 @@
              (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
-             (g2048/scene) (msw/scene) (pong/scene)])
+             (g2048/scene) (msw/scene) (pong/scene) (inv/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -128,7 +129,7 @@
              :particles :bounce]}
    {:id :games
     :title "Games"
-    :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong]}])
+    :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders]}])
 
 (def ^:private category-ids (mapv :id categories))
 
@@ -2030,3 +2031,21 @@
       (let [line (if (= winner :player) pong/player-wins-line pong/cpu-wins-line)]
         (rl/draw-text line (pong/msg-x dims line) msg-y msg-size
                       (pack pong/win-colour))))))
+
+(defmethod draw-scene! :invaders [_ {:keys [ship-x bullets aliens ax ay score over? won?]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack inv/background-colour))
+        dims (inv/dimensions m)
+        {:keys [score-size score-x score-y msg-size msg-y]} dims
+        rect (fn [[x y w h] colour]
+               (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack colour)))]
+    (doseq [cell aliens]
+      (rect (inv/alien-rect dims ax ay cell) inv/alien-colour))
+    (doseq [b bullets]
+      (rect (inv/bullet-rect dims b) inv/bullet-colour))
+    (rect (inv/ship-rect dims ship-x) inv/ship-colour)
+    (rl/draw-text (inv/score-line score) score-x score-y score-size (pack inv/text-colour))
+    (when (or over? won?)
+      (let [line (if won? inv/win-line inv/over-line)]
+        (rl/draw-text line (inv/msg-x dims line) msg-y msg-size
+                      (pack (if won? inv/win-colour inv/over-colour)))))))

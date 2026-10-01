@@ -90,6 +90,7 @@ that were tuned to get there.
 | 2048 | 16 tiles on a board, a score line | | a swipe slides and a tap restarts once stuck or won, in place of the arrow keys and SPACE; reaching 2048 wins and stops play, which the original does not, and a rotation only re-lays out the board |
 | Minesweeper | up to 192 cells, a status line | | a tap reveals and a long press flags, in place of left and right click; a tap restarts after a mine or a win, in place of SPACE; the 16 by 12 grid turns to 12 by 16 on a tall phone with the same 30 mines, a rotation starts a new game, and as in the original a tap on a flagged cell opens it and the first tap can hit a mine |
 | Pong | 2 paddles, a ball, a dashed line, 2 scores | | your paddle follows the finger and a tap restarts after a win, in place of W, S and ENTER; the court turns 90 degrees on a tall phone, with you at the bottom and the CPU at the top, and a rotation starts a new game; the CPU, the english off the paddle and first to 7 are the original's, and the ball does not speed up |
+| Space Invaders | up to 32 aliens, a ship, bullets, a score line | | the ship follows the finger and fires while one is down, and a tap restarts after a loss or a win, in place of the arrow keys and SPACE; the 8 by 4 formation, its 1.2 px march, 18 px drops, the 15-frame fire cooldown and the loss rule (the lowest alien reaches the ship's row) are the original's, scaled to the safe region per axis, and a rotation starts a new game |
 
 ## What byte-identical means
 
