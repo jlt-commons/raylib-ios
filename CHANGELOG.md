@@ -6,6 +6,26 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Four touch-driven scenes, fifty-six in all.** Touch Ball is raylib-jlt's
+  `mouse`: a circle that follows a finger, green while it is down and staying put
+  when it lifts. The rlgl Triangle has a colour per vertex, three handles that
+  stay grabbed once a finger lands on them, and two buttons where the original
+  used keys. Particles emits at the finger while it is down, and tapping its box
+  cycles water, smoke and fire. The cap is 600, but a held finger settles at
+  about 190 live particles for water and fire and about 324 for smoke, which
+  emits three a frame and keeps each for about 108.
+
+  Breakout is the gallery's second game, in Games beside Flappy Bird. The paddle
+  follows the finger and a tap restarts after game over or a win. It is
+  frame-locked like the original, so its speed follows the frame rate. Breakout
+  and the triangle both survive a rotation, Breakout by starting a new game and
+  the triangle by clamping its corners into the new screen. Frame rates and stills
+  for the four are still to come, from the phone.
+
+- **A section on reading a finger** in the porting guide, covering the
+  press-and-down rule, why the position on `:release` can't be trusted, sticky
+  grabs and keeping buttons off Back.
+
 - **A smoke test for the gallery**, which nothing in CI had ever loaded. A scene
   left out of a category just vanished from the menu, and a missing `draw-scene!`
   method crashed on the phone, so the test checks the four registration points

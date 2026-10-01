@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples. 50 were in the gallery before this batch and 54 are now. Those count
+examples. 54 were in the gallery before the latest batch and 58 are now. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
@@ -139,6 +139,27 @@ a problem this project does not have.
 
 So read the original's docstrings for what they concede, not only for what they
 describe.
+
+## Reading a finger
+
+Touch arrives as a point and a phase, and a few rules keep a scene honest on
+a real phone.
+
+- Only `:press` and `:down` with a non-nil point mean a finger is on the glass.
+- Never read the position on `:release`. raylib keeps the last hardware value,
+  and on the device it isn't the touch that just ended. The comment in
+  `raylib.gallery/frame` has the details, and `touchball` stays put when the
+  finger lifts for that reason.
+- A button fires on `:press` inside its rect, as the two in `rlgltriangle` do
+  where the original read keys.
+- A drag grab is sticky: the finger that lands on a handle keeps it until the
+  release, even when it slides off. `resize` and `rlgltriangle` both work this
+  way.
+- Keep buttons out of the top-left Back region, `[0 0 400 120]`, which the
+  gallery owns.
+- A scene that keeps absolute positions has to cope with `:screen` changing on
+  rotation. `rlgltriangle` clamps its corners into the new screen and `breakout`
+  starts a new game.
 
 ## What only a real device will tell you
 

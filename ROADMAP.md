@@ -5,22 +5,21 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 54 of
-them are in the gallery as of 2026-09-30, which leaves 133. That counts
-examples and not scenes: the gallery has 49 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 58 of
+them are in the gallery as of 2026-09-30, which leaves 129. That counts
+examples and not scenes: the gallery has 53 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 49 + 2 + 3 = 54. They sort into three
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 53 + 2 + 3 = 58. They sort into three
 groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
-**Ready to port, no new bindings (30).** Most of these need a touch mapping
+**Ready to port, no new bindings (26).** Most of these need a touch mapping
 rather than anything from raylib.
 
 - No input at all: `core`, `logo`, `text`, `inline_styling`,
   `outlines_thickness`.
-- A finger stands in for the mouse: `mouse`, `breakout`, `particles`,
-  `rlgl_triangle`, `rectangle_bounds`, `input_virtual_controls`, which already
+- A finger stands in for the mouse: `rectangle_bounds`, `input_virtual_controls`, which already
   draws its own on-screen pad.
 - A tap or a swipe stands in for a key: `bounce`, `basic_screen_manager`,
   `easings_box`, `easings_testbed`, `starfield_effect`, `wheel`, `input`,
@@ -52,13 +51,22 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 - **Split the drawing out of `raylib.gallery`.** It is 1807 lines and every
   port adds about thirty. The `draw-scene!` methods could move to their own
   namespace before it reaches about 2500.
-- **Rebalance the categories.** Toys holds 38 of the 52 scenes, so a scroll
+- **Rebalance the categories.** Toys holds 41 of the 56 scenes, and Games only 2, so a scroll
   through it is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
   `tools/ios/proxy.sh` default to 7888. `proxy.sh` already refuses a busy port,
   but it asks `lsof` rather than attempting the bind, writes no port file, and
   `exec`s iproxy, so a cleanup trap would never run.
+- **Silence the per-frame `GetWindowScaleDPI` warning.** The gallery logs
+  `WARNING: GetWindowScaleDPI() not implemented on target platform` every frame.
+  raylib's `BeginScissorMode` calls `GetWindowScaleDPI` on Apple, and raylib's
+  SDL platform doesn't implement it. Found on device on 2026-09-30. The noise is
+  harmless because clipping is correct, but it floods the console.
+- **Share the touch helpers.** The Back region `[0 0 400 120]` appears in three
+  scenes, a private `in-rect?` is copied into three, and the press-or-down
+  predicate shows up in about eleven places. A small shared pure namespace would
+  hold them, and it is worth doing as its own task.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
@@ -67,5 +75,8 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   registration points and runs every scene for 120 frames.
 - 2026-09-30: a guard so a scene that throws returns to its list instead of
   ending the app.
+- 2026-09-30: four touch-driven ports, `mouse` as Touch Ball, `rlgl_triangle`,
+  `particles` and `breakout`, which make fifty-six scenes and give Games its
+  second game. Breakout and the triangle start over cleanly on a rotation.
 - 2026-09-30: four ports, `delta_time`, `random_values`, `format_text` and
   `triangle_strip`, which make fifty-two scenes.

@@ -1,8 +1,8 @@
 # The scenes
 
-Fifty-two, in four categories. Three come byte-identical from
+Fifty-six, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other forty-nine are ports from
+with their sha256 verified, and the other fifty-three are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -77,14 +77,14 @@ that were tuned to get there.
 | Triangle Strip | 32 triangles | 58 | two per band, through `draw-triangle` so winding cannot cull them |
 | Touch Ball | 1 circle and a caption | | follows a finger; green while held, and it stays put when the finger lifts |
 | rlgl Triangle | 3 vertices, 3 handles, 2 buttons | | a colour per vertex; sticky corner grab, and the keys became buttons |
-| Particles | up to 600 circles, an info box | | emits at the finger while it is down; tapping the box cycles water, smoke and fire |
+| Particles | about 190 circles for water and fire, about 324 for smoke, and an info box | | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
 
 ## Games
 
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
 | Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
-| Breakout | up to 60 bricks, a paddle, a ball | | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original |
+| Breakout | up to 60 bricks, a paddle, a ball | | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
 
 ## What byte-identical means
 
