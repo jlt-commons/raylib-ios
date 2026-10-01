@@ -68,12 +68,15 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   end. The newer games store `gesture/idle` on the frame the game ends unless
   that frame is a press, so a held touch can't restart one but a fresh press
   still does.
-- **Check batch 7 on the device.** The seven scenes have no device run, so their
-  fps cells are blank. Pac-Man draws about 658 shapes a frame and allocates every
-  frame, so its frame cost is the one to read first. The text in Basic Window,
-  Vampire Survivors, Keyboard Ball and Mouse Wheel sits at about 8 to 10 pt and
-  may not be legible. Swipes and thumb-sticks near the bottom edge may fight the
-  iOS home gesture.
+- **Try batch 7 with a real finger.** The device pass drove it with synthetic
+  touches, which never reach iOS, so whether swipes and thumb-sticks near the
+  bottom edge fight the home gesture is still open. The small hint lines in
+  Vampire Survivors, Keyboard Ball and Mouse Wheel, about 8 to 10 pt, are worth
+  a look too.
+- **Synthetic input once produced an extra event.** Twice in the batch-7 pass,
+  a `drag!` sent soon after a `tap!` was followed by one more swipe or tap than
+  was queued. Sent slowly, step by step, the same sequence was clean. The likely
+  place is the release frame after a synthetic gesture, which reads the device.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done

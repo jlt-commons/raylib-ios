@@ -12,8 +12,9 @@ Notable changes, newest first. Dates are the day the work landed.
   reads nothing. Keyboard Ball moves a ball with a thumb-stick in place of the
   arrow keys, Mouse Wheel moves a box with a vertical drag in place of the wheel,
   and Undo Redo and Strings Management map their keys to taps and swipes, with
-  the typing dropped from Strings Management. No device run exists for these
-  seven yet, so their frame rates are blank in the catalog.
+  the typing dropped from Strings Management. On an iPhone 17 Pro all seven
+  hold 58 fps, Pac-Man included, and each has a still on the homepage and in
+  the README.
 - **Every scene's input carries `:measure`.** It is raylib's own text width, as
   `(fn [s size] -> px)`. Strings Management keeps text widths in its state, so it
   reads the key in `init` and `update`, and falls back to an estimate so tests
@@ -73,6 +74,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **Four things the phone showed.** Strings Management fitted its text to the
+  plain sentence, so the upper-case one ran off the left edge; it now fits the
+  widest of the six. Pac-Man's ghosts had a third foot outside the body, as in
+  the original, which read as a loose dot at phone scale. Keyboard Ball's ball
+  could cover its own caption, so the field now starts below it. Basic Window's
+  line was about 10 pt and pale grey, so it now spans most of the width in dark
+  grey.
 - **Pac-Man reaches level 2.** The original's LEVEL CLEARED timer never ran out,
   so the original never got past level 1. The port lets it run out, and it
   freezes the board while LEVEL CLEARED shows, so no ghost can take a life from

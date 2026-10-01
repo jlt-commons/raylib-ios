@@ -40,6 +40,15 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <a href="docs/images/formattext.png"><img src="docs/images/thumbs/formattext.png" width="200" alt="Formatted Text"></a>
   <a href="docs/images/strip.png"><img src="docs/images/thumbs/strip.png" width="200" alt="Triangle Strip"></a>
 </p>
+<p>
+  <a href="docs/images/survivors.png"><img src="docs/images/thumbs/survivors.png" width="200" alt="Vampire Survivors mid-wave"></a>
+  <a href="docs/images/pacman.png"><img src="docs/images/thumbs/pacman.png" width="200" alt="Pac-Man"></a>
+  <a href="docs/images/hello.png"><img src="docs/images/thumbs/hello.png" width="200" alt="Basic Window"></a>
+  <a href="docs/images/nudge.png"><img src="docs/images/thumbs/nudge.png" width="200" alt="Keyboard Ball"></a>
+  <a href="docs/images/wheelbox.png"><img src="docs/images/thumbs/wheelbox.png" width="200" alt="Mouse Wheel, the box dragged down"></a>
+  <a href="docs/images/undoredo.png"><img src="docs/images/thumbs/undoredo.png" width="200" alt="Undo Redo with a trail"></a>
+  <a href="docs/images/strings.png"><img src="docs/images/thumbs/strings.png" width="200" alt="Strings Management, a sentence cut and shaken"></a>
+</p>
 
 *Every one of these is a photograph of an iPhone 17 Pro, captured unattended
 off the device. Click for full size.*
