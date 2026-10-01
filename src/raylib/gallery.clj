@@ -73,6 +73,7 @@
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rlgltriangle :as rlgl]
             [raylib.scenes.rounded :as rnd]
+            [raylib.scenes.screens :as screens]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
             [raylib.scenes.shapes :as shp]
@@ -112,7 +113,7 @@
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
-             (istyle/scene) (outl/scene) (shp/scene) (ell/scene)])
+             (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -144,7 +145,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses]}
+             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2437,4 +2438,11 @@
         (rl/draw-line-ex x1 y1 x2 y2 thick edge))
       (rl/draw-circle (int cx) (int cy) (float dot) edge))
     (doseq [[{:keys [x y size]} [s colour]] (map vector rows (ell/lines steer hit?))]
+      (rl/draw-text s (int x) (int y) size (pack colour)))))
+
+(defmethod draw-scene! :screens [_ {:keys [screen]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack (screens/background screen)))
+        {:keys [rows]} (screens/dimensions m)]
+    (doseq [[{:keys [x y size]} [s colour]] (map vector rows (screens/lines screen))]
       (rl/draw-text s (int x) (int y) size (pack colour)))))
