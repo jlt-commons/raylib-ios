@@ -69,6 +69,9 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Every scene has a measured frame rate.** The 21 scenes from batches 3 to 6
+  had blank fps cells. On an iPhone 17 Pro they run at 58 or 59 fps, apart from
+  Starfield Effect at 52, so all 84 now sit between 52 and 60.
 - **Asteroids keeps firing while fire is held.** The original fires once per
   SPACE press, so the port fired once per touch-down and a thumb had to mash.
   A press still fires at once, and a held button now fires again every 10

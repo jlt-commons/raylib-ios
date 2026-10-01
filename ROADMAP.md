@@ -79,10 +79,20 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   Undo Redo logged exactly at gaps from 1 s down to 0.25 s, and the Strings
   Management sequence came out right. The Strings one may have been a hold
   aimed at a particle that had already moved. Watch for it rather than fix it.
+- **Decide Minesweeper's rules.** The port keeps the original's: a tap on a
+  flagged cell reveals it, and the first tap can hit a mine. A flag guard would
+  stop the first, and first-tap safety the second.
+- **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
+  bricks on a portrait phone, since its speed scales with the width.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
 
+- 2026-10-01: every scene measured on an iPhone 17 Pro, all 84 at 52 to 60 fps,
+  so the catalog has no blank fps cell. Batch 7 has stills, and the device pass
+  fixed four things the phone showed.
+- 2026-10-01: Asteroids keeps firing while fire is held, and Strings Management
+  glues only on a slow drop.
 - 2026-09-30: a jolt-only smoke test that loads the gallery, checks its four
   registration points and runs every scene for 120 frames.
 - 2026-09-30: a guard so a scene that throws returns to its list instead of
