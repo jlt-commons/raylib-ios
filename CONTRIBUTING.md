@@ -38,6 +38,14 @@ Use a seeded generator rather than `GetRandomValue` if the scene is random.
 Every existing one uses the same LCG, which makes a scene replay identically and
 makes its tests possible.
 
+**Frame-locked speeds.** The originals move by a fixed step per frame, so a
+port scales that step to the screen. Scale each axis by its own dimension when
+the motion is bound to an axis, as `breakout`, `pong` and `invaders` do.
+Use one factor when direction matters, such as thrust along a heading: `asteroids`
+uses the geometric mean of the two axes. Cap the per-frame step below what a hit
+test needs, so nothing tunnels. `breakout` caps at a quarter of a brick and
+`invaders` at half an alien.
+
 **2. A test** at `test/raylib/scenes/<name>_test.cljc`.
 
 Prefer properties over golden values: that a rotation preserves length, that

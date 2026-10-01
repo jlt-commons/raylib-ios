@@ -170,7 +170,8 @@ horizontal), or a long press after 27 still frames. A long press that has fired
 suppresses the tap, but a drag after it still swipes. The release position is
 never read, for the reason above. Boards and controls start below Back, derived
 from `gesture/back-region`. `snake`, `game2048` and `minesweeper` show all three
-events in use.
+events in use. A game that ends on a tick stores `gesture/idle` on the frame it
+ends, so a touch still down then can't restart it on lift, as `tetris` does.
 
 ## What only a real device will tell you
 

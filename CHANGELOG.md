@@ -2,6 +2,27 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-10-01
+
+### Added
+
+- **Four arcade games, sixty-four scenes in all.** Games now holds nine. Pong
+  turns the court to portrait with you at the bottom, and the paddle follows a
+  finger. In Space Invaders the ship follows a finger and holding fires on the
+  original's 15-frame cooldown. Tetris moves the piece a column per cell of drag,
+  turns it on a tap and hard-drops it on a swipe down, and has no soft drop.
+  Asteroids has four on-screen buttons for rotating, thrust and fire that work
+  together, so two thumbs can steer and shoot. It fires once per press of Fire, as
+  the original does, so a held Fire button doesn't repeat. A tap on the field
+  restarts each game after it ends. There is no device run for these four yet,
+  so their frame rates are blank in the catalog.
+
+### Fixed
+
+- **A touch held through a game's end no longer restarts it.** Pong, Space
+  Invaders, Tetris, Asteroids and Snake all treated the finger still on the glass
+  as the tap that restarts, so the game began again the moment it ended.
+
 ## 2026-09-30
 
 ### Added
