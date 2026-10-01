@@ -39,6 +39,7 @@
             [raylib.scenes.easings :as ease]
             [raylib.scenes.easingsbox :as ebox]
             [raylib.scenes.easingstestbed :as etb]
+            [raylib.scenes.ellipses :as ell]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.fan :as fan]
             [raylib.scenes.fireworks :as fw]
@@ -111,7 +112,7 @@
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
-             (istyle/scene) (outl/scene) (shp/scene)])
+             (istyle/scene) (outl/scene) (shp/scene) (ell/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -143,7 +144,7 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes]}
+             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2416,3 +2417,24 @@
         (rl/draw-triangle x1 y1 x2 y2 x3 y3 c)))
     (rl/draw-line-ex lx1 ly1 lx2 ly2 thick (pack shp/line-colour))
     (rl/draw-triangle tx1 ty1 tx2 ty2 tx3 ty3 (pack shp/triangle-colour))))
+
+(defmethod draw-scene! :ellipses [_ {:keys [steer hit?]
+                                     :as state} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack ell/background-colour))
+        {:keys [thick rows]
+         :as dims} (ell/dimensions m)
+        edge (pack ell/outline-colour)
+        dot (max 3.0 (* 1.5 thick))]
+    (doseq [[k base] [[:a ell/a-colour] [:b ell/b-colour]]
+            :let [[cx cy] (get state k)
+                  {:keys [r n]} (get dims k)
+                  fill (pack (if hit? ell/hit-colour base))]]
+      ;; Each wedge goes through draw-triangle, which fixes its own winding.
+      (doseq [[x1 y1 x2 y2 x3 y3] (ell/fan cx cy r n)]
+        (rl/draw-triangle x1 y1 x2 y2 x3 y3 fill))
+      (doseq [[x1 y1 x2 y2] (ell/outline cx cy r n)]
+        (rl/draw-line-ex x1 y1 x2 y2 thick edge))
+      (rl/draw-circle (int cx) (int cy) (float dot) edge))
+    (doseq [[{:keys [x y size]} [s colour]] (map vector rows (ell/lines steer hit?))]
+      (rl/draw-text s (int x) (int y) size (pack colour)))))

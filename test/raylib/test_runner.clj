@@ -100,6 +100,7 @@
                      raylib.scenes.inlinestyle-test
                      raylib.scenes.outlines-test
                      raylib.scenes.shapes-test
+                     raylib.scenes.ellipses-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
