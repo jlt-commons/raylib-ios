@@ -6,6 +6,27 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Seven scenes, seventy-seven in all.** Toys now holds fifty-five. Still Logo
+  draws the raylib logo finished, with nothing to touch. Font Sizes shows lines
+  at five sizes and reads nothing. Inline Styling colours runs of text with tags
+  inside the string, `[cRRGGBBAA]` for the text, `[bRRGGBBAA]` for the
+  background and `[r]` to reset, and one word changes colour every 20 frames.
+  Outline Thickness sweeps its value on its own until you touch, and a vertical
+  drag then sets one thickness for a rectangle, a rounded rectangle and a ring.
+  Basic Shapes is a static tour of circles, an ellipse, a line, a triangle and
+  outlines, with the ellipse drawn as a triangle fan. In Ellipse Collision one
+  ellipse follows your finger and both turn red when they overlap, and a tap
+  that starts inside the other ellipse hands the steering to it. Screen Manager
+  steps through LOGO, TITLE, GAMEPLAY and ENDING on a tap or on the original's
+  90-frame timer. No device run exists for these seven yet, so their frame rates
+  are blank in the catalog.
+- **Where the seven differ from their originals.** Below zero, Outline Thickness
+  behaves per shape as the original does. The plain rectangle draws nothing, the
+  rounded one is a one pixel hairline and only the ring grows outward. Ellipse
+  Collision keeps the original's overlap test, which samples 64 points round each
+  rim, so it misses a very thin lens where two ellipses just cross. Screen
+  Manager's ENDING goes back to LOGO, as the original does. Font Sizes keeps the
+  original's ratios from 10 to 40, so its smallest line is small on a phone.
 - **Six touch toys, seventy scenes in all.** Toys now holds forty-eight. Virtual
   Controls draws a D-pad and an A button that read every finger down, so a
   direction and A work together, and every direction moves at one speed.
@@ -32,6 +53,11 @@ Notable changes, newest first. Dates are the day the work landed.
   the original does, so a held Fire button doesn't repeat. A tap on the field
   restarts each game after it ends. There is no device run for these four yet,
   so their frame rates are blank in the catalog.
+
+### Changed
+
+- **Starfield Effect is the new title of batch 5's Starfield.** The old title
+  matched the older stars scene, so two cards in Toys read the same.
 
 ### Fixed
 
