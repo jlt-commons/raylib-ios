@@ -293,6 +293,19 @@
           (is (>= gap (- (:edge dm) 1e-6)) "inside the field, circle and all")
           (is (<= gap (+ (:edge dm) (:enemy-speed dm) 1e-6)) "within a step of an edge"))))))
 
+(deftest a-wave-never-spawns-on-the-hero
+  (let [wall-x (+ (:fx d) (:hero-r d))
+        mid-y (+ (:ftop d) (/ (:fh d) 2.0))
+        against-wall (-> calm
+                         (assoc :spawn-cd 1)
+                         (update :hero assoc :x wall-x :y mid-y))
+        lost (for [seed (range 3000)
+                   :let [after (idle (assoc against-wall :seed seed))]
+                   :when (< (:hp (:hero after)) sv/hero-hp)]
+               seed)]
+    (is (= 2 (count (:enemies (idle (assoc against-wall :seed 0))))) "a wave did spawn")
+    (is (empty? lost) "no seed costs HP on the spawn frame")))
+
 (deftest enemies-chase-at-a-fixed-speed
   (let [[hx hy] hero-at
         e0 (enemy (+ hx 600) (- hy 800))
@@ -300,9 +313,10 @@
     (is (near? (:enemy-speed d) (dist [(:x e0) (:y e0)] [(:x e) (:y e)])))
     (is (< (dist [(:x e) (:y e)] hero-at) (dist [(:x e0) (:y e0)] hero-at)))))
 
-(deftest enemy-bullet-and-gem-counts-stay-bounded
+(deftest enemy-bullet-and-gem-counts-stay-bounded-through-frame-720
   (let [frames-run 720
-        ;; The original's rules: a wave of 2 + (time / 600) every (50 - time / 120)
+        ;; The bound holds through frame 720 (about 12 s) only, since waves grow
+        ;; with time. The original's rules: a wave of 2 + (time / 600) every (50 - time / 120)
         ;; frames, the first after 30. By frame 720 that is at most
         ;; 1 + (720 - 30) / 44 = 16 waves of at most 3. A gem needs a kill and a
         ;; kill needs a spawned enemy, so enemies + gems <= 48. A bullet lives 90
@@ -377,7 +391,7 @@
       (testing "the stick ring fits on the screen"
         (is (< (* 2 (:stick-r dm)) (min w h))))
       (testing "fifty spawn points are inside the field, circle and all"
-        (let [[wave _] (#'sv/spawn-wave dm 7 50)]
+        (let [[wave _] (#'sv/spawn-wave dm [(/ w 2.0) (+ (:ftop dm) (/ (:fh dm) 2.0))] 7 50)]
           (is (= 50 (count wave)))
           (is (every? (fn [{:keys [x y]}]
                         (and (<= (:edge dm) x (- w (:edge dm)))

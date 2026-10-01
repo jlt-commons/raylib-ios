@@ -27,12 +27,14 @@
   geometric mean of the two axes' scales, which applies to every radius and
   speed because the motion is free in two dimensions. Enemies appear on the edge
   of the field, one radius inside it, where the original starts them 20 pixels
-  outside. Outside the field they would be drawn over the Back button. A
+  outside, and never within touching distance of the hero. Outside the field they would be drawn over the Back button. A
   rotation starts a new game, since every position is in the old screen's pixels.
 
-  The counts stay bounded. Bullets live 90 frames and a shot takes at least 5,
-  so at most 18 are alive. A gem needs a kill and a kill needs an enemy, so
-  enemies and gems together never exceed what the waves have spawned.
+  The counts are bounded through frame 720 (about 12 s). Bullets live 90 frames
+  and a shot takes at least 5, so at most 18 are alive. A gem needs a kill and a
+  kill needs an enemy, so enemies and gems together never exceed what the waves
+  have spawned, which by frame 720 is 16 waves of at most 3, so 48. Waves grow
+  with time, so later the bound is higher.
 
   Randomness comes from the project's LCG, taking its high bits. Colours are
   `[r g b a]` vectors. The draw method packs them with `rl/rgba`."
@@ -206,23 +208,49 @@
         d (max 1.0 (Math/sqrt (+ (* dx dx) (* dy dy))))]
     [(* speed (/ dx d)) (* speed (/ dy d))]))
 
+(defn- edge-point
+  "`[[x y] seed']`: a random point on the field's edge, one radius inside it."
+  [{:keys [fx ftop fw fh edge]} seed]
+  (let [[side s1] (roll seed 4)
+        [along s2] (roll s1 (inc (int (- (if (< side 2) fh fw) (* 2 edge)))))]
+    [(case (int side)
+       0 [(+ fx edge) (+ ftop edge along)]
+       1 [(- (+ fx fw) edge) (+ ftop edge along)]
+       2 [(+ fx edge along) (+ ftop edge)]
+       [(+ fx edge along) (- (+ ftop fh) edge)])
+     s2]))
+
+(def ^:private spawn-tries
+  "Positions rolled for one enemy before the opposite edge is used instead."
+  4)
+
 (defn- spawn-wave
   "`[enemies seed']`: `n` enemies, each on a random edge of the field and a
-  random point along it, one radius inside so the whole circle is in the field."
-  [{:keys [fx ftop fw fh edge]} seed n]
-  (loop [i 0 s seed out []]
-    (if (= i n)
-      [out s]
-      (let [[side s1] (roll s 4)
-            [along s2] (roll s1 (inc (int (- (if (< side 2) fh fw) (* 2 edge)))))
-            [x y] (case (int side)
-                    0 [(+ fx edge) (+ ftop edge along)]
-                    1 [(- (+ fx fw) edge) (+ ftop edge along)]
-                    2 [(+ fx edge along) (+ ftop edge)]
-                    [(+ fx edge along) (- (+ ftop fh) edge)])]
-        (recur (inc i) s2 (conj out {:x (double x)
-                                     :y (double y)
-                                     :hp enemy-hp}))))))
+  random point along it, one radius inside so the whole circle is in the field.
+  A point within `hero-r + enemy-r + enemy-speed` of the hero `[hx hy]` is
+  rolled again, so an enemy can't touch the hero on the frame it appears. After
+  `spawn-tries` rolls the last point is mirrored through the field's centre,
+  which is on the opposite edge and far from a hero that was near it."
+  [{:keys [fx ftop fw fh hero-r enemy-r enemy-speed]
+    :as dims}
+   [hx hy] seed n]
+  (let [near (+ hero-r enemy-r enemy-speed)
+        clear? (fn [[x y]] (not (close? {:x x
+                                         :y y} {:x hx
+                                                :y hy} near)))]
+    (loop [i 0 s seed out []]
+      (if (= i n)
+        [out s]
+        (let [[[x y] s'] (loop [tries 1 s s]
+                           (let [[p s'] (edge-point dims s)]
+                             (cond
+                               (clear? p) [p s']
+                               (>= tries spawn-tries) [[(- (+ fx fx fw) (first p))
+                                                        (- (+ ftop ftop fh) (second p))] s']
+                               :else (recur (inc tries) s'))))]
+          (recur (inc i) s' (conj out {:x (double x)
+                                       :y (double y)
+                                       :hp enemy-hp})))))))
 
 (defn- new-game [dims seed g]
   {:screen [(:w dims) (:h dims)]
@@ -279,7 +307,7 @@
         spawn-cd (dec (:spawn-cd st))
         [enemies0 spawn-cd seed']
         (if (<= spawn-cd 0)
-          (let [[wave s] (spawn-wave dims seed (+ 2 (quot (:time st) 600)))]
+          (let [[wave s] (spawn-wave dims [hx hy] seed (+ 2 (quot (:time st) 600)))]
             [(into (:enemies st) wave) (max 12 (- 50 (quot (:time st) 120))) s])
           [(:enemies st) spawn-cd seed])
         enemies1 (mapv (fn [e]

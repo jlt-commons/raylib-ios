@@ -1349,7 +1349,7 @@
         hand (fn [ang len thick colour]
                (let [[x y] (analog/polar cx cy len ang)]
                  (rl/draw-line-ex cx cy x y thick colour)))]
-    (rl/draw-ring cx cy (- r (* r 0.05)) r 0 360 120 (rl/rgba 210 212 222 255))
+    (rl/draw-ring (int cx) (int cy) (- r (* r 0.05)) r 0 360 120 (rl/rgba 210 212 222 255))
     (doseq [[x0 y0 x1 y1 long?] (analog/ticks d)]
       (rl/draw-line-ex x0 y0 x1 y1 (if long? (* r 0.017) (* r 0.006))
                        (rl/rgba 150 155 165 255)))
@@ -2481,7 +2481,7 @@
       (let [[cx cy] (:centre stick)
             [kx ky] (surv/knob dims stick)
             r (:stick-r dims)]
-        (rl/draw-ring cx cy (- r (max 2.0 (* r 0.06))) r 0 360 48 (pack surv/stick-colour))
+        (rl/draw-ring (int cx) (int cy) (- r (max 2.0 (* r 0.06))) r 0 360 48 (pack surv/stick-colour))
         (rl/draw-circle (int kx) (int ky) (float (:knob-r dims)) (pack surv/knob-colour))))
     (bar hp-bar (/ (max 0 (:hp hero)) (double surv/hero-hp)) surv/hp-colour)
     (bar xp-bar (/ (:xp hero) (double (surv/xp-needed (:level hero)))) surv/xp-colour)
