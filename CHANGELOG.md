@@ -34,7 +34,8 @@ Notable changes, newest first. Dates are the day the work landed.
   the frame rate. Random Values is seeded and replays. Formatted Text shows a
   zero-padded score and a MM:SS clock, and Triangle Strip draws through
   `draw-triangle` so winding cannot cull it. All four hold 58 fps on an iPhone
-  17 Pro.
+  17 Pro, and each has a still on the homepage and in the README, taken off the
+  phone with the scene opened over the nREPL.
 
   Random Values takes the high bits of the LCG rather than the low ones. The low
   bit of this generator alternates on every step, so a coin flip built from it

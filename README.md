@@ -28,6 +28,12 @@ open a scene, tap Back to leave it. The bird flaps on a press edge.
   <a href="docs/images/fireworks.png"><img src="docs/images/thumbs/fireworks.png" width="200" alt="Fireworks"></a>
   <a href="docs/images/flappy-bird.png"><img src="docs/images/thumbs/flappy-bird.png" width="200" alt="Flappy Bird"></a>
 </p>
+<p>
+  <a href="docs/images/deltatime.png"><img src="docs/images/thumbs/deltatime.png" width="200" alt="Delta Time, the two boxes already apart"></a>
+  <a href="docs/images/randomvalues.png"><img src="docs/images/thumbs/randomvalues.png" width="200" alt="Random Values"></a>
+  <a href="docs/images/formattext.png"><img src="docs/images/thumbs/formattext.png" width="200" alt="Formatted Text"></a>
+  <a href="docs/images/strip.png"><img src="docs/images/thumbs/strip.png" width="200" alt="Triangle Strip"></a>
+</p>
 
 *Every one of these is a photograph of an iPhone 17 Pro, captured unattended
 off the device. Click for full size.*
