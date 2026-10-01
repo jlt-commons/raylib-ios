@@ -28,7 +28,10 @@
 (defn slop
   "How far a finger may travel and still be a tap or a long press, in pixels.
   Needs `:metrics` with `:screen`, and the gallery passes the SAFE-REGION size
-  there, so the threshold is relative to the safe region. Reuses the list's threshold so a tap on a scene feels like a tap on a card."
+  there, so the threshold is relative to the safe region. Reuses the list's
+  threshold so a tap on a scene feels like a tap on a card. The gallery's own
+  list-tap test uses the full screen's shorter side instead, so a scene tap and
+  a card tap agree to within a pixel or two."
   [metrics]
   (* scroll/tap-slop (shorter-side metrics)))
 
@@ -97,10 +100,12 @@
 (defn- finish
   "What a lifted finger meant. The release frame's own position is never read:
   on device it is whatever the hardware held last, so everything here comes from
-  the `:start` and `:last` points recorded while the finger was down."
+  the `:start` and `:last` points recorded while the finger was down. The swipe
+  is checked before the `:fired?` gate because a fired long-press only rules
+  out the tap: a finger that rested and then dragged far still meant a swipe."
   [g metrics]
-  (when-not (:fired? g)
-    (or (swipe-event g metrics)
+  (or (swipe-event g metrics)
+      (when-not (:fired? g)
         (when (<= (:travel g) (slop metrics))
           {:type :tap
            :at (:start g)}))))
@@ -134,8 +139,9 @@
   there is a single pointer, so the latest press wins. `:idle` leaves the
   gesture unchanged, so one whose release was missed (the app backgrounded, say)
   can resume on a later `:down`. Scenes start from `idle`, so that only matters
-  within one scene. A long press that has
-  fired swallows its release, so holding to flag a tile never also reveals it."
+  within one scene. A fired long-press suppresses the tap, so holding to flag a
+  tile never also reveals it, but a drag after it still swipes, so a player who
+  rests a finger before swiping does not lose the move."
   [g input]
   (let [{:keys [phase position]} (:pointer input)
         metrics (:metrics input)]

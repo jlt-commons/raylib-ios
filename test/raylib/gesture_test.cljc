@@ -84,6 +84,18 @@
            :at [100 100]}]
          (events (concat [[:press [100 100]]] holding [[:release [100 100]]])))))
 
+(deftest a-long-hold-then-drag-still-swipes
+  (let [rest-frames (concat [[:press [100 100]]]
+                            (repeat g/long-press-frames [:down [100 100]]))
+        drag (map (fn [y] [:down [100 y]]) (range 150 401 50))
+        evs (events (concat rest-frames drag [[:release [100 400]]]))]
+    (is (= :long-press (:type (first evs))))
+    (is (= 2 (count evs)))
+    (is (= {:type :swipe
+            :dir :down
+            :from [100 100]}
+           (second evs)))))
+
 (deftest a-hold-that-moves-is-not-a-long-press
   (is (= [] (events (concat [[:press [100 100]] [:down [160 100]]]
                             holding)))))

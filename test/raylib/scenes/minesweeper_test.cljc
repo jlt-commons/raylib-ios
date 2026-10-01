@@ -112,8 +112,11 @@
     (is (:over? after))
     (is (not (:won? after)))
     (is (not (contains? (:revealed after) [5 5])))
-    (testing "and further taps on the board change nothing but a restart"
-      (is (= (:revealed after) (:revealed (step after :idle nil)))))))
+    (testing "a long-press on another cell is ignored once the game is over"
+      (let [later (long-press after [8 8])]
+        (is (:over? later))
+        (is (= (:revealed after) (:revealed later)))
+        (is (= (:flagged after) (:flagged later)))))))
 
 (deftest revealing-every-safe-cell-wins
   (let [mines (take s/n-mines (all-cells d))
