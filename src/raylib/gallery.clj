@@ -54,6 +54,7 @@
             [raylib.scenes.randomvalues :as rv]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
+            [raylib.scenes.rlgltriangle :as rlgl]
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
@@ -62,6 +63,7 @@
             [raylib.scenes.stars :as stars]
             [raylib.scenes.strip :as strip]
             [raylib.scenes.tesseract :as tess]
+            [raylib.scenes.touchball :as tball]
             [raylib.scenes.tree :as tree]
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
@@ -83,7 +85,7 @@
              (rnd/scene) (vang/scene) (bars/scene)
              (bez/scene) (fan/scene) (clipbox/scene)
              (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
-             (ftext/scene) (strip/scene)])
+             (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -113,7 +115,7 @@
              :angles :writing :balls :sequence :collision :dashed :multitouch
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
-             :deltatime :randomvalues :formattext :strip]}
+             :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird]}])
@@ -1805,3 +1807,45 @@
       (rl/draw-triangle x1 top x0 bot x1 bot c))
     (rl/draw-text "a rainbow strip via rlgl immediate mode"
                   caption-x caption-y caption-size rl/DARKGRAY)))
+
+(defmethod draw-scene! :touchball [_ {:keys [pos]
+                                      :as state} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [radius caption-size caption-x caption-y]} (tball/dimensions m)
+        [r g b a] (tball/colour state)]
+    (rl/draw-circle (int (nth pos 0)) (int (nth pos 1)) (double radius) (rl/rgba r g b a))
+    (rl/draw-text "touch and drag; the ball turns green while you hold it"
+                  caption-x caption-y caption-size rl/DARKGRAY)))
+
+(defmethod draw-scene! :rlgltriangle [_ {:keys [corners dragging lines?]} {:keys [m]}]
+  (rl/clear-background rl/RAYWHITE)
+  (let [{:keys [handle thick label-size buttons]} (rlgl/dimensions m)
+        corners* (rlgl/wound corners)]
+    (if lines?
+      ;; Three thick lines through draw-line-ex, which avoids an RL_LINES
+      ;; constant. Each edge takes the colour of the corner it starts at.
+      (doseq [i (range 3)
+              :let [a (nth corners* i)
+                    b (nth corners* (mod (inc i) 3))
+                    [r g bl al] (:color a)]]
+        (rl/draw-line-ex (nth (:pos a) 0) (nth (:pos a) 1)
+                         (nth (:pos b) 0) (nth (:pos b) 1)
+                         thick (rl/rgba r g bl al)))
+      ;; One colour per vertex, so draw-triangle (one colour) does not fit. The
+      ;; corners are already wound to survive culling.
+      (do
+        (rl/rl-begin rl/RL-TRIANGLES)
+        (doseq [{[x y] :pos
+                 [r g b a] :color} corners*]
+          (rl/rl-color-4ub r g b a)
+          (rl/rl-vertex-2f (float x) (float y)))
+        (rl/rl-end)))
+    (doseq [[i {[x y] :pos}] (map-indexed vector corners)]
+      (rl/draw-circle (int x) (int y) (double handle)
+                      (if (= dragging i) rl/DARKGRAY (rl/rgba 130 130 130 255))))
+    (doseq [{:keys [id label rect label-x label-y]} buttons
+            :let [[bx by bw bh] rect
+                  on? (and lines? (= id :outline))]]
+      (rl/draw-rectangle (int bx) (int by) (int bw) (int bh)
+                         (if on? (rl/rgba 200 200 200 255) (rl/rgba 225 228 236 255)))
+      (rl/draw-text label label-x label-y label-size rl/DARKGRAY))))

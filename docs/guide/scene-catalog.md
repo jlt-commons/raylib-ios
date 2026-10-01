@@ -75,6 +75,8 @@ that were tuned to get there.
 | Random Values | a number and a label | 58 | seeded, so it replays |
 | Formatted Text | 2 lines of text | 58 | zero-padded score and MM:SS, padded by a private `zero-pad` built from `str` |
 | Triangle Strip | 32 triangles | 58 | two per band, through `draw-triangle` so winding cannot cull them |
+| Touch Ball | 1 circle and a caption | | follows a finger; green while held, and it stays put when the finger lifts |
+| rlgl Triangle | 3 vertices, 3 handles, 2 buttons | | a colour per vertex; sticky corner grab, and the keys became buttons |
 
 ## Games
 

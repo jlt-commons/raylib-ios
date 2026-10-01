@@ -77,6 +77,8 @@
                      raylib.scenes.randomvalues-test
                      raylib.scenes.formattext-test
                      raylib.scenes.strip-test
+                     raylib.scenes.touchball-test
+                     raylib.scenes.rlgltriangle-test
                      raylib.scroll-test
                      raylib.easings-test
                      raylib.scenes.clock-test
