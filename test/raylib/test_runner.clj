@@ -87,6 +87,7 @@
                      raylib.scenes.minesweeper-test
                      raylib.scenes.pong-test
                      raylib.scenes.invaders-test
+                     raylib.scenes.tetris-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
