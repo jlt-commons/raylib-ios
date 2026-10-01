@@ -8,8 +8,9 @@
   the square or anywhere else in the field recolours it in place of SPACE, and
   two buttons along the bottom, \"undo\" and \"redo\", replace CTRL-Z and CTRL-Y.
   A tap on a button does only the button's job and never also recolours, as the
-  original's CTRL stops an arrow or SPACE from acting. A touch under Back is
-  ignored, because it belongs to the host.
+  original's CTRL stops an arrow or SPACE from acting. A tap under Back is
+  ignored, because it belongs to the host. A swipe is not checked against Back,
+  as in the other swipe scenes, so one that starts there still moves the square.
 
   The rules are the original's. The grid is 30 by 13 cells and is not turned
   with the screen, because the history strip already needs the width. The

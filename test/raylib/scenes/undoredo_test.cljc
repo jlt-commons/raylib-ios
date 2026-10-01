@@ -145,6 +145,7 @@
     (is (not= (:player start) (first (:history s26))))
     (is (= 26 (count (:history s40))))
     (is (= 25 (:cursor s40)))
+    (is (= (:player s40) (peek (:history s40))) "the newest state is the square")
     (testing "undo walks back at most 25 steps"
       (let [back (nth (iterate undo s40) 30)]
         (is (= 0 (:cursor back)))
@@ -201,3 +202,39 @@
     (is (= 1 (count (:history turned))))
     (is (= {:x 10
             :y 10} (pos turned)))))
+
+(defn- release-at
+  "A touch released on a frame that starts with `:ticks` 0, so the frame counts
+  the first of a sample's frames. `from` and `to` are the touch's points."
+  [state [from to] at-ticks]
+  (let [pressed (step state :press from)
+        down (step (assoc pressed :ticks at-ticks) :down to)]
+    (step (assoc down :ticks at-ticks) :release to)))
+
+(deftest history-is-sampled-every-second-frame
+  (is (= 2 ur/sample-frames))
+  (let [begin (fn [s] (assoc s :ticks 0))
+        moved (release-at (begin start) (swipe-ends :right) 0)]
+    (testing "a swipe on the first frame of a sample records nothing yet"
+      (is (= 11 (:x (:player moved))))
+      (is (= 1 (count (:history moved)))))
+    (testing "and the next frame, which completes the sample, records it"
+      (let [next-frame (idle moved)]
+        (is (= 2 (count (:history next-frame))))
+        (is (= (:player next-frame) (peek (:history next-frame))))))
+    (testing "a tap is sampled the same way"
+      (let [t (-> (begin start) (step :press field) (assoc :ticks 0) (step :release nil))]
+        (is (= 1 (count (:history t))))
+        (is (= 2 (count (:history (idle t)))))))))
+
+(deftest an-undo-on-a-first-frame-discards-the-pending-move
+  (let [one (swipe start :right)
+        ;; A move made on the previous frame and not yet sampled.
+        pending (assoc one :ticks 0 :player (assoc (:player one) :x 20))
+        [ux uy] (centre (:undo d))
+        undone (-> pending (step :press [ux uy]) (assoc :ticks 0) (step :release nil))]
+    (is (= 2 (count (:history one))))
+    (is (= 2 (count (:history undone))) "the pending move was never recorded")
+    (is (= 0 (:cursor undone)))
+    (is (= (first (:history one)) (:player undone)) "undo adopted the state at the cursor")
+    (is (= 2 (count (:history (idle undone)))) "and nothing is recorded after it either")))
