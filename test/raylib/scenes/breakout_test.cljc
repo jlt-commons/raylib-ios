@@ -192,11 +192,19 @@
 
 (deftest ball-speed-cannot-tunnel-through-a-brick-row
   (testing "per-frame vertical speed stays well under a brick's height"
-    ;; The original steps 3 px a frame against 24-px bricks, so 0.125. Both
-    ;; scale with the screen, and the tall phone's bricks scale by height.
+    ;; The vertical speed is capped at a quarter of a brick height, so a single
+    ;; step under that bound cannot skip a brick row.
     (let [vy (Math/abs (double (:vy (:ball start))))]
       (is (< vy (:brick-h d)))
-      (is (< (/ vy (:brick-h d)) 0.125)))))
+      (is (< (/ vy (:brick-h d)) 0.25)))))
+
+(deftest the-ball-climbs-at-about-the-originals-pace
+  (let [tall {:screen [1206 2334]}
+        dm (b/dimensions tall)
+        vspeed (:vspeed dm)]
+    (testing "on the tall phone, the vertical speed scales by height"
+      (is (< (Math/abs (- vspeed (* 3 (/ 2334 450.0)))) 1e-6))
+      (is (> vspeed (:speed dm))))))
 
 (deftest geometry-stays-on-screen
   (doseq [screen [[1206 2334] [2334 1206] [800 450]]

@@ -12,8 +12,9 @@
   The rules are the original's: the walls and ceiling bounce, a brick is removed
   and `vy` flipped on contact, the paddle bounces the ball up and adds sideways
   speed by `0.08` of how far from the paddle's centre it landed, and there are
-  three lives. The 800x450 layout is scaled to the safe region: widths and
-  speeds by `w / 800`, the brick band to start at 15% of the height.
+  three lives. The 800x450 layout is scaled to the safe region: horizontal speed
+  by `w / 800`, vertical speed by `h / 450`, the brick band to start at 15% of
+  the height.
 
   This is frame-locked, like the original: `advance` moves the ball a fixed
   distance per call, so the game runs faster on a 120 Hz display than on a 60 Hz
@@ -52,8 +53,9 @@
 
 (defn dimensions
   "The 800x450 layout scaled into the safe region. `:speed` is the ball's
-  per-frame speed on each axis. Brick height never drops below the original's
-  ratio to the speed, so the ball cannot cross a row faster than it did there."
+  horizontal per-frame speed, scaled by width. `:vspeed` is the vertical
+  per-frame speed, scaled by height and capped at a quarter of a brick height so
+  the ball never skips a brick row."
   [metrics]
   (let [[w h] (:screen metrics)
         s (/ w 800.0)
@@ -71,6 +73,7 @@
      :paddle-y (* 0.92 h)
      :ball-r (* 8 s)
      :speed (* 3 s)
+     :vspeed (min (* 3 (/ h 450.0)) (* 0.25 brick-h))
      :ball-x (* 0.5 w)
      :ball-y (* (/ 300.0 450.0) h)
      ;; The top right, so Back at the top left stays clear of it.
@@ -106,11 +109,11 @@
 
 (defn- fabs [n] (if (neg? n) (- n) n))
 
-(defn- new-ball [{:keys [ball-x ball-y speed]}]
+(defn- new-ball [{:keys [ball-x ball-y speed vspeed]}]
   {:x ball-x
    :y ball-y
    :vx speed
-   :vy (- speed)})
+   :vy (- vspeed)})
 
 (defn- new-game [{:keys [w h]
                   :as dims} paddle-x]
