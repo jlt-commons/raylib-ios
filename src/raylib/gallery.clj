@@ -48,6 +48,7 @@
             [raylib.scenes.formattext :as ftext]
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gradient :as grad]
+            [raylib.scenes.hello :as hello]
             [raylib.scenes.hilbert :as hil]
             [raylib.scenes.huewheel :as hue]
             [raylib.scenes.inlinestyle :as istyle]
@@ -60,6 +61,7 @@
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.minesweeper :as msw]
             [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.nudge :as nudge]
             [raylib.scenes.outlines :as outl]
             [raylib.scenes.pacman :as pacman]
             [raylib.scenes.pacman.maze :as maze]
@@ -93,6 +95,7 @@
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
+            [raylib.scenes.wheelbox :as wbox]
             [raylib.scenes.writing :as writ]
             [raylib.scroll :as scroll]))
 
@@ -116,7 +119,8 @@
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
              (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
-             (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)])
+             (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
+             (hello/scene) (nudge/scene) (wbox/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -148,7 +152,8 @@
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens]}
+             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
+             :hello :nudge :wheelbox]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -2565,3 +2570,34 @@
       (let [{:keys [y size]} (:msg2 dims)]
         (rl/draw-text pacman/restart-line (pacman/centred-x dims size pacman/restart-line measure) (int y) size
                       (pack pacman/label-colour))))))
+
+(defmethod draw-scene! :hello [_ _ {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack hello/background-colour))
+        {:keys [s x y size]} (:text (hello/dimensions m (fn [s sz] (rl/measure-text s (int sz)))))]
+    (rl/draw-text s (int x) (int y) size (pack hello/text-colour))))
+
+(defmethod draw-scene! :nudge [_ {:keys [pos stick]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack nudge/background-colour))
+        dims (nudge/dimensions m)
+        {:keys [s x y size]} (:caption dims)
+        [bx by] pos]
+    (rl/draw-text s (int x) (int y) size (pack nudge/caption-colour))
+    (rl/draw-circle (int bx) (int by) (float (:ball-r dims)) (pack nudge/ball-colour))
+    (when stick
+      (let [[cx cy] (:centre stick)
+            [kx ky] (nudge/knob dims stick)
+            r (:stick-r dims)]
+        (rl/draw-ring (int cx) (int cy) (- r (max 2.0 (* r 0.06))) r 0 360 48 (pack nudge/stick-colour))
+        (rl/draw-circle (int kx) (int ky) (float (:knob-r dims)) (pack nudge/knob-colour))))))
+
+(defmethod draw-scene! :wheelbox [_ {:keys [y]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack wbox/background-colour))
+        dims (wbox/dimensions m)
+        side (int (:side dims))
+        {:keys [s x size]
+         cy :y} (:caption dims)]
+    (rl/draw-rectangle (int (:box-x dims)) (int y) side side (pack wbox/box-colour))
+    (rl/draw-text s (int x) (int cy) size (pack wbox/caption-colour))))

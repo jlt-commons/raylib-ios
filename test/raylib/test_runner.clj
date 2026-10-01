@@ -104,6 +104,9 @@
                      raylib.scenes.screens-test
                      raylib.scenes.survivors-test
                      raylib.scenes.pacman-test
+                     raylib.scenes.hello-test
+                     raylib.scenes.nudge-test
+                     raylib.scenes.wheelbox-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
