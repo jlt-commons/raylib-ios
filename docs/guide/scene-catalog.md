@@ -87,6 +87,7 @@ that were tuned to get there.
 | Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
 | Breakout | up to 60 bricks, a paddle, a ball | 58 | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
 | Snake | up to 576 cells, a board and a score line | | a swipe steers and a tap restarts, in place of the arrow keys and SPACE; the 32 by 18 grid turns to 18 by 32 on a tall phone, and a rotation starts a new game |
+| 2048 | 16 tiles on a board, a score line | | a swipe slides and a tap restarts once stuck or won, in place of the arrow keys and SPACE; reaching 2048 wins and stops play, and a rotation only re-lays out the board |
 
 ## What byte-identical means
 
