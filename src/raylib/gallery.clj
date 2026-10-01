@@ -2133,7 +2133,8 @@
       (rl/draw-text s x y size (pack colour)))
     (rl/draw-rectangle (int sx) (int sy) (int sw) (int sh) (pack vpad/square-colour))
     ;; The ring is a filled disc with a smaller background-coloured disc over
-    ;; it, in place of the original's `circle-lines!`, which is not bound.
+    ;; it, in place of the original's `circle-lines!`, because that is a
+    ;; one-pixel line and a phone wants a thicker ring.
     (rl/draw-circle (int pad-x) (int pad-y) (float pad-r) (pack vpad/ring-colour))
     (rl/draw-circle (int pad-x) (int pad-y) (float (- pad-r thick)) (pack vpad/background-colour))
     (doseq [{:keys [dir cx cy r glyph gx gy gsize]} segs

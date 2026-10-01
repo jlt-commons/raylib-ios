@@ -16,8 +16,10 @@
   `gesture/back-region`. The controls are circles, so they share one scale `c`
   taken from the shorter side. The square moves in the play field above them,
   where the original's 800 by 250 area is scaled per axis, `sx` across and `sy`
-  down, so the square covers the same share of the field however tall it is.
-  Speed and the hop's lift scale the same way.
+  down, so the square covers the same share of the field and its position range
+  is the original's. Speed and the hop's lift use one factor `u`, the geometric
+  mean of the two, because the square moves freely under a D-pad and a per-axis
+  speed would make up several times faster than sideways on a tall phone.
 
   Motion is delta-time based, as in the original (`get-frame-time`): 190 units a
   second, and a hop that decays at 2.4 a second from 1. It reads the input's
@@ -68,7 +70,7 @@
   each with its arrow glyph's size and position, `:a-glyph` the A's, `:thick`
   the ring's width and `:c` the controls' scale. Then the play field `:ftop :fh`
   (the full width, below the text and above the pad), its per-axis scales
-  `:sx :sy`, `:half` the square's half side and `:lift` the hop's height.
+  `:sx :sy`, `:u` (their geometric mean, the one factor for speed and lift), `:half` the square's half side and `:lift` the hop's height.
   `:lines` lists the text drawn outside the controls, each as
   `{:s :x :y :size}`, so a test can check that it fits."
   [metrics]
@@ -91,6 +93,7 @@
         fh (- pad-y pad-r gap ftop)
         sx (/ w 800.0)
         sy (/ fh 250.0)
+        u (Math/sqrt (* sx sy))
         glyph-size (max 20 (int (* 20 c)))
         jump-size (max 20 (int (* 14 c)))
         a-size (max 20 (int (* 26 c)))
@@ -129,8 +132,9 @@
      :fh fh
      :sx sx
      :sy sy
+     :u u
      :half (* 22.0 (min sx sy))
-     :lift (* 60.0 sy)
+     :lift (* 60.0 u)
      :lines [{:s title-line
               :x (int margin)
               :y (int title-y)
@@ -205,7 +209,7 @@
   (let [dims (dimensions (:metrics input))
         {:keys [dirs a?]
          :as now} (held dims input)
-        {:keys [sx sy half ftop]} dims
+        {:keys [sx sy u half ftop]} dims
         dt (max 0.0 (double (:delta-seconds input 0.0)))]
     (if (not= [(:w dims) (:h dims)] (:screen state))
       (fresh dims now)
@@ -217,8 +221,8 @@
         (assoc state
                :dirs dirs
                :a? a?
-               :px (clamp (* 30.0 sx) (* 770.0 sx) (+ (:px state) (* vx step sx)))
-               :py (clamp y-lo y-hi (+ (:py state) (* vy step sy)))
+               :px (clamp (* 30.0 sx) (* 770.0 sx) (+ (:px state) (* vx step u)))
+               :py (clamp y-lo y-hi (+ (:py state) (* vy step u)))
                :hop (cond a? 1.0
                           (pos? (:hop state)) (max 0.0 (- (:hop state) (* hop-decay dt)))
                           :else 0.0))))))

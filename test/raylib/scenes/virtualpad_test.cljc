@@ -45,12 +45,12 @@
 
 (deftest each-pad-segment-moves-the-square
   (let [s (mid start)
-        step (* 190 (/ 1.0 60))]
+        step (* 190 (/ 1.0 60) (:u d))]
     (doseq [[dir axis sign] [[:up :py -1] [:down :py 1] [:left :px -1] [:right :px 1]]]
       (testing dir
-        (let [s' (adv s [(seg-pt d dir)])
-              k (if (= axis :px) (:sx d) (:sy d))]
-          (is (near? (+ (axis s) (* sign step k)) (axis s')))
+        (let [s' (adv s [(seg-pt d dir)])]
+          (testing "one pixel step in every direction"
+            (is (near? (+ (axis s) (* sign step)) (axis s'))))
           (is (near? (if (= axis :px) (:py s) (:px s))
                      (if (= axis :px) (:py s') (:px s')))))))))
 
