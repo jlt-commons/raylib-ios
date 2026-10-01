@@ -806,6 +806,21 @@
       (do (draw-gallery! layout p top scroll (:title p) "Choose a category")
           gstate))))
 
+(defn- next-scroll
+  "The list's scroll offset after this frame's pointer.
+
+  A drag moves the list only while the list is what is showing. Inside a scene
+  the list is hidden behind it, and a swipe game drags constantly, so following
+  the finger would leave the list somewhere arbitrary once the game ends. The
+  drag itself still runs in `frame`, because it also decides whether a release
+  was a tap on Back."
+  [mode drag point phase scroll layout]
+  (let [content (:content-height layout)
+        viewport (:viewport-height layout)]
+    (if (and (= :gallery mode) drag point (= :down phase))
+      (scroll/scroll-for drag point content viewport)
+      (scroll/clamp scroll content viewport))))
+
 (defn- frame
   "One frame: sample, decide where the press goes, advance the pure gallery,
   draw. The state carried between frames is the touch count, the cached inset,
@@ -853,11 +868,9 @@
                        (:drag s))
                :release (:drag s)
                nil)
-        scroll' (if (and drag point (= :down phase))
-                  (scroll/scroll-for drag point
-                                     (:content-height layout) (:viewport-height layout))
-                  (scroll/clamp (:scroll s 0)
-                                (:content-height layout) (:viewport-height layout)))
+        ;; The mode is the one the frame STARTED in, from the destructured
+        ;; gstate. gstate is rebound below once a card opens or a scene runs.
+        scroll' (next-scroll (:mode gstate) drag point phase (:scroll s 0) layout)
         tapped? (and (= :release phase) (scroll/tap? drag (min (first (:screen m))
                                                                (second (:screen m)))))
         tap-at (when tapped? (scroll/tap-point drag))

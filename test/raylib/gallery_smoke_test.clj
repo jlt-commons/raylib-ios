@@ -13,7 +13,8 @@
   (:require [clojure.test :refer [deftest is testing]]
             [poc.raylib.diagnostics :as diag]
             [poc.raylib.gallery :as gallery]
-            [raylib.gallery :as rg]))
+            [raylib.gallery :as rg]
+            [raylib.scroll :as scroll]))
 
 (defn input
   "One frame's input, built the way raylib.gallery/frame builds it minus the
@@ -119,3 +120,24 @@
         detail (second (re-find #"back to the list: (.*)\n" out))]
     (is (nil? (ex-message e)))
     (is (seq detail) out)))
+
+(def ^:private tall-list
+  "A list taller than its viewport, so a drag has room to move it."
+  {:content-height 5000
+   :viewport-height 2000})
+
+(defn- next-scroll-after-drag
+  "What `next-scroll` answers for a finger that pressed at y 1000 on a list
+  scrolled to 300 and is now at y 700, in the given mode."
+  [mode]
+  (let [drag (scroll/begin-drag 300 [600 1000])]
+    (#'rg/next-scroll mode (scroll/drag-to drag [600 700]) [600 700] :down 300 tall-list)))
+
+(deftest a-drag-in-a-scene-leaves-the-list-scroll-alone
+  ;; Swipe games drag all the time. The list is hidden behind the scene, and
+  ;; where it ends up must not depend on how the game was played.
+  (is (= 300 (next-scroll-after-drag :scene))))
+
+(deftest a-drag-on-the-list-still-scrolls
+  ;; The finger moved up 300 pixels, so the offset grows by 300.
+  (is (= 600 (next-scroll-after-drag :gallery))))
