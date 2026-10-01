@@ -81,6 +81,8 @@ that were tuned to get there.
 | Bouncing Ball | 1 circle and 1 or 2 lines of text | | a tap pauses, in place of SPACE; speed and radius scale with the shorter side, and a rotation clamps the ball back inside |
 | Virtual Controls | a D-pad of 4 circles and a ring, an A button, a square, 3 lines of text | | every finger down is tested, so a direction and A work together, in place of the arrow keys and SPACE; motion is delta-time based as in the original, and a rotation starts over |
 | Starfield | up to 350 circles or streaks and 3 lines of text | | a vertical drag sets the speed in place of the mouse wheel and a tap toggles streaks in place of SPACE; motion is delta-time based as in the original, and a rotation needs no reset |
+| Easings Box | 2 triangles and 1 line of text | | a tap restarts, in place of SPACE; frame-locked as in the original, and the box grows to fill the region below Back |
+| Easings Testbed | up to 66 lines, a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
 
 ## Games
 

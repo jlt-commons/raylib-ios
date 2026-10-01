@@ -91,6 +91,8 @@
                      raylib.scenes.asteroids-test
                      raylib.scenes.virtualpad-test
                      raylib.scenes.starfield-test
+                     raylib.scenes.easingsbox-test
+                     raylib.scenes.easingstestbed-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test

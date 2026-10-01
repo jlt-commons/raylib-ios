@@ -37,6 +37,8 @@
             [raylib.scenes.dashed :as dash]
             [raylib.scenes.deltatime :as dtime]
             [raylib.scenes.easings :as ease]
+            [raylib.scenes.easingsbox :as ebox]
+            [raylib.scenes.easingstestbed :as etb]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.fan :as fan]
             [raylib.scenes.fireworks :as fw]
@@ -100,7 +102,8 @@
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
-             (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)])
+             (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
+             (ebox/scene) (etb/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -131,7 +134,7 @@
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
-             :particles :bounce :virtualpad :starfield]}
+             :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2164,3 +2167,46 @@
       (rl/draw-text (sfield/speed-line speed) (:x speed-l) (:y speed-l) (:size speed-l) white)
       (rl/draw-text (sfield/mode-line streaks?) (:x mode-l) (:y mode-l) (:size mode-l) white)
       (rl/draw-text (sfield/fps-line (rl/get-fps)) (:x fps-l) (:y fps-l) (:size fps-l) white))))
+
+(defmethod draw-scene! :easingsbox [_ {:keys [stage counter]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack ebox/background-colour))
+        dims (ebox/dimensions m)
+        sh (ebox/shape dims stage counter)
+        [r g b] ebox/box-colour
+        colour (rl/rgba r g b (int (* 255 (max 0.0 (min 1.0 (:alpha sh))))))
+        [[ax ay] [bx by] [cx cy] [dx dy]] (ebox/quad-corners-of dims sh)
+        {:keys [x y size]} (first (:lines dims))]
+    ;; DrawRectanglePro is unbound, so the rotated box is two triangles.
+    (when (pos? (:alpha sh))
+      (rl/draw-triangle ax ay bx by cx cy colour)
+      (rl/draw-triangle ax ay cx cy dx dy colour))
+    (rl/draw-text (ebox/stage-line stage) x y size (pack ebox/text-colour))))
+
+(defmethod draw-scene! :easingstestbed [_ {:keys [idx counter plot?]} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack etb/background-colour))
+        dims (etb/dimensions m)
+        f (etb/curve-fn idx)
+        thick (max 1.0 (* 1.5 (:u dims)))
+        [title hint1 hint2] (:lines dims)
+        {:keys [plot-x plot-y plot-w plot-h ball-y ball-r]} dims
+        frame (pack etb/frame-colour)
+        ink (pack etb/curve-colour)]
+    (rl/draw-text (etb/title-line idx) (:x title) (:y title) (:size title) (pack etb/title-colour))
+    (rl/draw-text (:s hint1) (:x hint1) (:y hint1) (:size hint1) (pack etb/hint-colour))
+    (rl/draw-text (:s hint2) (:x hint2) (:y hint2) (:size hint2) (pack etb/hint-colour))
+    (when plot?
+      ;; The [0,1] band, which a curve that overshoots visibly leaves. The
+      ;; frame is four lines, since DrawRectangleLines is a hairline here.
+      (let [x2 (+ plot-x plot-w)
+            y2 (+ plot-y plot-h)]
+        (rl/draw-line-ex plot-x plot-y x2 plot-y thick frame)
+        (rl/draw-line-ex x2 plot-y x2 y2 thick frame)
+        (rl/draw-line-ex x2 y2 plot-x y2 thick frame)
+        (rl/draw-line-ex plot-x y2 plot-x plot-y thick frame))
+      (doseq [[[ax ay] [bx by]] (partition 2 1 (etb/plot-points dims f))]
+        (rl/draw-line-ex ax ay bx by thick ink)))
+    (rl/draw-line-ex plot-x ball-y (+ plot-x plot-w) ball-y thick (pack etb/rail-colour))
+    (let [[bx by] (etb/ball dims f counter)]
+      (rl/draw-circle (int bx) (int by) (float ball-r) (pack etb/title-colour)))))
