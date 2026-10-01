@@ -16,10 +16,9 @@
   the host and starts no stick, and a release never moves the ball.
 
   The original lets the ball leave the window. Here its centre is held a radius
-  inside the play field, which is the full width below Back, so the whole ball
-  stays on the glass. The field starts below the caption, which the original
-  gets for free by drawing its ball over the text, so the ball can never cover
-  the line. The clamp runs every frame, so a rotation pulls the ball
+  inside the play field, which is the full width below the caption, so the
+  whole ball stays on the glass and can never cover the line. The original
+  draws its ball over the text instead. The clamp runs every frame, so a rotation pulls the ball
   back in.
 
   This is frame-locked, like the original, which never reads a frame time. The
