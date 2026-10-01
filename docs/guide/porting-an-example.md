@@ -162,7 +162,8 @@ a real phone.
   starts a new game.
 
 `raylib.gesture` does the reading for scenes that need to know what a touch
-meant. `track` takes a gesture value, the pointer and the metrics, and returns
+meant. `track` takes a gesture value and the frame's input, which carries the pointer
+and the metrics, and returns
 `[g' event]` once per frame. The event is a tap at the gesture's start point, a
 swipe by the dominant axis from the start to the last `:down` point (a tie goes
 horizontal), or a long press after 27 still frames. A long press that has fired

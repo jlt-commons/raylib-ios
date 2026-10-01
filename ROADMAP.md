@@ -9,8 +9,8 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 them are in the gallery as of 2026-09-30, which leaves 125. That counts
 examples and not scenes: the gallery has 57 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 57 + 2 + 3 = 62. They sort into three
-groups by what a port would need. The grouping comes from reading each
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 57 + 2 + 3 = 62. They sort into
+three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
@@ -48,9 +48,9 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 1807 lines and every
-  port adds about thirty. The `draw-scene!` methods could move to their own
-  namespace before it reaches about 2500.
+- **Split the drawing out of `raylib.gallery`.** It is about 2000 lines and grows
+  by about thirty a scene, so splitting it is due. The `draw-scene!` methods
+  could move to their own namespace.
 - **Rebalance the categories.** Toys holds 42 of the 60 scenes, and Games has 5, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
@@ -67,8 +67,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   `back-region`, `in-back-region?` and the tap, swipe and long-press `track`,
   and the batch 3 scenes use it. The batch 1 and 2 scenes (`touchball`,
   `rlgltriangle`, `particles` and `breakout`) still carry their own copies of
-  the Back region, `in-rect?` and the press-or-down predicate. Migrating them
-  is worth doing as its own task, with one catch: their `in-rect?` copies are
+  some of it. `breakout` still carries its own Back region. `breakout`,
+  `particles` and `rlgltriangle` each carry a closed `in-rect?`. All four still
+  carry their own press-or-down predicate. Migrating them
+  is worth doing as its own task, with one catch: those `in-rect?` copies are
   closed on the right and bottom edge, while `gesture/in-rect?` is half-open, so
   a touch exactly on that edge changes sides by one pixel.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
