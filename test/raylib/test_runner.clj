@@ -107,6 +107,7 @@
                      raylib.scenes.hello-test
                      raylib.scenes.nudge-test
                      raylib.scenes.wheelbox-test
+                     raylib.scenes.undoredo-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test
