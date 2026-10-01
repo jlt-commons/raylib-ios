@@ -1,8 +1,8 @@
 # The scenes
 
-Sixty-four, in four categories. Three come byte-identical from
+Seventy, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other sixty-one are ports from
+with their sha256 verified, and the other sixty-seven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -82,9 +82,9 @@ that were tuned to get there.
 | Virtual Controls | a D-pad of 4 circles and a ring, an A button, a square, 3 lines of text | | every finger down is tested, so a direction and A work together, in place of the arrow keys and SPACE; motion is delta-time based as in the original, and a rotation starts over |
 | Starfield | up to 350 circles or streaks and 3 lines of text | | a vertical drag sets the speed in place of the mouse wheel and a tap toggles streaks in place of SPACE; motion is delta-time based as in the original, and a rotation needs no reset |
 | Easings Box | 2 triangles and 1 line of text | | a tap restarts, in place of SPACE; frame-locked as in the original, and the box grows to fill the region below Back |
-| Easings Testbed | up to 66 lines, a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
-| Rectangle Bounds | 4 lines, 2 rectangles and 2 to 13 lines of text | | dragging the corner handle resizes the box and a tap on the wrap button toggles word or character wrap, in place of the mouse and SPACE; the layout is cached, so an idle frame measures nothing |
-| rlgl Hue Wheel | a fan of 3 to 128 triangles with a colour on every vertex, or 2 lines a wedge as a wireframe, and 3 lines of text | | a vertical swipe doubles or halves the triangle count in place of the mouse wheel, a horizontal drag sets the centre brightness in place of the arrow keys and a tap toggles the wireframe in place of SPACE; the wheel fits the safe region, so UP and DOWN resizing is dropped; a different example from Colour Wheel |
+| Easings Testbed | 69 lines (4 frame, 64 plot segments, 1 rail), a circle and 3 lines of text | | a swipe changes the curve in place of LEFT and RIGHT, a tap replays in place of SPACE and a long press toggles the plot in place of D; frame-locked as in the original |
+| Rectangle Bounds | 4 lines, 2 rectangles and 3 or more lines of text, depending on the box | | dragging the corner handle resizes the box and a tap on the wrap button toggles word or character wrap, in place of the mouse and SPACE; the layout is cached, so an idle frame measures nothing |
+| rlgl Hue Wheel | a fan of 3 to 128 triangles with a colour on every vertex, or 2 lines a wedge as a wireframe, and 3 lines of text | | a vertical swipe doubles or halves the triangle count in place of the mouse wheel, a horizontal drag sets the centre brightness in place of the arrow keys and a tap toggles the wireframe in place of SPACE, and the wireframe spokes ignore the brightness because a thick line takes one colour; the wheel fits the safe region, so UP and DOWN resizing is dropped; a different example from Colour Wheel |
 
 ## Games
 

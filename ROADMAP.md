@@ -5,26 +5,22 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 66 of
-them are in the gallery as of 2026-10-01, which leaves 121. That counts
-examples and not scenes: the gallery has 61 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 72 of
+them are in the gallery as of 2026-10-01, which leaves 115. That counts
+examples and not scenes: the gallery has 67 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 61 + 2 + 3 = 66. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 67 + 2 + 3 = 72. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
-**Ready to port, no new bindings (18).** Most of these need a touch mapping
+**Ready to port, no new bindings (12).** Most of these need a touch mapping
 rather than anything from raylib.
 
 - No input at all: `core`, `logo`, `text`, `inline_styling`,
   `outlines_thickness`.
-- A finger stands in for the mouse: `rectangle_bounds`, `input_virtual_controls`, which already
-  draws its own on-screen pad.
 - A tap or a swipe stands in for a key: `basic_screen_manager`,
-  `easings_box`, `easings_testbed`, `starfield_effect`, `wheel`, `input`,
-  `rlgl_color_wheel`,
-  `undo_redo`, `strings_management` (the typing has to go).
+  `wheel`, `input`, `undo_redo`, `strings_management` (the typing has to go).
 - Games that need a touch control scheme designed first: `vampire_survivors` and
   `pacman`.
 
@@ -48,10 +44,10 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 2121 lines and grows
+- **Split the drawing out of `raylib.gallery`.** It is 2285 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace.
-- **Rebalance the categories.** Toys holds 42 of the 64 scenes, and Games has 9, so a scroll
+- **Rebalance the categories.** Toys holds 48 of the 70 scenes, and Games has 9, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -81,6 +77,9 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   registration points and runs every scene for 120 frames.
 - 2026-09-30: a guard so a scene that throws returns to its list instead of
   ending the app.
+- 2026-10-01: six touch toys, `input_virtual_controls`, `starfield_effect`,
+  `easings_box`, `easings_testbed`, `rectangle_bounds` and `rlgl_color_wheel`,
+  which make seventy scenes and give Toys forty-eight.
 - 2026-10-01: four arcade ports, `pong`, `space_invaders`, `tetris` and
   `asteroids`, which make sixty-four scenes and give Games nine. A touch held
   through a game's end no longer restarts it.

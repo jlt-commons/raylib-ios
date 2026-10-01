@@ -6,6 +6,22 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Six touch toys, seventy scenes in all.** Toys now holds forty-eight. Virtual
+  Controls draws a D-pad and an A button that read every finger down, so a
+  direction and A work together, and every direction moves at one speed.
+  Starfield takes a vertical drag to set the speed and a tap to toggle streaks.
+  Easings Box runs its five stages and a tap restarts it. Easings Testbed changes
+  the curve on a swipe, replays on a tap and toggles the plot on a long press.
+  Rectangle Bounds wraps text in a box you resize by its corner handle, with a
+  button that switches between word and character wrap. Hue Wheel doubles or
+  halves its triangles on a swipe up or down, sets the centre brightness on a
+  horizontal drag and toggles the wireframe on a tap. No device run exists for
+  these six yet, so their frame rates are blank in the catalog.
+- **Where the six differ from their originals.** Easings Testbed narrows its plot
+  so elastic curves stay on screen. Easings Box grows to fill the area below
+  Back. Hue Wheel doubles or halves per swipe where the original stepped one at a
+  time, and its wireframe spokes ignore brightness because a thick line takes one
+  colour.
 - **Four arcade games, sixty-four scenes in all.** Games now holds nine. Pong
   turns the court to portrait with you at the bottom, and the paddle follows a
   finger. In Space Invaders the ship follows a finger and holding fires on the

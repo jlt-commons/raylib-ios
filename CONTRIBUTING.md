@@ -46,6 +46,12 @@ uses the geometric mean of the two axes. Cap the per-frame step below what a hit
 test needs, so nothing tunnels. `breakout` caps at a quarter of a brick and
 `invaders` at half an alien.
 
+**Text layout.** A pure scene can't call `MeasureText`, so a scene that wraps or
+centres text takes a `measure` function `(fn [s size] -> px)` that its draw
+method supplies, as `rectbounds` does. If the draw method caches the layout, the
+cache key has to hold every input to the computation, which here means the text,
+the box size, the font size and the wrap mode.
+
 **2. A test** at `test/raylib/scenes/<name>_test.cljc`.
 
 Prefer properties over golden values: that a rotation preserves length, that
