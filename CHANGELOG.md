@@ -6,6 +6,18 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **A gesture layer and four scenes on it, sixty in all.** `raylib.gesture`
+  turns the per-frame pointer into taps, swipes and long presses, so a scene
+  reads what a touch meant and no longer pieces it together from presses. Bouncing
+  Ball is raylib-jlt's `bounce`, where a tap pauses in place of SPACE. Snake,
+  2048 and Minesweeper join Games, which now holds five. Snake and 2048 are
+  steered by swipes, and Minesweeper reveals on a tap and flags on a long press.
+  Minesweeper keeps the original's rules, so a tap on a flagged cell opens it and
+  the first tap can hit a mine. 2048 adds a win at 2048 that the original lacks,
+  and says so in its docstring and its catalog row. Each board starts below Back.
+  There is no device run for these four yet, so their frame rates are blank in
+  the catalog.
+
 - **Four touch-driven scenes, fifty-six in all.** Touch Ball is raylib-jlt's
   `mouse`: a circle that follows a finger, green while it is down and staying put
   when it lifts. The rlgl Triangle has a colour per vertex, three handles that
@@ -73,6 +85,9 @@ Notable changes, newest first. Dates are the day the work landed.
   covers three examples and the three Android scenes stand in for `flappy_bird`,
   `eyes` and `mouse_trail`.
 
+- **A paragraph on `raylib.gesture`** in the porting guide's section on reading
+  a finger.
+
 ### Changed
 
 - **The counts and the porting guide**, which still said seventeen and
@@ -82,6 +97,12 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Fixed
 
+- **Swiping inside a scene no longer scrolls the list behind it.** The gallery
+  kept following the finger with the category list hidden behind the scene, so a
+  swipe game left the list scrolled to somewhere arbitrary once it ended.
+- **Breakout's ball climbs at the original's pace.** Its vertical speed is now
+  scaled by `h / 450` and capped at a quarter of a brick per frame. It used to
+  scale with the width, so on a tall phone the ball climbed slowly.
 - **`pack.sh` no longer fails in silence.** Its configure and make steps wrote to
   `/dev/null`, so when a ChezScheme worktree made fresh after `/tmp` was cleared
   had its submodules empty, configure's "Source in zuo is missing" went nowhere

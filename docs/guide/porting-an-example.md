@@ -161,6 +161,16 @@ a real phone.
   rotation. `rlgltriangle` clamps its corners into the new screen and `breakout`
   starts a new game.
 
+`raylib.gesture` does the reading for scenes that need to know what a touch
+meant. `track` takes a gesture value, the pointer and the metrics, and returns
+`[g' event]` once per frame. The event is a tap at the gesture's start point, a
+swipe by the dominant axis from the start to the last `:down` point (a tie goes
+horizontal), or a long press after 27 still frames. A long press that has fired
+suppresses the tap, but a drag after it still swipes. The release position is
+never read, for the reason above. Boards and controls start below Back, derived
+from `gesture/back-region`. `snake`, `game2048` and `minesweeper` show all three
+events in use.
+
 ## What only a real device will tell you
 
 The multi-finger path cannot be exercised from a REPL. `tap!` synthesises exactly

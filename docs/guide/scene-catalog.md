@@ -1,8 +1,8 @@
 # The scenes
 
-Fifty-six, in four categories. Three come byte-identical from
+Sixty, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other fifty-three are ports from
+with their sha256 verified, and the other fifty-seven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -78,7 +78,7 @@ that were tuned to get there.
 | Touch Ball | 1 circle and a caption | 58 | follows a finger; green while held, and it stays put when the finger lifts |
 | rlgl Triangle | 3 vertices, 3 handles, 2 buttons | 58 | a colour per vertex; sticky corner grab, and the keys became buttons |
 | Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | 59 | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
-| Bouncing Ball | 1 circle and 2 lines of text | | a tap pauses, in place of SPACE; speed and radius scale with the shorter side, and a rotation clamps the ball back inside |
+| Bouncing Ball | 1 circle and 1 or 2 lines of text | | a tap pauses, in place of SPACE; speed and radius scale with the shorter side, and a rotation clamps the ball back inside |
 
 ## Games
 
