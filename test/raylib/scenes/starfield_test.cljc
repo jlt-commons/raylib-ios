@@ -72,12 +72,12 @@
       (doseq [screen screens
               :let [metrics {:screen screen}
                     slop (gesture/slop metrics)
-                    k (:k (sf/dimensions metrics))
                     s (-> start
                           (step metrics :press [600 600])
                           (step metrics :down [600 (- 600 (* 0.99 slop))])
                           (step metrics :release [600 (- 600 (* 0.99 slop))]))]]
-        (is (< (* k slop) (* 0.05 (- sf/max-speed sf/min-speed))) screen)
+        (is (< (abs (- (:speed s) (:speed start)))
+               (* 0.05 (- sf/max-speed sf/min-speed))) screen)
         (is (false? (:streaks? s)) screen)))))
 
 (deftest stars-respawn-at-the-far-plane

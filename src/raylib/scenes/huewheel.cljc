@@ -50,6 +50,10 @@
 (def max-tris "The original's upper bound." 128)
 (def start-tris "The original's starting count." 32)
 
+(def background-colour "The original's RAYWHITE." [245 245 245 255])
+(def hint-colour "The original's DARKGRAY." [80 80 80 255])
+(def count-colour "The original's MAROON." [190 33 55 255])
+
 (defn count-line [n] (str n " triangles"))
 
 (def hint-lines

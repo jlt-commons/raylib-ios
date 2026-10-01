@@ -70,7 +70,8 @@
   each with its arrow glyph's size and position, `:a-glyph` the A's, `:thick`
   the ring's width and `:c` the controls' scale. Then the play field `:ftop :fh`
   (the full width, below the text and above the pad), its per-axis scales
-  `:sx :sy`, `:u` (their geometric mean, the one factor for speed and lift), `:half` the square's half side and `:lift` the hop's height.
+  `:sx :sy`, `:u` (their geometric mean, the one factor for speed and lift),
+  `:half` the square's half side and `:lift` the hop's height.
   `:lines` lists the text drawn outside the controls, each as
   `{:s :x :y :size}`, so a test can check that it fits."
   [metrics]
@@ -202,9 +203,9 @@
 (defn advance
   "One frame. A rotation (the metrics report a different `:screen` than the
   state was laid out for) starts over. Otherwise the held directions move the
-  square `190 * dt` units, scaled per axis and kept inside the field, and A
-  pins the hop at 1 while a finger is on it, after which it decays by 2.4 a
-  second. `dt` is the input's `:delta-seconds`, clamped at 0."
+  square `190 * dt * u` units, the same in every direction, kept inside the
+  field, and A pins the hop at 1 while a finger is on it, after which it decays
+  by 2.4 a second. `dt` is the input's `:delta-seconds`, clamped at 0."
   [state input]
   (let [dims (dimensions (:metrics input))
         {:keys [dirs a?]

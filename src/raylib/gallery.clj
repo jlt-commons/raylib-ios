@@ -2178,7 +2178,7 @@
         sh (ebox/shape dims stage counter)
         [r g b] ebox/box-colour
         colour (rl/rgba r g b (int (* 255 (max 0.0 (min 1.0 (:alpha sh))))))
-        [[ax ay] [bx by] [cx cy] [dx dy]] (ebox/quad-corners-of dims sh)
+        [[ax ay] [bx by] [cx cy] [dx dy]] (ebox/quad-corners-of sh)
         {:keys [x y size]} (first (:lines dims))]
     ;; DrawRectanglePro is unbound, so the rotated box is two triangles.
     (when (pos? (:alpha sh))
@@ -2222,7 +2222,9 @@
 (defonce rectbounds-layout (atom nil))
 
 (defn- rectbounds-lines [box-w box-h wrap size]
-  (let [k [box-w box-h wrap size]
+  ;; Every input to the layout computation must be in the key: the defonce
+  ;; atom survives an nREPL reload, so a missing input shows a stale layout.
+  (let [k [rbounds/text box-w box-h wrap size]
         [ck cl] @rectbounds-layout]
     (if (= k ck)
       cl
@@ -2259,10 +2261,10 @@
                   (int (+ by (* 0.5 (- bh size)))) size (pack rbounds/label-colour))))
 
 (defmethod draw-scene! :huewheel [_ {:keys [tris brightness lines?]} {:keys [m]}]
-  (rl/clear-background rl/RAYWHITE)
-  (let [d (hue/dimensions m)
-        [hint1 hint2 count-row] (:lines d)
-        pack (fn [[r g b a]] (rl/rgba r g b a))]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack hue/background-colour))
+        d (hue/dimensions m)
+        [hint1 hint2 count-row] (:lines d)]
     (if lines?
       ;; RL_LINES is not bound, so the wireframe is one draw-line-ex a segment.
       (doseq [[x0 y0 x1 y1 c] (hue/wire-segments d tris)]
@@ -2278,6 +2280,6 @@
           (rl/rl-vertex-2f (float x) (float y)))
         (rl/rl-end)))
     (doseq [{:keys [s x y size]} [hint1 hint2]]
-      (rl/draw-text s x y size rl/DARKGRAY))
+      (rl/draw-text s x y size (pack hue/hint-colour)))
     (rl/draw-text (hue/count-line tris) (:x count-row) (:y count-row) (:size count-row)
-                  (rl/rgba 190 33 55 255))))
+                  (pack hue/count-colour))))

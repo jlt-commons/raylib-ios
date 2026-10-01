@@ -154,7 +154,7 @@
 
 (defn quad-corners-of
   "`quad-corners` of a `shape` map."
-  [_dims {:keys [cx cy w h rot]}]
+  [{:keys [cx cy w h rot]}]
   (quad-corners cx cy w h rot))
 
 (defn advance

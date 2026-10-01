@@ -124,7 +124,7 @@
                 s (first ((:init (eb/scene)) {:metrics metrics}))]
           n (range 0 780 3)
           :let [{:keys [stage counter]} (frames s n)
-                corners (eb/quad-corners-of d (eb/shape d stage counter))]
+                corners (eb/quad-corners-of (eb/shape d stage counter))]
           [x y] corners]
     (is (<= -1e-6 x (+ (:w d) 1e-6)) (pr-str [screen n x]))
     (is (<= (- (+ by bh) 1e-6) y (+ (:h d) 1e-6)) (pr-str [screen n y]))))
@@ -132,7 +132,7 @@
 (deftest the-final-box-fills-the-region-below-back
   (doseq [screen screens
           :let [d (eb/dimensions {:screen screen})
-                cs (eb/quad-corners-of d (eb/shape d :fade 0.0))
+                cs (eb/quad-corners-of (eb/shape d :fade 0.0))
                 [_ by _ bh] gesture/back-region]]
     (testing screen
       (is (near? 0 (apply min (map first cs))))
