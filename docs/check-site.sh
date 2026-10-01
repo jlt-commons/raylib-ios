@@ -48,6 +48,7 @@ for img in gallery.png gallery-scenes.png multitouch.png \
            splines.png rounded.png vecangle.png bars.png \
            fan.png bezier.png clipbox.png resize.png align.png analog.gif \
            deltatime.png randomvalues.png formattext.png strip.png \
+           touchball.png rlgltriangle.png particles.png breakout.png \
            lorenz.gif tesseract.gif life.gif automata.gif colorwheel.gif \
            unitcircle.gif clock.gif piechart.gif logoanim.gif easings.gif \
            angles.gif writing.gif balls.gif sequence.gif \

@@ -75,16 +75,16 @@ that were tuned to get there.
 | Random Values | a number and a label | 58 | seeded, so it replays |
 | Formatted Text | 2 lines of text | 58 | zero-padded score and MM:SS, padded by a private `zero-pad` built from `str` |
 | Triangle Strip | 32 triangles | 58 | two per band, through `draw-triangle` so winding cannot cull them |
-| Touch Ball | 1 circle and a caption | | follows a finger; green while held, and it stays put when the finger lifts |
-| rlgl Triangle | 3 vertices, 3 handles, 2 buttons | | a colour per vertex; sticky corner grab, and the keys became buttons |
-| Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
+| Touch Ball | 1 circle and a caption | 58 | follows a finger; green while held, and it stays put when the finger lifts |
+| rlgl Triangle | 3 vertices, 3 handles, 2 buttons | 58 | a colour per vertex; sticky corner grab, and the keys became buttons |
+| Particles | about 190 circles for fire, 324 for smoke, and 65 to 290 for water depending on the finger's height, plus an info box | 59 | emits at the finger while it is down, up to a cap of 600; tapping the box cycles water, smoke and fire |
 
 ## Games
 
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
 | Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
-| Breakout | up to 60 bricks, a paddle, a ball | | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
+| Breakout | up to 60 bricks, a paddle, a ball | 58 | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
 
 ## What byte-identical means
 
