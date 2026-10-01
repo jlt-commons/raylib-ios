@@ -19,8 +19,7 @@
   Centring depends on the width of a line, which a pure namespace cannot ask
   raylib for. `layout` takes a `measure` function `(fn [s size] -> px)`. The
   draw method passes the real one and the tests pass an estimate of 0.6 of the
-  size per character. Text is laid out in `dimensions`, with widths estimated at
-  0.6 of the size per character."
+  size per character. Text is laid out in `dimensions`."
   (:require [raylib.gesture :as gesture]))
 
 (def background-colour "The original's RAYWHITE." [245 245 245 255])

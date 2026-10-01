@@ -32,8 +32,7 @@
   and the triangle. A scale `f`, in pixels per original pixel, is the smaller of
   a 300th of the width and a 130th of a band's height, so the pairs fit across
   and every shape fits in its band. On a landscape screen it is small, and
-  that is accepted. The title is below `gesture/back-region`, with its width
-  estimated at 0.6 of the size per character in the tests."
+  that is accepted. The title is below `gesture/back-region`."
   (:require [raylib.gesture :as gesture]))
 
 (def title "The original's heading." "scalar shape primitives")

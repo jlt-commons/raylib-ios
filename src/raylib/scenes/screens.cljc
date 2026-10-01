@@ -12,12 +12,12 @@
   LOGO, because the original takes `(mod (inc idx) 4)`.
 
   A tap and the timer on the same frame step once, because both only decide
-  whether to step and the step itself happens once. When the timer fires while a
-  finger is down, the touch is dropped by storing `gesture/idle`: that finger
-  landed on a screen that has gone, and its lift would otherwise skip the new
-  one before anyone had seen it. A touch that begins on the new screen is an
-  ordinary tap. A tap is judged at where the finger started, so one that starts
-  under Back belongs to the host and steps nothing.
+  whether to step and the step itself happens once. When the timer fires with a
+  touch already in progress, the touch is dropped by storing `gesture/idle`:
+  that finger landed on a screen that has gone, and its lift would otherwise
+  skip the new one before anyone had seen it. A press on the timer frame itself
+  is kept, since it starts on the new screen and is an ordinary tap. A tap is judged at where the finger started, so one that
+  starts under Back belongs to the host and steps nothing.
 
   Text is laid out in `dimensions`: the label and the hint are left-aligned, so
   no text is measured. Both are scaled by one factor from the original's 800 by
@@ -88,15 +88,17 @@
 
 (defn advance
   "One frame. The frame counter always counts. A tap that starts outside Back or
-  the timer steps to the next screen, once. A timer step also drops a touch in
-  flight, as the namespace docstring explains."
+  the timer steps to the next screen, once. A timer step also drops a touch already
+  in progress, as the namespace docstring explains."
   [state input]
   (let [[g' event] (gesture/track (:g state) input)
         frame (inc (:frame state))
         timer? (zero? (mod frame timer-frames))
         tap? (and (= :tap (:type event))
                   (not (gesture/in-back-region? (:at event))))]
-    {:g (if timer? gesture/idle g')
+    {:g (if (and timer? (not= :press (get-in input [:pointer :phase])))
+          gesture/idle
+          g')
      :frame frame
      :screen (if (or tap? timer?)
                (next-screen (:screen state))

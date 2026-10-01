@@ -147,13 +147,21 @@
         (is (not (el/inside? empty-pt b (radii-of (el/dimensions m) :b))))
         (is (not= a (:a after)))))
     (testing "a tap under Back is ignored, even when the other ellipse reaches it"
-      (let [dims (el/dimensions m)
-            under-back [200.0 100.0]
+      (let [under-back [200.0 100.0]
             reaching (assoc start :b [200.0 100.0] :steer :a)
             after (tap reaching under-back)]
-        (is (some? dims))
         (is (= :a (:steer after)))
         (is (= (:a reaching) (:a after)) "and it does not drag the steered one up there")))
+    (testing "a press under Back, away from the other ellipse, moves nothing and swaps nothing"
+      (let [under-back [200.0 100.0]
+            dims (el/dimensions m)]
+        (is (gesture/in-back-region? under-back))
+        (is (not (el/inside? under-back b (radii-of dims :b))))
+        (let [pressed (step start :press under-back)
+              held (step pressed :down [210.0 105.0])]
+          (is (= a (:a pressed)))
+          (is (= a (:a held)))
+          (is (= :a (:steer pressed) (:steer held))))))
     (testing "a touch that starts inside the other and travels is a swipe, not a tap, so it swaps nothing"
       (let [end [(+ (first in-b) 300.0) (second in-b)]
             after (-> start

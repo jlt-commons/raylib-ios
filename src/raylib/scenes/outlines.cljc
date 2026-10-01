@@ -44,8 +44,7 @@
 
   Shapes sit in three cells, side by side when the screen is wider than tall and
   stacked otherwise, each cell holding a square 280 units across so the ring at
-  its most outward still fits. Text sits below Back in `dimensions`, with widths
-  estimated at 0.6 of the size per character in the tests."
+  its most outward still fits. Text sits below Back in `dimensions`."
   (:require [raylib.gesture :as gesture]
             [raylib.scenes.rounded :as rounded]))
 

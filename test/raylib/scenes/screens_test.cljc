@@ -70,7 +70,15 @@
       (is (= :title (:screen fired)))
       (is (= :title (:screen (step fired :release [1.0 1.0]))))))
   (testing "a touch that starts on the new screen advances it"
-    (is (= :gameplay (:screen (tap (idle-frames start 90) below-back))))))
+    (is (= :gameplay (:screen (tap (idle-frames start 90) below-back)))))
+  (testing "a press landing on the timer frame itself is not swallowed"
+    (let [fired (step (idle-frames start 89) :press below-back)]
+      (is (= 90 (:frame fired)))
+      (is (= :title (:screen fired)))
+      (is (= :gameplay (:screen (-> fired
+                                    (step :down below-back)
+                                    (step :release [1.0 1.0]))))
+          "the tap steps once more, in addition to the timer's"))))
 
 (deftest ending-goes-where-the-original-goes
   (let [ending (nth (iterate #(tap % below-back) start) 3)]

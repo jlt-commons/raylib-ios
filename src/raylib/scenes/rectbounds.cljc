@@ -27,8 +27,7 @@
   Everything lives in the safe region below Back. The box starts below it and
   the hint and the wrap button sit under the box, so nothing is under Back or
   off the screen. Sizes scale with the shorter side over 450, the height of the
-  original's window. Text is laid out in `dimensions`, with widths estimated at
-  0.6 of the size per character."
+  original's window. Text is laid out in `dimensions`."
   (:require [clojure.string :as str]
             [raylib.gesture :as gesture]))
 

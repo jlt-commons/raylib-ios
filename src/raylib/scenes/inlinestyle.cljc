@@ -21,15 +21,14 @@
   original calls GetRandomValue. The first frame rolls too, as the original's
   frame 0 does, so the starting red is never drawn.
 
-  The original does not wrap. Its sizes and positions are scaled by one factor
-  `u`, the smaller of the width over its 800 pixels and the room below Back over
-  its 250 pixels of content, so the lines keep their proportions and fit the
-  safe region. Runs are laid out left to right, each starting where the one
+  The original does not wrap. The port scales the original's sizes and positions
+  by one factor `u`, the smaller of the width over its 800 pixels and the room
+  below Back over its 250 pixels of content, so the lines keep their
+  proportions and fit the safe region. Runs are laid out left to right, each starting where the one
   before it ends, and that needs the width of text, which a pure namespace cannot
   ask raylib for. `layout` takes a `measure` function `(fn [s size] -> px)`. The
   draw method passes the real one and the tests pass an estimate of 0.6 of the
-  size per character. Text is laid out in `dimensions` with widths estimated at
-  0.6 of the size per character."
+  size per character. Text is laid out in `dimensions`."
   (:require [raylib.gesture :as gesture]))
 
 (def background-colour "The original's RAYWHITE." [245 245 245 255])

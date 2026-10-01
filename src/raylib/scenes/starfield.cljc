@@ -209,7 +209,7 @@
 
 (defn scene []
   {:id :starfield
-   :title "Starfield"
+   :title "Starfield Effect"
    :init init
    :update update-scene
    :draw draw

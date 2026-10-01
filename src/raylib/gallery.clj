@@ -55,7 +55,7 @@
             [raylib.scenes.kaleidoscope :as kal]
             [raylib.scenes.life :as life]
             [raylib.scenes.logo :as still-logo]
-            [raylib.scenes.logoanim :as logo]
+            [raylib.scenes.logoanim :as logoanim]
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.minesweeper :as msw]
@@ -99,7 +99,7 @@
              (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
              (life/scene) (auto/scene)
              (wheel/scene) (circle/scene)
-             (clock/scene) (pie/scene) (logo/scene)
+             (clock/scene) (pie/scene) (logoanim/scene)
              (ease/scene)
              (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
              (bull/scene) (coll/scene) (dash/scene) (multi/scene)
@@ -1152,12 +1152,12 @@
 
 (defmethod draw-scene! :logoanim [_ {:keys [stage counter top left bottom right letters alpha]} {:keys [m]}]
   (rl/clear-background (rl/rgba 245 245 245 255))
-  (let [{:keys [x y side scale border]} (logo/dimensions m)
+  (let [{:keys [x y side scale border]} (logoanim/dimensions m)
         u (fn [units] (* units scale))
         ink (fn [a] (rl/rgba 0 0 0 (int (* 255 (max 0.0 (min 1.0 a))))))
         black (ink 1.0)]
     (case stage
-      0 (when (logo/blink-on? counter)
+      0 (when (logoanim/blink-on? counter)
           (rl/draw-rectangle (int x) (int y) (int border) (int border) black))
 
       (1 2) (do
@@ -1174,7 +1174,7 @@
           (rl/draw-rectangle (int x) (int y) (int border) (int side) c)
           (rl/draw-rectangle (int (+ x side (- border))) (int y) (int border) (int side) c)
           (rl/draw-rectangle (int x) (int (+ y side (- border))) (int side) (int border) c)
-          (let [txt (logo/visible-word letters)
+          (let [txt (logoanim/visible-word letters)
                 size (int (* 0.20 side))]
             (when (seq txt)
               (rl/draw-text txt
@@ -2339,11 +2339,18 @@
       (when bg
         (rl/draw-rectangle (int x) (int y) (int w) (int size) (pack bg)))
       (rl/draw-text text (int x) (int y) size (pack fg)))
-    ;; DrawRectangleLines is a hairline here, so the box is four lines.
-    (rl/draw-line-ex bx by x2 by thick edge)
-    (rl/draw-line-ex x2 by x2 y2 thick edge)
-    (rl/draw-line-ex x2 y2 bx y2 thick edge)
-    (rl/draw-line-ex bx y2 bx by thick edge)))
+    ;; DrawRectangleLines is a hairline here, so the box is four lines. Each is
+    ;; butt-ended, so its ends are pushed out by half the thickness to close the
+    ;; corners.
+    (let [h (/ thick 2.0)
+          lx (- bx h)
+          rx (+ x2 h)
+          ty (- by h)
+          by2 (+ y2 h)]
+      (rl/draw-line-ex lx by rx by thick edge)
+      (rl/draw-line-ex x2 ty x2 by2 thick edge)
+      (rl/draw-line-ex rx y2 lx y2 thick edge)
+      (rl/draw-line-ex bx by2 bx ty thick edge))))
 
 (defmethod draw-scene! :outlines [_ {:keys [thick manual?]} {:keys [m]}]
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
@@ -2368,8 +2375,9 @@
     (doseq [[x1 y1 x2 y2 th] (outl/rect-lines rect t)]
       (rl/draw-line-ex x1 y1 x2 y2 th edge))
     ;; The rounded one: filled with the rounded scene's own parts, then outlined.
-    ;; The fill is grown a pixel and its corners a degree, as in :rounded, so no
-    ;; seam of background shows through it.
+    ;; The fill's corners are grown a degree, as in :rounded, so no seam of
+    ;; background shows through it. Unlike :rounded it is not grown a pixel,
+    ;; which would leave a faint rim outside the outline band.
     (let [rr (outl/rounded-radius rounded)
           {:keys [rects corners]} (rnd/parts {:x ox
                                               :y oy
@@ -2379,9 +2387,9 @@
           {:keys [lines rings]} (outl/rounded-outline rounded t)]
       (doseq [[x y w h] rects]
         (rl/draw-rectangle (int (Math/floor x)) (int (Math/floor y))
-                           (int (Math/ceil (inc w))) (int (Math/ceil (inc h))) fill))
+                           (int (Math/ceil w)) (int (Math/ceil h)) fill))
       (doseq [[ccx ccy start end] corners]
-        (rl/draw-ring ccx ccy 0.0 (inc rr) (- start 1.0) (+ end 1.0) outl/corner-segments fill))
+        (rl/draw-ring ccx ccy 0.0 rr (- start 1.0) (+ end 1.0) outl/corner-segments fill))
       (doseq [[x1 y1 x2 y2 th] lines]
         (rl/draw-line-ex x1 y1 x2 y2 th edge))
       ;; Half a degree past each quarter, which stays inside the straight band
