@@ -89,6 +89,7 @@
                      raylib.scenes.invaders-test
                      raylib.scenes.tetris-test
                      raylib.scenes.asteroids-test
+                     raylib.scenes.virtualpad-test
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.easings-test

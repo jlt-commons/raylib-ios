@@ -77,6 +77,7 @@
             [raylib.scenes.tree :as tree]
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
+            [raylib.scenes.virtualpad :as vpad]
             [raylib.scenes.writing :as writ]
             [raylib.scroll :as scroll]))
 
@@ -98,7 +99,7 @@
              (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
              (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
              (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
-             (tet/scene) (astr/scene)])
+             (tet/scene) (astr/scene) (vpad/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -129,7 +130,7 @@
              :analog :clockgrid :sector :palette :gradient :ring :splines
              :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
-             :particles :bounce]}
+             :particles :bounce :virtualpad]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids]}])
@@ -2119,3 +2120,29 @@
                     (pack astr/over-colour))
       (rl/draw-text astr/restart-line (astr/centred-x dims msg2-size astr/restart-line) msg2-y msg2-size
                     (pack astr/text-colour)))))
+
+(defmethod draw-scene! :virtualpad [_ {:keys [dirs a?]
+                                       :as state} {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack vpad/background-colour))
+        dims (vpad/dimensions m)
+        {:keys [pad-x pad-y pad-r btn-x btn-y btn-r thick segs a-glyph lines]} dims
+        [sx sy sw sh] (vpad/square-rect dims state)]
+    (doseq [{:keys [s x y size]} lines
+            :let [colour (if (= s vpad/title-line) vpad/title-colour vpad/hint-colour)]]
+      (rl/draw-text s x y size (pack colour)))
+    (rl/draw-rectangle (int sx) (int sy) (int sw) (int sh) (pack vpad/square-colour))
+    ;; The ring is a filled disc with a smaller background-coloured disc over
+    ;; it, in place of the original's `circle-lines!`, which is not bound.
+    (rl/draw-circle (int pad-x) (int pad-y) (float pad-r) (pack vpad/ring-colour))
+    (rl/draw-circle (int pad-x) (int pad-y) (float (- pad-r thick)) (pack vpad/background-colour))
+    (doseq [{:keys [dir cx cy r glyph gx gy gsize]} segs
+            :let [active? (contains? dirs dir)]]
+      (rl/draw-circle (int cx) (int cy) (float r)
+                      (pack (if active? vpad/segment-active-colour vpad/segment-colour)))
+      (rl/draw-text glyph gx gy gsize
+                    (pack (if active? vpad/arrow-active-colour vpad/arrow-colour))))
+    (rl/draw-circle (int btn-x) (int btn-y) (float btn-r)
+                    (pack (if a? vpad/a-active-colour vpad/a-colour)))
+    (rl/draw-text "A" (:x a-glyph) (:y a-glyph) (:size a-glyph)
+                  (pack (if a? vpad/a-text-active-colour vpad/a-text-colour)))))
