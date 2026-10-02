@@ -194,14 +194,19 @@
   pushed onto the log, which keeps the newest `max-log`. The previous code is
   then the current one, logged or not. The position is `:pointer`'s on a
   `:press` or `:down`, and otherwise the last one seen; the release position is
-  never read."
+  never read. The `dimensions` take about two dozen `measure` calls, so the
+  state keeps them in `:dims` for the `:dims-screen` they were built for and
+  `advance` rebuilds them only when the screen changes."
   [state input]
   (let [{:keys [phase position]} (:pointer input)
+        screen (:screen (:metrics input))
+        dims (if (and (:dims state) (= screen (:dims-screen state)))
+               (:dims state)
+               (dimensions (:metrics input) (or (:measure input) default-measure)))
         at (if (and position (contains? #{:press :down} phase))
              position
              (:at state))
         code (or (:raylib-gesture input) 0)
-        dims (dimensions (:metrics input) (or (:measure input) default-measure))
         new? (and (not= code 0)
                   (not= code (:last-gesture state))
                   at
@@ -212,7 +217,9 @@
                   (:log state))
            :last-gesture code
            :gesture code
-           :at at)))
+           :at at
+           :dims dims
+           :dims-screen screen)))
 
 (defn- init [_]
   [{:log []

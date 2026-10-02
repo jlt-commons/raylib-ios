@@ -155,3 +155,37 @@
                                    (get-in d [:log :size]) (get-in d [:log :row-h])])))
       (is (pos? (:circle-radius d)))
       (is (string? (:hint d))))))
+
+(deftest dimensions-are-built-once-per-screen-size
+  (let [calls (atom 0)
+        counting (fn [s size] (swap! calls inc) (measure s size))
+        frame (fn [state metrics]
+                (g/advance state {:metrics metrics
+                                  :measure counting
+                                  :raylib-gesture 0
+                                  :pointer {:phase :idle}}))
+        first-frame (frame start portrait)
+        after-first @calls]
+    (is (pos? after-first) "the first frame measures")
+    (testing "more frames on the same screen measure nothing"
+      (reset! calls 0)
+      (let [later (reduce (fn [s _] (frame s portrait)) first-frame (range 5))]
+        (is (zero? @calls))
+        (is (= (:dims first-frame) (:dims later)))))
+    (testing "a new screen rebuilds them, for that screen"
+      (let [land {:screen [2334 1206]}
+            turned (frame first-frame land)]
+        (is (pos? @calls))
+        (is (= (:area (g/dimensions land measure)) (:area (:dims turned))))
+        (is (not= (:area (:dims first-frame)) (:area (:dims turned))))
+        (reset! calls 0)
+        (frame turned land)
+        (is (zero? @calls))))
+    (testing "the log still checks the box of the current screen"
+      (let [land {:screen [2334 1206]}
+            inside-new (centre (:area (g/dimensions land measure)))
+            s (g/advance first-frame {:metrics land
+                                      :raylib-gesture 1
+                                      :pointer {:phase :down
+                                                :position inside-new}})]
+        (is (= ["GESTURE TAP"] (:log s)))))))

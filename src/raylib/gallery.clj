@@ -2694,10 +2694,24 @@
       (rl/draw-text ls (strings/centred-x rect ls lsz measure) (int (:y label)) lsz
                     (pack (if armed? strings/armed-label-colour strings/button-label-colour))))))
 
+(def ^:private camera2d-dims-cache
+  "The last `[screen dims]` for `:camera2d`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- camera2d-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @camera2d-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (c2d/dimensions m host-measure)]
+        (reset! camera2d-dims-cache [screen dims])
+        dims))))
+
 (defmethod draw-scene! :camera2d [_ state {:keys [m safe]}]
   (let [pack (fn [[r g b a]] (rl/rgba r g b a))
         _ (rl/clear-background (pack c2d/background-colour))
-        dims (c2d/dimensions m host-measure)
+        dims (camera2d-dims m)
         camera (c2d/camera state dims)
         [fx fy fw fh] (:field dims)
         text (fn [{:keys [s x y size]} colour] (rl/draw-text s (int x) (int y) size (pack colour)))]
