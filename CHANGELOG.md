@@ -6,6 +6,17 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Three more 3D scenes, a hundred and three in all.** Toys now holds
+  seventy-nine. Waving Cubes draws 81 of the original's 196 columns, Solar
+  System nests a Sun, an Earth and a Moon, and Point Cloud draws 400 of the
+  original's 1500 points as screen-space squares. The first version of Waving
+  Cubes ran at 15 fps on an iPhone 17 Pro and the first Point Cloud at 9, so both
+  were cut and now paint far to near by their own order instead of `finish`.
+  Solar System measured 58 fps in its first version and is unchanged. The cut
+  versions of the other two have not run on the phone, so their fps cells are
+  empty.
+- **`soft3d/sphere` and `soft3d/plane`.** Both follow raylib's models code, with
+  its latitude and longitude bands and its one-sided quad.
 - **Ten 3D scenes, a hundred in all.** Toys now holds seventy-six. Rotating Cube,
   3D Camera, Orthographic Projection, Spinning Cubes, World to Screen and
   Wireframe Shapes turn and orbit with no input. 3D Free Camera rebuilds raylib's

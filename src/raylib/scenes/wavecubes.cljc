@@ -17,8 +17,9 @@
   a frame time, like the original: both the wave and the orbit advance by frame.
 
   The grid here is 9 by 9, 81 columns, where the original has 14 by 14, 196.
-  The 196 ran at 15 fps on an iPhone 17 Pro, 67 ms a frame, because each
-  frame built 1176 triangles. Span follows the grid, so the camera comes in to
+  The first version of this port, with all 196 columns through
+  `raylib.soft3d/cube` and `finish`, ran at 15 fps on an iPhone 17 Pro, 67 ms a
+  frame. This version paints by axis order with its own box emitter. Span follows the grid, so the camera comes in to
   frame 9 columns as the original framed 14, and the wave keeps its ripple per
   column but shows fewer ripples across.
 

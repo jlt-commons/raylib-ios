@@ -12,8 +12,9 @@
   original's.
 
   There are 400 points here, where the original has 1500. They are the first
-  400 of the cloud the 1500 would be. The 1500, drawn as 3000 triangles, ran at
-  9 fps on an iPhone 17 Pro, 110 ms a frame.
+  400 of the cloud the 1500 would be. The first version of this port, with all
+  1500 points as squares sorted by `finish`, ran at 9 fps on an iPhone 17 Pro,
+  110 ms a frame.
 
   The points are drawn as screen-space squares, not cubes. A cube of side 0.06
   is a few pixels across and its shades cannot be told apart, so each point is

@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples, and 102 of them are in the gallery. Those count
+examples, and 105 of them are in the gallery. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
@@ -107,10 +107,12 @@ one finger only, so pinch cannot appear.
 
 An example that draws in 3D is projected in software, since no 3D mode is bound.
 `raylib.soft3d` holds the camera, the transforms and the builders (`cube`,
-`cube-wires`, `grid`, `lines`). `field` lays out the caption and the 3D view
+`cube-wires`, `grid`, `lines`, `sphere`, `plane`). `field` lays out the caption and the 3D view
 under Back, `fit-camera` widens the original's fovy so a portrait field still
 shows the original's width, `finish` sorts the draw list, and
-`raylib.host/draw-3d!` emits it. A scene that steers with a relative thumb-stick
+`raylib.host/draw-3d!` emits it. A scene that draws many small boxes may bypass
+`finish` with its own paint order, as `wavecubes` and `pointcloud` do, if the
+order is provably right for that scene. A scene that steers with a relative thumb-stick
 tracks it with `raylib.stick`, which follows one touch id and never adopts a
 finger that was already down. The next guide page covers the drawing itself.
 

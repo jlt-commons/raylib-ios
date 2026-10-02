@@ -23,7 +23,7 @@
   aspect, so a tall phone field still shows the original's width.
 
   Building a frame: start from `[]`, thread it through the builders (`cube`,
-  `cube-wires`, `grid`, `lines`), then `finish` it into the draw list. Every
+  `cube-wires`, `grid`, `lines`, `sphere`, `plane`), then `finish` it into the draw list. Every
   builder projects as it goes, so a back face, or a face behind the near plane,
   never becomes an item, and a line behind it is clipped to it instead.
 
@@ -579,7 +579,9 @@
 
   Each triangle goes in only when it faces the camera, and a quad with a corner
   behind the near plane is dropped, as `cube` does. A quad touching a pole has
-  two coincident corners, so one of its triangles is edge-on and is dropped."
+  two coincident corners, so one of its triangles is a sliver. It is usually
+  culled, but a view from straight above can emit two of them, each under a
+  millionth of a pixel."
   ([dl vp xf pos radius colour] (sphere dl vp xf pos radius colour {}))
   ([dl vp xf [cx cy cz] radius [cr cg cb] {:keys [rings slices]
                                            :or {rings 12
