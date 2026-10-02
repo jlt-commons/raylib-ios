@@ -75,10 +75,14 @@
 ;; The matrix stack and the scissor rectangle, which together let the host put
 ;; a scene somewhere other than the whole screen without the scene knowing.
 ;; raylib's 2D shape calls go through rlgl immediate mode, so the current
-;; MODELVIEW matrix applies to them.
+;; MODELVIEW matrix applies to them. rlRotatef and rlScalef join them for
+;; `with-camera-2d`: rlgl multiplies each call onto the current matrix as
+;; M * current, so the LAST call applies to a vertex FIRST.
 (ffi/defcfn rl-push-matrix      "rlPushMatrix"      [] :void)
 (ffi/defcfn rl-pop-matrix       "rlPopMatrix"       [] :void)
 (ffi/defcfn rl-translatef       "rlTranslatef"      [:float :float :float] :void)
+(ffi/defcfn rl-rotatef          "rlRotatef"         [:float :float :float :float] :void)
+(ffi/defcfn rl-scalef           "rlScalef"          [:float :float :float] :void)
 (ffi/defcfn begin-scissor-mode  "BeginScissorMode"  [:int :int :int :int] :void)
 (ffi/defcfn end-scissor-mode    "EndScissorMode"    [] :void)
 (def RL-TRIANGLES 0x0004)
@@ -357,6 +361,29 @@
   own state through recur."
   []
   @current-state)
+
+(defn with-camera-2d
+  "Call zero-arg `f` with `camera` (see `raylib.camera2d`) applied to every
+  rlgl vertex it draws, and return whatever `f` returns.
+
+  The camera is pushed on top of the current matrix rather than replacing it
+  (BeginMode2D calls rlLoadIdentity, which would throw away the gallery's
+  safe-region translate). The calls are offset, rotation, zoom, minus target;
+  the last applies first, so a world point is moved by minus the target, scaled,
+  rotated and moved by the offset, which is GetCameraMatrix2D. rlgl transforms
+  at rlVertex time while the stack is pushed, so no batch flush is needed. The
+  pop is in a `finally`, so a draw that throws cannot leave the stack pushed."
+  [{[ox oy] :offset
+    [tx ty] :target
+    :keys [rotation zoom]} f]
+  (rl-push-matrix)
+  (try
+    (rl-translatef ox oy 0.0)
+    (rl-rotatef rotation 0.0 0.0 1.0)
+    (rl-scalef zoom zoom 1.0)
+    (rl-translatef (- tx) (- ty) 0.0)
+    (f)
+    (finally (rl-pop-matrix))))
 
 (defn on-next-frame!
   "Queue zero-arg `f` to run on the main thread at the top of the next frame.
