@@ -2976,34 +2976,10 @@
         (reset! helitorus-dims-cache [screen dims])
         dims))))
 
-(defn- helitorus-ring!
-  "One ring of the tube as flat-shaded quads, two rlgl triangles each. A quad is
-  skipped when the 2D cross product of its first two edges is negative, which is
-  the back of the tube."
-  [^double/1 sx ^double/1 sy ^int/1 shade ^int/1 pr ^int/1 pg ^int/1 pb i nu]
-  (let [nv helitorus/nv
-        i2 (let [x (inc i)] (if (= x nu) 0 x))
-        b1 (* i nv)
-        b2 (* i2 nv)]
-    (loop [j 0]
-      (when (< j nv)
-        (let [j2 (let [x (inc j)] (if (= x nv) 0 x))
-              a (+ b1 j) b (+ b1 j2)
-              c (+ b2 j2) d (+ b2 j)
-              xa (aget sx a) ya (aget sy a)
-              xb (aget sx b) yb (aget sy b)
-              xc (aget sx c) yc (aget sy c)]
-          (when (pos? (- (* (- xb xa) (- yc ya))
-                         (* (- yb ya) (- xc xa))))
-            (let [s (aget shade a)]
-              (rl/rl-color-4ub (aget pr s) (aget pg s) (aget pb s) 255))
-            (rl/rl-vertex-2f xa ya)
-            (rl/rl-vertex-2f xb yb)
-            (rl/rl-vertex-2f xc yc)
-            (rl/rl-vertex-2f xa ya)
-            (rl/rl-vertex-2f xc yc)
-            (rl/rl-vertex-2f (aget sx d) (aget sy d))))
-        (recur (inc j))))))
+(defn- helitorus-colour!
+  "The flat colour of the next quad, fully opaque."
+  [r g b]
+  (rl/rl-color-4ub r g b 255))
 
 (defn- helitorus-surface!
   "Every ring, far to near. One rlBegin/rlEnd batch per ring: rlgl cannot flush
@@ -3017,8 +2993,9 @@
     (loop [oi 0]
       (when (< oi nu)
         (rl/rl-begin rl/RL-TRIANGLES)
-        (helitorus-ring! sx sy shade helitorus/palette-r helitorus/palette-g helitorus/palette-b
-                         (aget order oi) nu)
+        (helitorus/emit-ring! helitorus-colour! rl/rl-vertex-2f sx sy shade
+                              helitorus/palette-r helitorus/palette-g helitorus/palette-b
+                              (aget order oi) nu)
         (rl/rl-end)
         (recur (inc oi))))))
 
@@ -3056,12 +3033,11 @@
         c0 (System/nanoTime)
         _ (helitorus/compute! bufs (helitorus/params state dims))
         c1 (System/nanoTime)]
-    ;; The scene tests visibility itself, so raylib's cull is off for the
-    ;; surface and back on afterwards on every path.
-    (rl/rl-disable-backface-culling)
-    (try
-      (helitorus-surface! bufs nu)
-      (finally (rl/rl-enable-backface-culling)))
+    ;; The scene tests visibility itself and emits each kept quad in the
+    ;; winding rlgl keeps (`helitorus/emit-ring!`). Culling stays on: rlgl only
+    ;; queues these vertices and draws them at a later flush, so a toggle around
+    ;; this call would not be in force when they are drawn.
+    (helitorus-surface! bufs nu)
     (helitorus-hud-tick! (- c1 c0) (- (System/nanoTime) c1))
     (let [{:keys [fps compute-ms draw-ms]} @helitorus-hud
           [hud status hint] (:lines dims)

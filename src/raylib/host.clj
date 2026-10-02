@@ -84,13 +84,6 @@
 (ffi/defcfn rl-rotatef          "rlRotatef"         [:float :float :float :float] :void)
 (ffi/defcfn rl-scalef           "rlScalef"          [:float :float :float] :void)
 
-;; Backface culling, for a scene that decides visibility itself. raylib's cull
-;; drops triangles by winding, and a scene that projects its own vertices and
-;; tests the sign of a screen-space cross product keeps exactly the faces the
-;; cull would drop. Neither takes an argument. A draw that
-;; turns culling off puts it back in a `finally`.
-(ffi/defcfn rl-disable-backface-culling "rlDisableBackfaceCulling" [] :void)
-(ffi/defcfn rl-enable-backface-culling  "rlEnableBackfaceCulling"  [] :void)
 (ffi/defcfn begin-scissor-mode  "BeginScissorMode"  [:int :int :int :int] :void)
 (ffi/defcfn end-scissor-mode    "EndScissorMode"    [] :void)
 (def RL-TRIANGLES 0x0004)

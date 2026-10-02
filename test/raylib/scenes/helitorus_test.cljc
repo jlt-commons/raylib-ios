@@ -413,3 +413,39 @@
     (let [b (computed (assoc start :rot-x 0.0 :rot-y 0.0 :clock 0.0 :twists 3 :nu 60) portrait)
           [_ cy] (:centre geo)]
       (is (< (aget (:sy b) (* 15 h/nv)) cy) "a point at +y on the torus is drawn above the centre"))))
+
+(defn- ring-triangles
+  "Every triangle `emit-ring!` sends for every ring of `bufs`, as vectors of
+  three `[x y]` points, in the order it sends them."
+  [bufs nu]
+  (let [out (volatile! [])]
+    (doseq [i (range nu)]
+      (h/emit-ring! (fn [_ _ _]) (fn [x y] (vswap! out conj [x y]))
+                    (:sx bufs) (:sy bufs) (:shade bufs)
+                    h/palette-r h/palette-g h/palette-b i nu))
+    (mapv vec (partition 3 @out))))
+
+(defn- screen-cross
+  "The 2D cross product of a triangle's first two edges."
+  [[[xa ya] [xb yb] [xc yc]]]
+  (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
+
+(deftest every-emitted-triangle-has-the-front-winding
+  ;; rlgl culls a positive cross product (host/draw-triangle, CLAUDE.md), and
+  ;; culling is on when the batch is flushed, so a positive triangle is lost.
+  (doseq [nu [64 260]
+          rot-y [0.0 1.3 2.6]
+          :let [state (assoc start :rot-y rot-y :nu nu)
+                bufs (computed state portrait)
+                tris (ring-triangles bufs nu)
+                kept (count (filter pos? (for [i (range nu)
+                                               j (range h/nv)
+                                               :let [a (+ (* i h/nv) j)
+                                                     b (+ (* i h/nv) (mod (inc j) h/nv))
+                                                     c (+ (* (mod (inc i) nu) h/nv) (mod (inc j) h/nv))]]
+                                           (screen-cross (mapv (fn [k] [(aget (:sx bufs) k) (aget (:sy bufs) k)])
+                                                               [a b c])))))]]
+    (testing (str "nu " nu " rot-y " rot-y)
+      (is (pos? (count tris)))
+      (is (= (* 2 kept) (count tris)) "two triangles for each quad that faces us")
+      (is (not-any? pos? (map screen-cross tris))))))

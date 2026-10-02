@@ -27,10 +27,12 @@
   (`make-buffers`, allocated once for `max-nu` rings), so a frame of about ten
   thousand vertices allocates nothing. The ring `order` array survives the
   frame: consecutive frames differ by a small rotation, so it starts nearly
-  sorted and the insertion sort over it is close to linear. Culling is the draw
-  side's business: the scene decides visibility by the sign of a 2D cross
-  product in screen space, which is not a winding rule, so the draw switches
-  raylib's culling off and restores it afterwards.
+  sorted and the insertion sort over it is close to linear. The scene
+  decides visibility itself, by the sign of a 2D cross product in screen space,
+  and `emit-ring!` sends each kept quad in the winding rlgl keeps. Culling is
+  left on: rlgl only queues vertices and draws them at a later flush, so
+  switching culling off around the draw calls would not be in force when they
+  are drawn, and a quad sent in the other winding would vanish.
 
   The original's constants are kept: 12 points round the tube, up to 900 along
   the spine, major radius 1.0, minor 0.30, tube radius 0.11, camera distance
@@ -43,7 +45,8 @@
   The original starts at 260 rings. This starts at 64 (`start-nu`), chosen from
   a measurement: at 260 the phone ran 19 fps, with compute 29.5 ms and draw 19.5
   ms, because jolt's interpreter is far slower than native on arithmetic. Both
-  halves scale with the ring count, so estimate: about 12 ms a frame at 64. The
+  halves scale with the ring count. Measured at 64 on the phone (release build,
+  iPhone 17 Pro, 2026-10-02): compute 7.7 ms and draw 5.0 ms at 59 to 60 fps. The
   limits are the original's 60 to 900, so \"detail +\" still reaches 260.
 
   Controls here:
@@ -109,7 +112,9 @@
    [:detail-minus "detail -"] [:detail-plus "detail +"]])
 
 (def start-nu
-  "The starting ring count. The original's is 260; 64 is chosen from the phone\n  measuring 19 fps at 260, an estimate of about 12 ms a frame at 64."
+  "The starting ring count. The original's is 260; 64 is chosen from the phone
+  measuring 19 fps at 260. At 64 it measured compute 7.7 ms and draw 5.0 ms at
+  59 to 60 fps (release build, iPhone 17 Pro, 2026-10-02)."
   64)
 
 (def hint "drag: turn - pinch: zoom")
@@ -292,6 +297,59 @@
               (recur (inc j))))
           (recur (inc i)))))
     (sort-rings! order ring-z nu)))
+
+(defn emit-ring!
+  "Send ring `i` of the tube as flat-shaded quads, two triangles each, by calling
+  `(colour! r g b)` once per quad and `(vertex! x y)` six times. A quad is kept
+  when the 2D cross product of its first two edges (a, b, c) is positive, which
+  is the side of the tube facing us.
+
+  Every triangle goes out with a NEGATIVE cross product. That is the winding
+  rlgl keeps: in screen space, with y growing downward, it culls the positive
+  ones (`raylib.host/draw-triangle`). The first triangle is a, c, b. The second
+  is c, d of the quad's far edge, and on a quad seen nearly edge-on it can run
+  the other way round from the first, so it goes out as a, d, c or as a, c, d,
+  whichever is negative; the original draws both halves with culling off, and
+  this draws them both too. The order matters because rlgl only queues these
+  vertices and draws the batch at a later flush, with culling back on, so the
+  draw cannot turn culling off around them. `vertex!` and `colour!` are injected
+  so the order is testable without raylib."
+  [colour! vertex!
+   #?(:jolt ^double/1 sx :default ^"[D" sx)
+   #?(:jolt ^double/1 sy :default ^"[D" sy)
+   #?(:jolt ^int/1 shade :default ^"[I" shade)
+   #?(:jolt ^int/1 pr :default ^"[I" pr)
+   #?(:jolt ^int/1 pg :default ^"[I" pg)
+   #?(:jolt ^int/1 pb :default ^"[I" pb)
+   i nu]
+  (let [i2 (let [x (inc i)] (if (= x nu) 0 x))
+        b1 (* i nv)
+        b2 (* i2 nv)]
+    (loop [j 0]
+      (when (< j nv)
+        (let [j2 (let [x (inc j)] (if (= x nv) 0 x))
+              a (+ b1 j) b (+ b1 j2)
+              c (+ b2 j2) d (+ b2 j)
+              xa (aget sx a) ya (aget sy a)
+              xb (aget sx b) yb (aget sy b)
+              xc (aget sx c) yc (aget sy c)]
+          (when (pos? (- (* (- xb xa) (- yc ya))
+                         (* (- yb ya) (- xc xa))))
+            (let [s (aget shade a)]
+              (colour! (aget pr s) (aget pg s) (aget pb s)))
+            (vertex! xa ya)
+            (vertex! xc yc)
+            (vertex! xb yb)
+            (let [xd (aget sx d)
+                  yd (aget sy d)]
+              (vertex! xa ya)
+              (if (pos? (- (* (- xc xa) (- yd ya))
+                           (* (- yc ya) (- xd xa))))
+                (do (vertex! xd yd)
+                    (vertex! xc yc))
+                (do (vertex! xc yc)
+                    (vertex! xd yd))))))
+        (recur (inc j))))))
 
 ;; --- text -------------------------------------------------------------------
 
