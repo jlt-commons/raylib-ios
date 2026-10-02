@@ -193,6 +193,33 @@
         (is (near? (+ 400.0 (/ (* 0.1 vw) z)) (first (:target shoved))))
         (is (near? 280.0 (second (:target shoved))))))))
 
+(deftest push-camera-moves-on-all-four-edges
+  (let [[_ _ vw vh] (:field d)
+        z (:base-zoom d)
+        cam0 {:offset [(* 0.5 vw) (* 0.5 vh)]
+              :target [400.0 280.0]}
+        o 30.0
+        ;; The player at screen position [sx sy] in the field, in world units.
+        world (fn [sx sy] {:x (+ 400.0 (/ (- sx (* 0.5 vw)) z))
+                           :y (+ 280.0 (/ (- sy (* 0.5 vh)) z))})
+        target (fn [sx sy] (:target (pf/update-camera :push cam0 (world sx sy) dt d)))]
+    (testing "left: o pixels past 20 percent moves the target left by o over the zoom"
+      (let [[tx ty] (target (- (* 0.2 vw) o) (* 0.5 vh))]
+        (is (near? (- 400.0 (/ o z)) tx))
+        (is (near? 280.0 ty))))
+    (testing "right"
+      (let [[tx ty] (target (+ (* 0.8 vw) o) (* 0.5 vh))]
+        (is (near? (+ 400.0 (/ o z)) tx))
+        (is (near? 280.0 ty))))
+    (testing "top"
+      (let [[tx ty] (target (* 0.5 vw) (- (* 0.2 vh) o))]
+        (is (near? 400.0 tx))
+        (is (near? (- 280.0 (/ o z)) ty))))
+    (testing "bottom"
+      (let [[tx ty] (target (* 0.5 vw) (+ (* 0.8 vh) o))]
+        (is (near? 400.0 tx))
+        (is (near? (+ 280.0 (/ o z)) ty))))))
+
 (deftest the-camera-button-cycles-five-modes
   (is (= 5 (count pf/modes)))
   (let [press (fn [s] (-> s (step [:camera]) (step [])))
