@@ -22,11 +22,13 @@
     the finger is further than `gesture/slop` from the centre along it: left is
     A, right is D, up the glass is W and down is S. Each axis is its own dead
     zone and runs at its own rate, so a diagonal turns both, as two keys
-    pressed together do. Only a press, or a further finger landing while others
-    are down, starts a stick, and then only at the new finger, so a finger that
-    was already down when the scene opened, or one that began under Back or on a
-    button, never does, even when another finger lands. A finger
-    that slides from the stick onto a button ends the stick.
+    pressed together do. `raylib.stick` decides whose finger it is: a stick
+    starts only on a finger that was not down the frame before, so a finger
+    that was already down when the scene opened, or one that began under Back
+    or on a button, never does, even when another finger lands. It follows
+    only that finger, by touch id (by nearness when the host gives none), and
+    ends when it lifts, and no resting finger takes it over. A finger that
+    slides from the stick onto a button ends the stick.
   - Two held buttons replace Q and E. They are read from `:touch-points`, so a
     thumb on the stick and a thumb on a button act together. \"roll left\" is
     the original's E (+1.3, the left wing goes down) and \"roll right\" is Q
@@ -52,10 +54,12 @@
 
   The state holds `:yaw`, `:pitch` and `:roll` in degrees, `:stick` (the
   centre and the finger, or nil), `:held` (the set of button ids held, for the
-  draw), `:n` (the finger count last frame), `:pts` (the touch points of
-  that frame, for telling a new finger from one already down) and `:screen`. Colours are `[r g b a]` vectors."
+  draw), `:n` (the finger count last frame), `:pts` and `:ids` (the touch
+  points and touch ids of that frame, for telling a new finger from one
+  already down) and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
-            [raylib.soft3d :as s3]))
+            [raylib.soft3d :as s3]
+            [raylib.stick :as stick]))
 
 (def yaw-rate "Degrees a frame for A and D. The original's." 1.1)
 (def pitch-rate "Degrees a frame for W and S. The original's." 0.9)
@@ -326,36 +330,6 @@
   (and (not (gesture/in-back-region? p))
        (not-any? (fn [{:keys [rect]}] (gesture/in-rect? rect p)) buttons)))
 
-(defn- d2 [[ax ay] [bx by]]
-  (let [dx (- (double ax) (double bx))
-        dy (- (double ay) (double by))]
-    (+ (* dx dx) (* dy dy))))
-
-(defn- next-stick
-  "The stick after this frame. A held stick follows the free finger nearest to
-  where it was and ends when there is none. Without one, a press starts it, or
-  a finger landing while others are already down, at the first finger in the 3D
-  area that is further than `gesture/slop` from every finger of the frame
-  before (`:pts`), so it is the new one. Nothing else does: a finger that was
-  down already is never adopted when another lands, and never becomes one by
-  moving."
-  [state dims metrics points press?]
-  (let [n (count points)
-        prev-n (:n state 0)
-        stick (:stick state)
-        slop2 (let [sl (gesture/slop metrics)] (* sl sl))
-        free (filterv #(free-point? dims %) points)
-        fresh? (fn [p] (every? #(> (d2 p %) slop2) (:pts state)))]
-    (cond
-      (zero? n) nil
-      stick (when (seq free)
-              (assoc stick :at (apply min-key #(d2 % (:at stick)) free)))
-      (or press? (and (pos? prev-n) (> n prev-n)))
-      (when-let [p (first (filter #(and (gesture/in-rect? (:viewport dims) %) (fresh? %)) free))]
-        {:centre p
-         :at p})
-      :else nil)))
-
 (defn stick-keys
   "Which of the original's four keys `stick` stands for, as a set of `:a`, `:d`,
   `:w` and `:s`, for `metrics`. An axis is on when the finger is further than
@@ -383,12 +357,19 @@
         dims (geometry metrics)
         screen (:screen metrics)
         state (if (not= screen (:screen state))
-                (assoc (dissoc state :stick) :n 0 :pts [])
+                (assoc (dissoc state :stick) :n 0 :pts [] :ids nil)
                 state)
         phase (get-in input [:pointer :phase])
         raw (vec (:touch-points input))
         points (if (and (= :release phase) (< (count raw) 2)) [] raw)
-        stick (next-stick state dims metrics points (= :press phase))
+        ids (stick/ids-of input points)
+        stick (stick/next-stick (:stick state) state
+                                {:points points
+                                 :ids ids
+                                 :metrics metrics
+                                 :press? (= :press phase)
+                                 :free? #(free-point? dims %)
+                                 :start? #(gesture/in-rect? (:viewport dims) %)})
         down (stick-keys stick metrics)
         held (held-buttons dims points)
         {:keys [yaw pitch roll]} state]
@@ -396,6 +377,7 @@
            :screen screen
            :n (count points)
            :pts points
+           :ids ids
            :stick stick
            :held held
            :yaw (cond (:a down) (min angle-limit (+ yaw yaw-rate))
@@ -416,6 +398,7 @@
     :held #{}
     :n 0
     :pts []
+    :ids nil
     :screen (:screen metrics)}
    [[:scene/init :yawpitchroll]]])
 (defn- update-scene [state input] [(advance state input) []])

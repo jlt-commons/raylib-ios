@@ -20,12 +20,12 @@
     centre, and a finger that lands in the 3D area starts it. An axis is on
     when the finger is further than `gesture/slop` from the centre along it:
     left is A, right is D, up the glass is W (world -z, forward) and down is S.
-    Only a press, or a further finger landing while others are down, starts a
-    stick, and then only at the new finger, so a finger that was already down
-    when the scene opened, or one that began under Back or above the 3D area,
-    never does, even when another finger lands. The stick keeps to its own
-    finger and ends when that finger lifts, even if another is down. A rotation of the phone
-    drops it. A tap moves nothing.
+    `raylib.stick` decides whose finger it is: a stick starts only on a finger
+    that was not down the frame before, so a finger that was already down when
+    the scene opened, or one that began under Back or above the 3D area, never
+    does, even when another finger lands. It follows only that finger, by touch
+    id (by nearness when the host gives none), and ends when it lifts, even if
+    another is down. A rotation of the phone drops it. A tap moves nothing.
   - Nothing else in the original reads input.
 
   Nothing reads a frame time, like the original: the speed is per update. The
@@ -37,11 +37,12 @@
   narrower one. A face with a corner behind the near plane is dropped whole.
 
   The state holds `:px` and `:pz`, `:stick` (the centre and the finger, or nil),
-  `:n` (the finger count last frame), `:pts` (the touch points of that frame,
-  for telling a new finger from one already down) and `:screen`. Colours are `[r g b a]`
-  vectors."
+  `:n` (the finger count last frame), `:pts` and `:ids` (the touch points and
+  touch ids of that frame, for telling a new finger from one already down) and
+  `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
-            [raylib.soft3d :as s3]))
+            [raylib.soft3d :as s3]
+            [raylib.stick :as stick]))
 
 (def speed "World units a frame for each key. The original's SPEED." 0.18)
 (def player-size "The player cube's side. The original's PS." 2.0)
@@ -168,45 +169,6 @@
   [p]
   (not (gesture/in-back-region? p)))
 
-(defn- d2 [[ax ay] [bx by]]
-  (let [dx (- (double ax) (double bx))
-        dy (- (double ay) (double by))]
-    (+ (* dx dx) (* dy dy))))
-
-(def follow-fraction
-  "How far a stick's finger may travel in one frame, as a fraction of the
-  shorter side. estimate: 0.15, well above any thumb drag a frame and well
-  below the gap between two thumbs."
-  0.15)
-
-(defn- next-stick
-  "The stick after this frame. A held stick follows its own finger, the point
-  nearest to where it was within `follow-fraction` of the shorter side, and
-  ends when there is none: it never moves to another finger. Without one, a
-  press starts it, or a finger landing while others are already down, at the
-  first finger in the 3D area that is further than `gesture/slop` from every
-  finger of the frame before (`:pts`), so it is the new one. Nothing else
-  does, so a finger that was down already is never adopted when another lands,
-  and never becomes one by moving."
-  [state dims metrics points press?]
-  (let [n (count points)
-        prev-n (:n state 0)
-        stick (:stick state)
-        slop2 (let [sl (gesture/slop metrics)] (* sl sl))
-        reach2 (let [r (* follow-fraction (apply min (:screen metrics)))] (* r r))
-        free (filterv free-point? points)
-        fresh? (fn [p] (every? #(> (d2 p %) slop2) (:pts state)))]
-    (cond
-      (zero? n) nil
-      stick (let [near (filterv #(<= (d2 % (:at stick)) reach2) free)]
-              (when (seq near)
-                (assoc stick :at (apply min-key #(d2 % (:at stick)) near))))
-      (or press? (and (pos? prev-n) (> n prev-n)))
-      (when-let [p (first (filter #(and (gesture/in-rect? (:viewport dims) %) (fresh? %)) free))]
-        {:centre p
-         :at p})
-      :else nil)))
-
 (defn stick-keys
   "Which of the original's four keys `stick` stands for, as a set of `:a`, `:d`,
   `:w` and `:s`, for `metrics`. An axis is on when the finger is further than
@@ -234,17 +196,25 @@
         dims (geometry metrics)
         screen (:screen metrics)
         state (if (not= screen (:screen state))
-                (assoc (dissoc state :stick) :n 0 :pts [])
+                (assoc (dissoc state :stick) :n 0 :pts [] :ids nil)
                 state)
         phase (get-in input [:pointer :phase])
         raw (vec (:touch-points input))
         points (if (and (= :release phase) (< (count raw) 2)) [] raw)
-        stick (next-stick state dims metrics points (= :press phase))
+        ids (stick/ids-of input points)
+        stick (stick/next-stick (:stick state) state
+                                {:points points
+                                 :ids ids
+                                 :metrics metrics
+                                 :press? (= :press phase)
+                                 :free? free-point?
+                                 :start? #(gesture/in-rect? (:viewport dims) %)})
         down (stick-keys stick metrics)]
     (assoc state
            :screen screen
            :n (count points)
            :pts points
+           :ids ids
            :stick stick
            :px (+ (:px state) (* speed (+ (if (:d down) 1.0 0.0) (if (:a down) -1.0 0.0))))
            :pz (+ (:pz state) (* speed (+ (if (:s down) 1.0 0.0) (if (:w down) -1.0 0.0)))))))
@@ -255,6 +225,7 @@
     :stick nil
     :n 0
     :pts []
+    :ids nil
     :screen (:screen metrics)}
    [[:scene/init :boxcollide]]])
 (defn- update-scene [state input] [(advance state input) []])

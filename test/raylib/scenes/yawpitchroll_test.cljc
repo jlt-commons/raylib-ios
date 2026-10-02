@@ -41,6 +41,16 @@
                                :position (first points)}
                      :touch-points (vec points)}))
 
+(defn- step-ids
+  "`step` with the host's touch ids alongside the points."
+  [state phase points ids]
+  (sc/advance state {:metrics m
+                     :delta-seconds (/ 1.0 60.0)
+                     :pointer {:phase phase
+                               :position (first points)}
+                     :touch-points (vec points)
+                     :touches {:ids (vec ids)}}))
+
 (defn- idle [state] (step state :idle []))
 
 (defn- angles [state] ((juxt :yaw :pitch :roll) state))
@@ -494,3 +504,19 @@
             d (step c :down [stick-pt (at stick-pt -200.0 300.0)])]
         (is (= (at stick-pt 0.0 300.0) (get-in c [:stick :centre])))
         (is (= 1.1 (:yaw d)))))))
+
+(deftest a-resting-finger-does-not-inherit-the-stick
+  ;; The reviewer's probe: stick finger A presses, finger B lands in the 3D
+  ;; area and rests, then A lifts. B must not become the stick.
+  (let [a [600.0 1000.0]
+        b [300.0 600.0]]
+    (doseq [[label stp ids] [["with ids" step-ids [[4] [4 5] [5]]]
+                             ["without ids" (fn [s ph pts _] (step s ph pts)) [nil nil nil]]]]
+      (testing label
+        (let [[i1 i2 i3] ids
+              held (-> start (stp :press [a] i1) (stp :press [a b] i2))
+              lifted (stp held :down [b] i3)
+              later (nth (iterate #(stp % :down [b] i3) lifted) 30)]
+          (is (some? (:stick held)))
+          (is (nil? (:stick lifted)))
+          (is (= [0.0 0.0] [(:yaw later) (:pitch later)]) "the plane stays level"))))))

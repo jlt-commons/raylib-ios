@@ -25,6 +25,16 @@
                                :position (first points)}
                      :touch-points (vec points)}))
 
+(defn- step-ids
+  "`step` with the host's touch ids alongside the points."
+  [state phase points ids]
+  (sc/advance state {:metrics m
+                     :delta-seconds (/ 1.0 60.0)
+                     :pointer {:phase phase
+                               :position (first points)}
+                     :touch-points (vec points)
+                     :touches {:ids (vec ids)}}))
+
 (defn- at [[x y] dx dy] [(+ x dx) (+ y dy)])
 
 (defn- pushed
@@ -263,3 +273,15 @@
         (is (<= (+ y size) h) s))
       (is (= #{"COLLISION!" sc/hint} (set (map :s (:lines dims)))))
       (is (= (:caption dims) (dissoc (first (:lines dims)) :s)) "one place and size for both"))))
+
+(deftest a-hard-reversal-keeps-the-stick
+  ;; The reviewer's probe: held right 100 px, then 200 px back in one frame.
+  (doseq [[label stp ids] [["with ids" step-ids [4]]
+                           ["without ids" (fn [s ph pts _] (step s ph pts)) nil]]]
+    (testing label
+      (let [right (-> start (stp :press [stick-pt] ids) (stp :down [(at stick-pt 100.0 0.0)] ids))
+            left (stp right :down [(at stick-pt -100.0 0.0)] ids)
+            more (stp left :down [(at stick-pt -100.0 0.0)] ids)]
+        (is (some? (:stick left)) "the thumb is still down")
+        (is (< (:px left) (:px right)))
+        (is (< (:px more) (:px left)) "and it keeps steering")))))

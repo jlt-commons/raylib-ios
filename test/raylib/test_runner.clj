@@ -129,6 +129,7 @@
                      raylib.scenes.boxcollide-test
                      raylib.scenes.picking-test
                      raylib.scenes.worldscreen-test
+                     raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test

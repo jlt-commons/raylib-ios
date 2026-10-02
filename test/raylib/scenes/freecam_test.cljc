@@ -47,6 +47,18 @@
                                 :position (first points)}
                       :touch-points (vec points)})))
 
+(defn- step-ids
+  "`step` with the host's touch ids alongside the points."
+  [state phase points ids]
+  (sc/advance state {:metrics m
+                     :delta-seconds dt
+                     :pointer {:phase phase
+                               :position (first points)}
+                     :touch-points (vec points)
+                     :touches {:ids (vec ids)}}))
+
+(defn- at-px [[x y] dx dy] [(+ x dx) (+ y dy)])
+
 (defn- idle [state] (step state :idle []))
 (defn- cam [state] (:camera state))
 (defn- view [c] (v- (:target c) (:position c)))
@@ -122,9 +134,11 @@
       (is (= (cam start) (cam (step start :down [look-pt])))))))
 
 (deftest looking-cannot-somersault
-  (let [pressed (step start :press [look-pt])
-        up (step pressed :down [(v+ look-pt [0.0 -100000.0])])
-        down (step pressed :down [(v+ look-pt [0.0 100000.0])])]
+  ;; With ids: a 100000 px jump in one frame is beyond the 0.3 bound that
+  ;; identity falls back to without them.
+  (let [pressed (step-ids start :press [look-pt] [1])
+        up (step-ids pressed :down [(v+ look-pt [0.0 -100000.0])] [1])
+        down (step-ids pressed :down [(v+ look-pt [0.0 100000.0])] [1])]
     (testing "dragging far up stops 0.001 rad short of straight up"
       (is (near? (Math/cos 0.001) (dot [0.0 1.0 0.0] (unit (view (cam up)))) 1e-9)))
     (testing "and far down stops 0.001 rad short of straight down"
@@ -153,7 +167,9 @@
       (is (vnear? (:position (cam left)) (v- [10.0 10.0 10.0] (vs speed home-right)))))
     (testing "the speed is one value, a diagonal included, and the distance does not change it"
       (is (near? speed (len (v- (:position (cam diag)) [10.0 10.0 10.0])) 1e-3))
-      (is (= (cam fwd) (cam (step pressed :down [[sx (- sy 900.0)]])))))
+      (is (= (cam fwd) (cam (step-ids (step-ids start :press [stick-pt] [1])
+                                      :down [[sx (- sy 900.0)]] [1])))
+          "900 px is past the fallback bound, so this one carries its id"))
     (testing "it scales with the frame time, and a frame of no time moves nothing"
       (is (vnear? (:position (cam (step pressed :down [[sx (- sy 300.0)]] 0.5)))
                   (v+ [10.0 10.0 10.0] (vs (* 5.4 0.5) home-fwd))))
@@ -268,9 +284,14 @@
     (testing "which finger is first in the list makes no difference"
       (is (= (cam both) (cam reversed))))
     (testing "the lower finger can drift up into the look region and still be the stick"
-      (let [drift (step held :down [a [600.0 1000.0]])]
+      (let [ided (-> start
+                     (step-ids :press [a] [1])
+                     (step-ids :down [a] [1])
+                     (step-ids :down [a b] [1 2])
+                     (step-ids :down [a b] [1 2]))
+            drift (step-ids ided :down [a [600.0 1000.0]] [1 2])]
         (is (vnear? (:position (cam drift)) (v+ [10.0 10.0 10.0] (vs speed home-fwd))))
-        (is (vnear? (view (cam held)) (view (cam drift))) "the high finger did not move")))
+        (is (vnear? (view (cam ided)) (view (cam drift))) "the high finger did not move")))
     (testing "lifting the high finger leaves the stick walking, and its position is not read"
       (let [alone (step both :down [[600.0 1700.0]])]
         (is (vnear? (:position (cam alone)) (v+ (:position (cam both))
@@ -431,3 +452,29 @@
     (is (some? (:look held)))
     (is (nil? (:look turned)))
     (is (= (cam held) (cam turned)))))
+
+(deftest a-finger-on-reset-does-not-inherit-a-lifted-stick-or-look
+  ;; The reviewer's probes: A steers or looks, B rests on the reset button
+  ;; (ignored while two are down), then A lifts. B must not take over.
+  (let [[rx ry rw rh] (:reset d)
+        b [(+ rx (* 0.5 rw)) (+ ry (* 0.5 rh))]]
+    (doseq [[label stp ids] [["with ids" step-ids [[4] [4 5] [5]]]
+                             ["without ids" (fn [s ph pts _] (step s ph pts)) [nil nil nil]]]
+            :let [[i1 i2 i3] ids]]
+      (testing (str "the stick, " label)
+        (let [held (-> start (stp :press [stick-pt] i1)
+                       (stp :down [(at-px stick-pt 0.0 -200.0)] i1)
+                       (stp :press [(at-px stick-pt 0.0 -200.0) b] i2))
+              lifted (stp held :down [b] i3)
+              later (nth (iterate #(stp % :down [b] i3) lifted) 6)]
+          (is (some? (:stick held)))
+          (is (nil? (:stick lifted)))
+          (is (= (:position (cam lifted)) (:position (cam later))) "the camera stays put")))
+      (testing (str "the look, " label)
+        (let [held (-> start (stp :press [look-pt] i1)
+                       (stp :down [look-pt] i1)
+                       (stp :press [look-pt b] i2))
+              lifted (stp held :down [b] i3)]
+          (is (some? (:look held)))
+          (is (nil? (:look lifted)))
+          (is (= (:target (cam held)) (:target (cam lifted))) "the view does not snap"))))))

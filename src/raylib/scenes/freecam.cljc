@@ -63,12 +63,19 @@
   The original's 45 degree fovy is kept while the field is at least as wide as
   800x450, and widened by `raylib.soft3d/fit-camera` in a narrower one.
 
+  A look or a stick follows only its own finger, by touch id (by nearness
+  when the host gives none, `raylib.stick/follow`). When that finger lifts it
+  ends, and a finger resting on the reset button or elsewhere is not taken in
+  its place.
+
   The state holds the `:camera` and the finger tracking: `:look`, `:stick`,
-  `:pinch`, `:n` (the finger count last frame), `:gesture` for the button's
-  tap and `:screen`. Colours are `[r g b a]` vectors."
+  `:pinch`, `:n` (the finger count last frame), `:pts` and `:ids` (that
+  frame's touch points and ids), `:gesture` for the button's tap and
+  `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.camera2d :as cam]
             [raylib.gesture :as gesture]
-            [raylib.soft3d :as s3]))
+            [raylib.soft3d :as s3]
+            [raylib.stick :as stick]))
 
 (def move-speed "CAMERA_MOVE_SPEED, units a second. rcamera.h's." 5.4)
 (def mouse-sensitivity "CAMERA_MOUSE_MOVE_SENSITIVITY, radians a pixel. rcamera.h's." 0.003)
@@ -290,60 +297,90 @@
 
 ;; --- fingers -------------------------------------------------------------------
 
-(defn- d2 [[ax ay] [bx by]]
-  (let [dx (- ax bx) dy (- ay by)] (+ (* dx dx) (* dy dy))))
-
 (defn- begin
-  "The tracking a new finger at `p` starts: a look, a stick, or nothing."
-  [dims p]
+  "The tracking a new finger at `p`, with touch id `id` (nil without ids),
+  starts: a look, a stick, or nothing."
+  [dims p id]
   (case (region dims p)
-    :look {:look {:at p}}
+    :look {:look {:at p
+                  :id id}}
     :stick {:stick {:centre p
-                    :at p}}
+                    :at p
+                    :id id}}
     {}))
 
 (defn- begin-both
-  "Two new fingers `p` and `q`: both in the look region pinch (recorded, not
-  yet acting), otherwise each starts what its region says, the first winning
-  when both want the same."
-  [dims p q]
+  "Two new fingers `p` and `q`, with ids `ip` and `iq`: both in the look region
+  pinch (recorded, not yet acting), otherwise each starts what its region says,
+  the first winning when both want the same."
+  [dims p ip q iq]
   (if (and (= :look (region dims p)) (= :look (region dims q)))
     {:pinching :start}
-    (merge-with (fn [a _] a) (begin dims p) (begin dims q))))
+    (merge-with (fn [a _] a) (begin dims p ip) (begin dims q iq))))
 
-(defn- follow-look [look p]
-  {:look {:at p}
-   :look-delta [(- (double (first p)) (double (first (:at look))))
-                (- (double (second p)) (double (second (:at look))))]})
+(defn- look-result
+  "The tracking for a look that was at `look` and now follows `moved`, with the
+  pixels it moved as `:look-delta`. Nil when it has no finger."
+  [look moved]
+  (when moved
+    {:look moved
+     :look-delta [(- (double (first (:at moved))) (double (first (:at look))))
+                  (- (double (second (:at moved))) (double (second (:at look))))]}))
 
-(defn- follow-stick [stick p]
-  {:stick (assoc stick :at p)})
+(defn- stick-result [moved]
+  (when moved {:stick moved}))
+
+(defn- d2 [[ax ay] [bx by]]
+  (let [dx (- (double ax) (double bx))
+        dy (- (double ay) (double by))]
+    (+ (* dx dx) (* dy dy))))
+
+(defn- follow-both
+  "`look` and `stick` (either may be nil) each moved to its own finger by
+  `raylib.stick/follow`, as `[look' stick']`. Without ids both could claim the
+  one nearest point. Then the owner that moved less keeps it and the other
+  follows from what is left."
+  [look stick frame]
+  (let [l (stick/follow look frame)
+        s (stick/follow stick frame)]
+    (if (and l s (= (:at l) (:at s)))
+      (let [without (fn [at] (update frame :points #(filterv (fn [q] (not= q at)) %)))]
+        (if (<= (d2 (:at l) (:at look)) (d2 (:at s) (:at stick)))
+          [l (stick/follow stick (without (:at l)))]
+          [(stick/follow look (without (:at s))) s]))
+      [l s])))
 
 (defn- track
   "What the fingers do this frame, from the previous `state` and the current
-  `points`: `:look` and `:stick` (the tracking to keep), `:look-delta` (pixels
-  the look finger moved, only when it was already looking), and `:pinching`
-  (`:start` or `:continue`). Identity is by nearness to where each finger was,
-  because the platform promises no order. New fingers only begin on a press, or
-  when the count rises or falls, so a finger that was ignored (under Back, on the
-  button, or from before the scene) never begins by drifting into the field."
-  [state points dims press?]
+  `points` (with their touch `ids`, or nil): `:look` and `:stick` (the tracking
+  to keep, each with its finger's id), `:look-delta` (pixels the look finger
+  moved, only when it was already looking), and `:pinching` (`:start` or
+  `:continue`). A look or a stick follows only its own finger
+  (`raylib.stick/follow`): by id when the host gives them, otherwise the nearest
+  point within `raylib.stick/follow-fraction` of the shorter side. When that
+  finger lifts the tracking ends, and a finger that was ignored (under Back, on
+  the button, or from before the scene) is never adopted in its place, nor does
+  it begin by drifting into the field. New fingers only begin on a press, or
+  when the count rises."
+  [state points ids dims metrics press?]
   (let [n (count points)
         prev-n (:n state 0)
         look (:look state)
-        stick (:stick state)]
+        stick (:stick state)
+        frame {:points points
+               :ids ids
+               :metrics metrics
+               :free? (constantly true)}
+        both (fn []
+               (let [[l s] (follow-both look stick frame)]
+                 (merge (look-result look l) (stick-result s))))]
     (cond
       (or (zero? n) (> n 2)) {}
 
       (= n 1)
-      (let [p (first points)]
-        (cond press? (begin dims p)
-              (and look stick) (if (< (d2 p (:at stick)) (d2 p (:at look)))
-                                 (follow-stick stick p)
-                                 (follow-look look p))
-              stick (follow-stick stick p)
-              look (follow-look look p)
-              :else {}))
+      (if press?
+        (begin dims (first points) (first ids))
+        (both))
 
       :else
       (let [p (nth points 0)
@@ -351,26 +388,26 @@
         (cond
           (and (= prev-n 2) (:pinch state)) {:pinching :continue}
 
-          (and look stick)
-          (let [straight (+ (d2 p (:at look)) (d2 q (:at stick)))
-                swapped (+ (d2 q (:at look)) (d2 p (:at stick)))
-                [lp sp] (if (<= straight swapped) [p q] [q p])]
-            (merge (follow-look look lp) (follow-stick stick sp)))
+          (and look stick) (both)
 
           (or look stick)
           (let [t (or look stick)
-                i (if (<= (d2 p (:at t)) (d2 q (:at t))) 0 1)
-                mine (nth points i)
-                other (nth points (- 1 i))
-                kept (if look (follow-look look mine) (follow-stick stick mine))
-                r (region dims other)]
-            (cond (= prev-n 2) kept
-                  (and look (= :look r)) {:pinching :start}
-                  (and look (= :stick r)) (merge kept (begin dims other))
-                  (and stick (= :look r)) (merge kept (begin dims other))
-                  :else kept))
+                moved (stick/follow t frame)]
+            (if moved
+              (let [i (if (= p (:at moved)) 0 1)
+                    other (nth points (- 1 i))
+                    other-id (when ids (nth ids (- 1 i)))
+                    kept (if look (look-result look moved) (stick-result moved))
+                    r (region dims other)]
+                (cond (= prev-n 2) kept
+                      (and look (= :look r)) {:pinching :start}
+                      (and look (= :stick r)) (merge kept (begin dims other other-id))
+                      (and stick (= :look r)) (merge kept (begin dims other other-id))
+                      :else kept))
+              {}))
 
-          (and (not= prev-n 2) (or press? (pos? prev-n))) (begin-both dims p q)
+          (and (not= prev-n 2) (or press? (pos? prev-n)))
+          (begin-both dims p (first ids) q (second ids))
 
           :else {})))))
 
@@ -426,14 +463,15 @@
         dims (geometry metrics)
         screen (:screen metrics)
         state (if (not= screen (:screen state))
-                (assoc (dissoc state :look :stick :pinch) :n 0)
+                (assoc (dissoc state :look :stick :pinch) :n 0 :pts [] :ids nil)
                 state)
         phase (get-in input [:pointer :phase])
         raw (vec (:touch-points input))
         points (if (and (= :release phase) (< (count raw) 2)) [] raw)
         n (count points)
         prev-n (:n state 0)
-        t (track state points dims (= :press phase))
+        ids (stick/ids-of input points)
+        t (track state points ids dims metrics (= :press phase))
         {now :pinch
          step :step} (when (:pinching t)
                        (cam/pinch-frame (when (= :continue (:pinching t)) (:pinch state)) points))
@@ -451,6 +489,8 @@
            :screen screen
            :gesture g
            :n n
+           :pts points
+           :ids ids
            :look (:look t)
            :stick (:stick t)
            :pinch now
@@ -461,6 +501,8 @@
     :screen (:screen metrics)
     :gesture gesture/idle
     :n 0
+    :pts []
+    :ids nil
     :look nil
     :stick nil
     :pinch nil}

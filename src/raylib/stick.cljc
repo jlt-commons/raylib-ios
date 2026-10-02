@@ -1,0 +1,118 @@
+(ns raylib.stick
+  "Whose finger is a thumb-stick. Pure, so every scene that steers with a
+  relative stick can share one rule and one set of tests.
+
+  The rule:
+  - a stick starts only on a fresh press, a finger that was not down in the
+    frame before, inside the scene's start area and not on a button;
+  - it follows only that finger;
+  - it ends when that finger is gone, or slides where `:free?` says a stick
+    cannot be;
+  - it never moves to another finger, so a resting finger is never adopted when
+    the stick's own lifts.
+
+  Identity comes from the touch ids the host provides at `[:touches :ids]`, in
+  the same order as `:touch-points` (`poc.raylib.diagnostics/normalize-input`,
+  read the same way by `raylib.scenes.multitouch`). When the ids are missing
+  or do not match the points one to one, which is what a synthetic `tap!`
+  gives, identity is guessed from nearness: a fresh finger is one further than
+  `gesture/slop` from every finger of the frame before, and a held stick
+  follows the nearest free finger within `follow-fraction` of the shorter side.
+
+  A stick is `{:centre [x y] :at [x y] :id id-or-nil}`. The scene keeps the
+  previous frame in `prev`, `{:pts [...] :ids [...] :n count}`, with `:pts` and
+  `:ids` as `frame` had them, and passes this frame as `frame`:
+
+  - `:points`, `:ids` as `ids-of` returns them (nil when unusable);
+  - `:metrics`, for the slop and the follow bound;
+  - `:press?`, whether the pointer phase is `:press`;
+  - `:free?`, a predicate on a point, true where a stick may be;
+  - `:start?`, a predicate on a point, true where a stick may begin."
+  (:require [raylib.gesture :as gesture]))
+
+(def follow-fraction
+  "How far a stick's finger may travel in one frame without ids, as a fraction
+  of the shorter side. estimate: 0.3. Basis: a hard 200 px reversal on a 1206 px
+  wide phone is 0.17, and two thumbs rest at least 0.4 of the shorter side
+  apart (0.4 is splitscreen's half-width restart bound)."
+  0.3)
+
+(defn ids-of
+  "The touch ids of `input` when there is exactly one per point of `points`,
+  else nil."
+  [input points]
+  (let [ids (vec (get-in input [:touches :ids]))]
+    (when (and (seq ids) (= (count ids) (count points)))
+      ids)))
+
+(defn- d2 [[ax ay] [bx by]]
+  (let [dx (- (double ax) (double bx))
+        dy (- (double ay) (double by))]
+    (+ (* dx dx) (* dy dy))))
+
+(defn- slop2 [metrics]
+  (let [s (gesture/slop metrics)] (* s s)))
+
+(defn- reach2 [metrics]
+  (let [r (* follow-fraction (apply min (:screen metrics)))] (* r r)))
+
+(defn follow
+  "`owner` (a map with `:at`, and `:id` when it began with one) moved to its own
+  finger in `frame`, or nil when that finger is gone or not `:free?`. It never
+  returns another finger's position: with ids it reads the point of its id,
+  without them it takes the nearest free point within `follow-fraction` of the
+  shorter side of where it was."
+  [owner {:keys [points ids metrics free?]}]
+  (when owner
+    (if (and (:id owner) ids)
+      (when-let [i (first (keep-indexed (fn [k id] (when (= id (:id owner)) k)) ids))]
+        (let [p (nth points i)]
+          (when (free? p) (assoc owner :at p))))
+      (let [r2 (reach2 metrics)
+            near (filterv #(and (free? %) (<= (d2 % (:at owner)) r2)) points)]
+        (when (seq near)
+          (assoc owner :at (apply min-key #(d2 % (:at owner)) near)))))))
+
+(defn fresh
+  "The fingers of `frame` that were not down in `prev`, in order, as
+  `{:at point :id id-or-nil}`. Only after a press, or while a finger was
+  already down, does anything count: a finger that was down when the scene
+  opened, or when a rotation cleared `prev`, is never fresh."
+  [{:keys [points ids metrics press?]} prev]
+  (let [prev-n (count (:pts prev))
+        by-id? (and ids (seq (:ids prev)) (= (count (:ids prev)) prev-n))
+        gate? (if by-id?
+                (or press? (pos? prev-n))
+                (or press? (and (pos? prev-n) (> (count points) prev-n))))
+        old-ids (set (:ids prev))
+        s2 (slop2 metrics)]
+    (when gate?
+      (into []
+            (keep-indexed
+             (fn [k p]
+               (when (if by-id?
+                       (not (contains? old-ids (nth ids k)))
+                       (every? #(> (d2 p %) s2) (:pts prev)))
+                 {:at p
+                  :id (when ids (nth ids k))})))
+            points))))
+
+(defn begin
+  "A stick on the first fresh finger of `frame` that passes `:start?`, or nil."
+  [frame prev]
+  (when-let [{:keys [at id]} (first (filter #(and ((:free? frame) (:at %))
+                                                  ((:start? frame) (:at %)))
+                                            (fresh frame prev)))]
+    {:centre at
+     :at at
+     :id id}))
+
+(defn next-stick
+  "The stick after this frame. A held `stick` follows its own finger and ends
+  when that is gone (`follow`). Without one, `begin` may start one. Nothing
+  else does."
+  [stick prev frame]
+  (cond
+    (empty? (:points frame)) nil
+    stick (follow stick frame)
+    :else (begin frame prev)))
