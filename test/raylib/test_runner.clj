@@ -136,6 +136,7 @@
                      raylib.scenes.solarsystem-test
                      raylib.scenes.pointcloud-test
                      raylib.scenes.spheres-test
+                     raylib.scenes.bunnymark-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

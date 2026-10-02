@@ -30,6 +30,7 @@
             [raylib.scenes.boxcollide :as boxcollide]
             [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
+            [raylib.scenes.bunnymark :as bunnymark]
             [raylib.scenes.camera2d :as c2d]
             [raylib.scenes.camera3d :as c3d]
             [raylib.scenes.camerazoom :as czoom]
@@ -151,7 +152,8 @@
              (rotcube/scene) (c3d/scene) (ortho/scene)
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
-             (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)])
+             (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
+             (bunnymark/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -186,7 +188,8 @@
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
-             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres]}
+             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
+             :bunnymark]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3513,6 +3516,45 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (spheres/scene-list state dims))))
     (draw-caption! (:caption dims) spheres/caption-colour)))
+
+(def ^:private bunnymark-dims-cache
+  "The last `[screen dims]` for `:bunnymark`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- bunnymark-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @bunnymark-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (bunnymark/dimensions m host-measure)]
+        (reset! bunnymark-dims-cache [screen dims])
+        dims))))
+
+(defn- bunnymark-rect!
+  "One bunny: a square of `side` at `x`, `y`, tinted `r` `g` `b`."
+  [x y side r g b]
+  (rl/draw-rectangle x y side side (rl/rgba r g b 255)))
+
+(defmethod draw-scene! :bunnymark [_ {:keys [n]
+                                      :as state} {:keys [m]}]
+  (clear-to! bunnymark/background-colour)
+  (let [dims (bunnymark-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        [bar-x bar-y bar-w bar-h] (:bar dims)
+        [bx by bw bh] (:button dims)
+        [count-l fps-l hint-l] (:lines dims)
+        text (fn [{:keys [s x y size]} colour]
+               (rl/draw-text s (int x) (int y) (int size) (pack colour)))]
+    (bunnymark/emit-bunnies! bunnymark-rect! state dims)
+    (rl/draw-rectangle (int bar-x) (int bar-y) (int bar-w) (int bar-h) (pack bunnymark/bar-colour))
+    (text (assoc count-l :s (bunnymark/count-line n)) bunnymark/text-colour)
+    ;; Read every frame, which is the only way GetFPS gives a true number.
+    (text (assoc fps-l :s (bunnymark/fps-line (rl/get-fps))) bunnymark/text-colour)
+    (text hint-l bunnymark/hint-colour)
+    (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack bunnymark/button-colour))
+    (rl/draw-text (:label dims) (:label-x dims) (:label-y dims) (:label-size dims)
+                  (pack bunnymark/button-label-colour))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
