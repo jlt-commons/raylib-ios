@@ -90,6 +90,7 @@
             [raylib.scenes.sequence :as seqn]
             [raylib.scenes.shapes :as shp]
             [raylib.scenes.snake :as snk]
+            [raylib.scenes.spincubes :as spincubes]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
             [raylib.scenes.splitscreen :as split]
@@ -107,6 +108,7 @@
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
             [raylib.scenes.wheelbox :as wbox]
+            [raylib.scenes.worldscreen :as worldscreen]
             [raylib.scenes.writing :as writ]
             [raylib.scroll :as scroll]))
 
@@ -134,7 +136,8 @@
              (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
-             (rotcube/scene) (c3d/scene) (ortho/scene)])
+             (rotcube/scene) (c3d/scene) (ortho/scene)
+             (spincubes/scene) (worldscreen/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -168,7 +171,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3158,3 +3161,49 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (ortho/scene-list grid state dims))))
     (draw-caption! (ortho/caption state dims) ortho/caption-colour)))
+
+(def ^:private spincubes-cache
+  "The last `[screen dims grid]` for `:spincubes`. The camera never moves, so
+  the grid and the caption size depend on the screen alone."
+  (atom nil))
+
+(defn- spincubes-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims grid] @spincubes-cache]
+    (if (= screen cached-screen)
+      [dims grid]
+      (let [dims (spincubes/dimensions m host-measure)
+            grid (spincubes/grid-list (spincubes/camera dims) dims)]
+        (reset! spincubes-cache [screen dims grid])
+        [dims grid]))))
+
+(defmethod draw-scene! :spincubes [_ state {:keys [m safe]}]
+  (clear-to! spincubes/background-colour)
+  (let [[dims grid] (spincubes-layout m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (spincubes/scene-list grid state dims))))
+    (draw-caption! (:caption dims) spincubes/caption-colour)))
+
+(def ^:private worldscreen-cache
+  "The last `[screen dims]` for `:worldscreen`. Its camera moves, so only the
+  layout and the label's measured width are kept; both depend on the screen
+  alone, since the text size comes from it."
+  (atom nil))
+
+(defn- worldscreen-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @worldscreen-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (worldscreen/dimensions m host-measure)]
+        (reset! worldscreen-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :worldscreen [_ state {:keys [m safe]}]
+  (clear-to! worldscreen/background-colour)
+  (let [dims (worldscreen-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (worldscreen/scene-list state dims))))
+    (draw-caption! (:caption dims) worldscreen/caption-colour)
+    (draw-caption! (worldscreen/readout state dims) worldscreen/readout-colour)
+    (draw-caption! (worldscreen/label state dims) worldscreen/label-colour)))

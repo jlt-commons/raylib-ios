@@ -122,6 +122,8 @@
                      raylib.scenes.rotcube-test
                      raylib.scenes.camera3d-test
                      raylib.scenes.ortho-test
+                     raylib.scenes.spincubes-test
+                     raylib.scenes.worldscreen-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
