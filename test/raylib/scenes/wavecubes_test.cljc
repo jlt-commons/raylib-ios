@@ -112,6 +112,23 @@
                     (neg? (- (* (- x2 x1) (- y3 y1)) (* (- y2 y1) (- x3 x1)))))
                   mine)))))
 
+(deftest the-columns-are-soft3d-cubes-in-axis-order
+  (doseq [screen [[1206 2334] [800 450]]
+          f [0 77 250 400]
+          :let [dims (sc/dimensions {:screen screen} measure)
+                state (frames f)
+                cam (sc/camera state dims)
+                vp (s3/view-proj cam (:viewport dims))
+                [camx _ camz] (:position cam)
+                want (reduce (fn [dl ix]
+                               (reduce (fn [dl iz]
+                                         (let [{:keys [pos size colour]} (sc/column state ix iz)]
+                                           (s3/cube dl vp nil pos size colour)))
+                                       dl (sc/axis-order camz)))
+                             [] (sc/axis-order camx))]]
+    (testing (str screen " frame " f)
+      (is (= want (sc/scene-list state dims)) "item for item: raylib.soft3d/cube draws every column, x outside z, each farthest first"))))
+
 (deftest columns-paint-far-to-near
   (testing "an axis is taken farthest first from the camera"
     (is (= [0 8 1 7 2 6 3 5 4] (sc/axis-order 0.0)) "from the middle the two ends tie, then work in")

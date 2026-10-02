@@ -19,9 +19,10 @@
   The grid here is 9 by 9, 81 columns, where the original has 14 by 14, 196.
   The first version of this port, with all 196 columns through
   `raylib.soft3d/cube` and `finish`, ran at 15 fps on an iPhone 17 Pro, 67 ms a
-  frame. This version paints by axis order with its own box emitter. Span follows the grid, so the camera comes in to
-  frame 9 columns as the original framed 14, and the wave keeps its ripple per
-  column but shows fewer ripples across.
+  frame. This version paints by axis order instead of `finish` and draws 81.
+  Span follows the grid, so the camera comes in to frame 9 columns as the
+  original framed 14, and the wave keeps its ripple per column but shows fewer
+  ripples across.
 
   There is no input and so no control to map. The original's on-screen fps
   counter (`fps!`) is dropped, as earlier scenes drop theirs; the caption is
@@ -34,9 +35,9 @@
   A frame has no grid and no line, and 468 to 486 triangles: from the camera a
   column shows its top and two sides. `scene-list` paints the columns far to
   near by ordering each axis of the grid farthest first (`axis-order`), which a
-  grid of boxes needs no sort of triangles for, and builds the faces itself; see
-  `scene-list`. With no depth buffer a tall column near the camera over a short
-  one behind it can leave a little residue where their edges meet.
+  grid of boxes needs no sort of triangles for; see `scene-list`. With no
+  depth buffer a tall column near the camera over a short one behind it can
+  leave a little residue where their edges meet.
 
   The state holds only `:frame`. Colours are `[r g b a]` vectors."
   (:require [raylib.soft3d :as s3]))
@@ -108,111 +109,23 @@
   [c]
   (vec (sort-by (fn [i] (- (abs (- (- (* i spacing) half) c)))) (range n))))
 
-(def ^:private near "rlgl.h RL_CULL_DISTANCE_NEAR, as `raylib.soft3d` has it." 0.05)
-
-(defn- put!
-  "Store the clip-space corner (X Y W) with view depth D in slot `i` of `buf` as
-  screen x, screen y and depth, or mark the slot behind the near plane with
-  depth -1. A clip z + w of at least 0 is exactly a depth of at least `near`."
-  [^doubles buf i ox oy hw hh X Y W D]
-  (let [j (* 3 i)]
-    (if (>= D near)
-      (do (aset buf j (+ ox (* hw (+ 1.0 (/ X W)))))
-          (aset buf (+ j 1) (- (+ oy hh) (* hh (/ Y W))))
-          (aset buf (+ j 2) D))
-      (aset buf (+ j 2) -1.0))))
-
-(defn- face
-  "Append the quad on corner slots a b c e of `buf`, shaded by `f` as
-  raylib-jlt's `cube!` shades it, as two triangles a b c and a c e. Each is added
-  only when its y-down cross product is negative, the winding rlgl keeps, and
-  neither when a corner is behind the near plane."
-  [dl ^doubles buf a b c e f [cr cg cb]]
-  (let [ja (* 3 a) jb (* 3 b) jc (* 3 c) je (* 3 e)
-        da (aget buf (+ ja 2)) db (aget buf (+ jb 2))
-        dc (aget buf (+ jc 2)) de (aget buf (+ je 2))]
-    (if (and (pos? da) (pos? db) (pos? dc) (pos? de))
-      (let [xa (aget buf ja) ya (aget buf (+ ja 1))
-            xb (aget buf jb) yb (aget buf (+ jb 1))
-            xc (aget buf jc) yc (aget buf (+ jc 1))
-            xe (aget buf je) ye (aget buf (+ je 1))
-            r (int (* f cr)) g (int (* f cg)) bl (int (* f cb))
-            depth (* 0.25 (+ da db dc de))
-            dl (if (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
-                 (conj dl [:tri xa ya xb yb xc yc r g bl 255 depth])
-                 dl)]
-        (if (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
-          (conj dl [:tri xa ya xc yc xe ye r g bl 255 depth])
-          dl))
-      dl)))
-
 (defn scene-list
-  "The draw list for `state`: every column as a box, painted far to near. The
-  columns stand on a grid and never overlap in plan, so taking the x indices
-  and the z indices each farthest first from the camera and looping x outside
-  z paints a column after everything behind it. That replaces
-  `raylib.soft3d/finish`, whose comparator sort of every triangle cost a third
-  of the frame.
-
-  The boxes are built here and not by `raylib.soft3d/cube`, to cut the
-  per-frame allocation. Each face is the same quad, shade and winding as
-  `cube`'s. A box's corners are the clip coordinates of its first corner plus
-  multiples of the clip columns of its edges, so each costs adds in place of a
-  matrix product, and the screen position and depth of the corners go into one
-  scratch array. A face is considered only when the camera is on its outside
-  of the box's plane, which is what the screen-sign test of `cube` decides for a
-  convex box seen from outside; the triangles still pass the screen-sign test."
+  "The draw list for `state`: every column as a `raylib.soft3d/cube`, painted
+  far to near. The columns stand on a grid and never overlap in plan, so
+  taking the x indices and the z indices each farthest first from the camera
+  and looping x outside z paints a column after everything behind it. That
+  replaces `raylib.soft3d/finish`, whose comparator sort of every triangle cost
+  a third of the frame."
   [state dims]
   (let [cam (camera state dims)
         vp (s3/view-proj cam (:viewport dims))
-        {:keys [m d]
-         ox :x
-         oy :y
-         w :w
-         h :h} vp
-        hw (* 0.5 w) hh (* 0.5 h)
-        [m0 m1 m2 m3 m4 m5 m6 m7 _ _ _ _ m12 m13 m14 m15] m
-        [d0 d1 d2 d3] d
-        [camx camy camz] (:position cam)
-        buf (double-array 24)]
+        [camx _ camz] (:position cam)]
     (reduce
      (fn [dl ix]
        (reduce
         (fn [dl iz]
-          (let [{[px py pz] :pos
-                 [_ sy _] :size
-                 colour :colour} (column state ix iz)
-                x0 (- px 0.5) x1 (+ px 0.5) y0 (- py (* 0.5 sy)) y1 (+ py (* 0.5 sy))
-                z0 (- pz 0.5) z1 (+ pz 0.5)
-                bX (+ (* m0 x0) (* m1 y0) (* m2 z0) m3)
-                bY (+ (* m4 x0) (* m5 y0) (* m6 z0) m7)
-                bW (+ (* m12 x0) (* m13 y0) (* m14 z0) m15)
-                bD (+ (* d0 x0) (* d1 y0) (* d2 z0) d3)
-                hX (* m1 sy) hY (* m5 sy) hW (* m13 sy) hD (* d1 sy)
-                corner! (fn [i fx fy fz]
-                          (put! buf i ox oy hw hh
-                                (+ bX (* fx m0) (* fy hX) (* fz m2))
-                                (+ bY (* fx m4) (* fy hY) (* fz m6))
-                                (+ bW (* fx m12) (* fy hW) (* fz m14))
-                                (+ bD (* fx d0) (* fy hD) (* fz d2))))
-                +z? (> camz z1) -z? (< camz z0)
-                -x? (< camx x0) +x? (> camx x1)
-                +y? (> camy y1) -y? (< camy y0)]
-            (when (or -z? -x? -y?) (corner! 0 0.0 0.0 0.0))
-            (when (or -z? +x? -y?) (corner! 1 1.0 0.0 0.0))
-            (when (or -z? -x? +y?) (corner! 2 0.0 1.0 0.0))
-            (when (or -z? +x? +y?) (corner! 3 1.0 1.0 0.0))
-            (when (or +z? -x? -y?) (corner! 4 0.0 0.0 1.0))
-            (when (or +z? +x? -y?) (corner! 5 1.0 0.0 1.0))
-            (when (or +z? -x? +y?) (corner! 6 0.0 1.0 1.0))
-            (when (or +z? +x? +y?) (corner! 7 1.0 1.0 1.0))
-            (cond-> dl
-              +z? (face buf 4 5 7 6 1.0 colour)
-              -z? (face buf 1 0 2 3 0.5 colour)
-              -x? (face buf 0 4 6 2 0.7 colour)
-              +x? (face buf 5 1 3 7 0.85 colour)
-              +y? (face buf 6 7 3 2 1.0 colour)
-              -y? (face buf 0 1 5 4 0.4 colour))))
+          (let [{:keys [pos size colour]} (column state ix iz)]
+            (s3/cube dl vp nil pos size colour)))
         dl (axis-order camz)))
      []
      (axis-order camx))))

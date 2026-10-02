@@ -196,6 +196,26 @@
 
 ;; --- the camera -------------------------------------------------------------
 
+(defn- det3
+  "The determinant of the 3x3 matrix with rows (a b c), (d e f), (g h i)."
+  [a b c d e f g h i]
+  (- (+ (* a (- (* e i) (* f h))) (* c (- (* d h) (* e g))))
+     (* b (- (* d i) (* f g)))))
+
+(defn- eye
+  "The camera in the space clip matrix `m` maps from, as the homogeneous point
+  `[ex ey ez ew]` with E . v = -det(m's x row, y row, w row, v): the point
+  every clip row but z sends to 0. That is the eye of a perspective camera and
+  the direction back toward the camera, at infinity, of an orthographic one.
+  E . plane is the determinant `facing?` takes, so it is positive when E is on
+  a counter-clockwise face's outer side."
+  [m]
+  (let [[m0 m1 m2 m3 m4 m5 m6 m7 _ _ _ _ m12 m13 m14 m15] m]
+    [(det3 m1 m2 m3 m5 m6 m7 m13 m14 m15)
+     (- (det3 m0 m2 m3 m4 m6 m7 m12 m14 m15))
+     (det3 m0 m1 m3 m4 m5 m7 m12 m13 m15)
+     (- (det3 m0 m1 m2 m4 m5 m6 m12 m13 m14))]))
+
 (defn view-proj
   "`(view-proj camera viewport)`: everything a frame needs to project through
   `camera` onto `viewport`, which is `[w h]` at the screen's origin or
@@ -204,14 +224,19 @@
   `:m` is the clip matrix P * V (rcore.c BeginMode3D: MatrixLookAt, then
   MatrixPerspective or MatrixOrtho, aspect w/h, near 0.05, far 4000) and `:d`
   the view's depth row, the distance in front of the camera along its look.
-  The camera and viewport ride along for `screen->ray`."
+  The camera and viewport ride along for `screen->ray`. `:eye` is the camera
+  as `cube` reads it, computed once a frame from `:m`, which `:eye-of` holds,
+  so `cube` can tell when a caller has put another `:m` in."
   [camera viewport]
   (let [[x y w h] (if (= 2 (count viewport)) (into [0 0] viewport) viewport)
         {:keys [position target up fovy projection]} camera
         aspect (/ (double w) (double h))
         v (look-at position target up)
-        p (if (= projection :orthographic) (ortho fovy aspect) (perspective fovy aspect))]
-    {:m (mul p v)
+        p (if (= projection :orthographic) (ortho fovy aspect) (perspective fovy aspect))
+        m (mul p v)]
+    {:m m
+     :eye (eye m)
+     :eye-of m
      :d [(- (nth v 8)) (- (nth v 9)) (- (nth v 10)) (- (nth v 11))]
      :x (double x)
      :y (double y)
@@ -357,6 +382,30 @@
       (conj dl [:tri x1 y1 x2 y2 x3 y3 r g b a depth])
       dl)))
 
+(defn- box-face
+  "Append the quad on corner slots a b c e of `buf` (`cube`'s scratch array,
+  four doubles a corner: screen x, screen y, view depth, and 1.0 when the
+  corner is in front of the near plane) as `tri`'s two triangles a b c and
+  a c e, coloured r g b al with the quad's mean depth. Each goes in only when
+  its y-down cross product is negative, and neither when a corner is behind."
+  [dl ^doubles buf a b c e r g bl al]
+  (let [ja (* 4 a) jb (* 4 b) jc (* 4 c) je (* 4 e)]
+    (if (and (== 1.0 (aget buf (+ ja 3))) (== 1.0 (aget buf (+ jb 3)))
+             (== 1.0 (aget buf (+ jc 3))) (== 1.0 (aget buf (+ je 3))))
+      (let [xa (aget buf ja) ya (aget buf (+ ja 1))
+            xb (aget buf jb) yb (aget buf (+ jb 1))
+            xc (aget buf jc) yc (aget buf (+ jc 1))
+            xe (aget buf je) ye (aget buf (+ je 1))
+            depth (* 0.25 (+ (aget buf (+ ja 2)) (aget buf (+ jb 2))
+                             (aget buf (+ jc 2)) (aget buf (+ je 2))))
+            dl (if (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
+                 (conj dl [:tri xa ya xb yb xc yc r g bl al depth])
+                 dl)]
+        (if (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
+          (conj dl [:tri xa ya xc yc xe ye r g bl al depth])
+          dl))
+      dl)))
+
 (defn cube
   "`(cube dl vp xf [x y z] size [r g b a])` or `(cube ... {:shade :flat})`:
   an axis-aligned box centred on the point, under transform `xf` (nil for
@@ -369,8 +418,18 @@
   rlColor4ub(r, g, b, a) for every face: the colour unchanged, alpha
   included. Use it where the original calls `draw-cube!`.
 
-  A face goes in as cube!'s two triangles, each only when it faces the camera,
-  and not at all when a corner is behind the near plane."
+  A face goes in as cube!'s two triangles, in cube!'s face order, each only
+  when it faces the camera, and not at all when a corner is behind the near
+  plane.
+
+  Faces are chosen before anything is projected. `eye` gives the camera in
+  the box's own space from the clip matrix with `xf` applied, so `xf` is
+  undone without `invert`, and with no `xf` it is `view-proj`'s `:eye`. A face
+  is a candidate when that point lies on its outer side, by more than a margin
+  of 1e-9 of the point's size, so an edge-on face is left to the screen-sign
+  test. A mirroring `xf` flips the point's sign and the verdicts with it. Only the corners of candidate faces are projected, each once, into one
+  scratch array, by the same sums `project` makes, so every item is the one
+  projecting all eight corners and testing all six faces would give."
   ([dl vp xf pos size colour] (cube dl vp xf pos size colour {}))
   ([dl vp xf [cx cy cz] size [cr cg cb ca] {:keys [shade]}]
    (let [[m d] (frame vp xf)
@@ -378,30 +437,53 @@
           oy :y
           w :w
           h :h} vp
-         [sx sy sz] (sizes size)
+         n? (number? size)
+         sx (double (if n? size (nth size 0)))
+         sy (if n? sx (double (nth size 1)))
+         sz (if n? sx (double (nth size 2)))
          x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
          y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
          z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
-         c [(project* m d ox oy w h x0 y0 z0) (project* m d ox oy w h x1 y0 z0)
-            (project* m d ox oy w h x0 y1 z0) (project* m d ox oy w h x1 y1 z0)
-            (project* m d ox oy w h x0 y0 z1) (project* m d ox oy w h x1 y0 z1)
-            (project* m d ox oy w h x0 y1 z1) (project* m d ox oy w h x1 y1 z1)]]
-     (loop [i 0 dl dl]
-       (if (< i 6)
-         (let [f (nth faces i)
-               a (nth c (nth f 0)) b (nth c (nth f 1))
-               e (nth c (nth f 2)) g (nth c (nth f 3))]
-           (if (and a b e g)
-             (let [flat? (= shade :flat)
-                   f (nth f 4)
-                   r (if flat? cr (int (* f cr)))
-                   gg (if flat? cg (int (* f cg)))
-                   bb (if flat? cb (int (* f cb)))
-                   aa (if flat? ca 255)
-                   depth (* 0.25 (+ (nth a 2) (nth b 2) (nth e 2) (nth g 2)))]
-               (recur (inc i) (-> dl (tri a b e r gg bb aa depth) (tri a e g r gg bb aa depth))))
-             (recur (inc i) dl)))
-         dl)))))
+         [m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15] m
+         [d0 d1 d2 d3] d
+         [ex ey ez ew] (if (and (nil? xf) (identical? m (:eye-of vp))) (:eye vp) (eye m))
+         ;; the margin: 1e-9 of E's size, the box's extent bounding |v|
+         tol (- (* 1.0e-9 (+ (abs ex) (abs ey) (abs ez)
+                             (* (abs ew) (+ (abs cx) (abs cy) (abs cz) sx sy sz)))))
+         +z? (> (- ez (* z1 ew)) tol) -z? (> (- (* z0 ew) ez) tol)
+         -x? (> (- (* x0 ew) ex) tol) +x? (> (- ex (* x1 ew)) tol)
+         +y? (> (- ey (* y1 ew)) tol) -y? (> (- (* y0 ew) ey) tol)
+         hw (* 0.5 w) hh (* 0.5 h)
+         buf (double-array 32)
+         corner! (fn [i x y z]
+                   (let [j (* 4 i)
+                         cw (+ (* m12 x) (* m13 y) (* m14 z) m15)]
+                     (when (>= (+ (* m8 x) (* m9 y) (* m10 z) m11 cw) 0.0)
+                       (aset buf j (+ ox (* hw (+ 1.0 (/ (+ (* m0 x) (* m1 y) (* m2 z) m3) cw)))))
+                       (aset buf (+ j 1) (+ oy (* hh (- 1.0 (/ (+ (* m4 x) (* m5 y) (* m6 z) m7) cw)))))
+                       (aset buf (+ j 2) (+ (* d0 x) (* d1 y) (* d2 z) d3))
+                       (aset buf (+ j 3) 1.0))))
+         flat? (= shade :flat)
+         face (fn [dl a b c e f]
+                (if flat?
+                  (box-face dl buf a b c e cr cg cb ca)
+                  (box-face dl buf a b c e (int (* f cr)) (int (* f cg)) (int (* f cb)) 255)))]
+     (when (or -z? -x? -y?) (corner! 0 x0 y0 z0))
+     (when (or -z? +x? -y?) (corner! 1 x1 y0 z0))
+     (when (or -z? -x? +y?) (corner! 2 x0 y1 z0))
+     (when (or -z? +x? +y?) (corner! 3 x1 y1 z0))
+     (when (or +z? -x? -y?) (corner! 4 x0 y0 z1))
+     (when (or +z? +x? -y?) (corner! 5 x1 y0 z1))
+     (when (or +z? -x? +y?) (corner! 6 x0 y1 z1))
+     (when (or +z? +x? +y?) (corner! 7 x1 y1 z1))
+     ;; `faces`' quads and shades, in its order
+     (cond-> dl
+       +z? (face 4 5 7 6 1.0)
+       -z? (face 1 0 2 3 0.5)
+       -x? (face 0 4 6 2 0.7)
+       +x? (face 5 1 3 7 0.85)
+       +y? (face 6 7 3 2 1.0)
+       -y? (face 0 1 5 4 0.4)))))
 
 (defn- seg-clip
   "Append a segment given in clip space, (x1 y1 z1 w1)-(x2 y2 z2 w2), clipped

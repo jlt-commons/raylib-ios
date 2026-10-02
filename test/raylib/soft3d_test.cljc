@@ -506,3 +506,111 @@
     (testing "and a transform that flips it over flips the verdict"
       (is (= 2 (count (s3/plane [] below (s3/rotate-axis 180.0 1 0 0) [0 0 0] [4 4] [1 2 3 255]))))
       (is (empty? (s3/plane [] above (s3/rotate-axis 180.0 1 0 0) [0 0 0] [4 4] [1 2 3 255]))))))
+
+;; --- cube against its earlier body -------------------------------------------
+
+(defn reference-cube
+  "`raylib.soft3d/cube` as it was at 926cb1c, before it took the box emitter
+  from `raylib.scenes.wavecubes`: project all eight corners, then test both
+  triangles of all six faces by screen sign. Kept here, test only, as the
+  reference the new body must reproduce item for item. It calls the private
+  helpers it called then, which `cube`'s new body does not change."
+  ([dl vp xf pos size colour] (reference-cube dl vp xf pos size colour {}))
+  ([dl vp xf [cx cy cz] size [cr cg cb ca] {:keys [shade]}]
+   (let [frame #'s3/frame
+         project* #'s3/project*
+         tri #'s3/tri
+         faces @#'s3/faces
+         [m d] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         [sx sy sz] (#'s3/sizes size)
+         x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
+         y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
+         z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
+         c [(project* m d ox oy w h x0 y0 z0) (project* m d ox oy w h x1 y0 z0)
+            (project* m d ox oy w h x0 y1 z0) (project* m d ox oy w h x1 y1 z0)
+            (project* m d ox oy w h x0 y0 z1) (project* m d ox oy w h x1 y0 z1)
+            (project* m d ox oy w h x0 y1 z1) (project* m d ox oy w h x1 y1 z1)]]
+     (loop [i 0 dl dl]
+       (if (< i 6)
+         (let [f (nth faces i)
+               a (nth c (nth f 0)) b (nth c (nth f 1))
+               e (nth c (nth f 2)) g (nth c (nth f 3))]
+           (if (and a b e g)
+             (let [flat? (= shade :flat)
+                   f (nth f 4)
+                   r (if flat? cr (int (* f cr)))
+                   gg (if flat? cg (int (* f cg)))
+                   bb (if flat? cb (int (* f cb)))
+                   aa (if flat? ca 255)
+                   depth (* 0.25 (+ (nth a 2) (nth b 2) (nth e 2) (nth g 2)))]
+               (recur (inc i) (-> dl (tri a b e r gg bb aa depth) (tri a e g r gg bb aa depth))))
+             (recur (inc i) dl)))
+         dl)))))
+
+(def ^:private equivalence-cameras
+  "Perspective and orthographic cameras: off every axis, on axes, inside one or
+  two of a 2-box's face slabs, exactly on its face planes (y = 1, x = 1,
+  z = -1 and corners of them), inside it, and with its +z face across the near
+  plane."
+  (for [projection [:perspective :orthographic]
+        [position target] [[[0 6 10] [0 0 0]] [[7 5 10] [0 0 0]] [[-8 3 -6] [0 0 0]]
+                           [[0.3 -9 0.2] [0 0 0]] [[6 6 6] [0 0 0]] [[-6 -6 -6] [0 0 0]]
+                           [[0.3 0.4 12] [0 0 0]] [[11 0.5 -0.2] [0 0 0]]
+                           [[0 1 5] [0 0 0]] [[1 1 6] [0 0 0]] [[1 -4 -1] [0 0 0]]
+                           [[1 1 1] [0 0 0]] [[1 1 5] [1 1 0]]
+                           [[0.2 0.1 0.3] [3 0 0]] [[0 0 1.03] [0 0 0]]
+                           [[3 0 3] [4 0 1.5]]]]
+    {:position position
+     :target target
+     :up (if (and (zero? (first position)) (zero? (nth position 2))) [0 0 -1] [0 1 0])
+     :fovy (if (= projection :orthographic) 12.0 45.0)
+     :projection projection}))
+
+(def ^:private equivalence-transforms
+  "nil, rlgl-style turns and moves (the shapes rotcube, spincubes, solarsystem
+  and yawpitchroll pass), a non-uniform scale and a mirror."
+  [nil
+   (s3/rotate-axis 33.0 0.3 1 0)
+   (s3/compose (s3/translate 1 0.5 0) (s3/rotate-axis 77.0 1 0 0))
+   (s3/compose (s3/rotate-axis 120.0 0 1 0) (s3/translate 4 0 0) (s3/rotate-axis 40.0 0 1 0))
+   (s3/compose (s3/rotate-axis 20.0 0 1 0) (s3/rotate-axis -15.0 1 0 0) (s3/rotate-axis 25.0 0 0 1))
+   [2.0 0.0 0.0 0.0 0.0 0.5 0.0 0.0 0.0 0.0 1.5 0.0 0.0 0.0 0.0 1.0]
+   [-1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0 1.0]])
+
+(def ^:private equivalence-boxes
+  "Centre, size and colour: a 2-cube as number and as integer vector, odd
+  sizes, an integer centre and size, and a box the cameras sit inside."
+  [[[0 0 0] 2.0 [200 100 50 128]]
+   [[0 0 0] [2 2 2] [255 255 255 255]]
+   [[0.5 -0.25 1.5] [0.3 2.7 1.9] [13 200 77 255]]
+   [[1 2 -3] 1 [90 91 92 93]]
+   [[0.0 0.0 0.0] [0.06 0.06 0.06] [1 2 3 4]]
+   [[0 0 0] [30 30 30] [200 100 50 255]]])
+
+(deftest cube-reproduces-its-reference-item-for-item
+  (let [n (atom 0)]
+    (doseq [camera equivalence-cameras
+            viewport [[800 450] [0 300 1206 2034]]
+            :let [vp (s3/view-proj camera viewport)]
+            xf equivalence-transforms
+            [pos size colour] equivalence-boxes
+            opts [{} {:shade :flat}]]
+      (let [want (reference-cube [:mark] vp xf pos size colour opts)
+            got (s3/cube [:mark] vp xf pos size colour opts)]
+        (swap! n + (dec (count want)))
+        (when-not (= want got)
+          (is (= want got) (str "camera " camera " viewport " viewport " xf " xf " box " [pos size colour] " " opts)))))
+    (is (< 20000 @n) "the cases draw a lot of triangles, so the equality is not vacuous")))
+
+(deftest cube-reads-the-m-it-is-given
+  (testing "a view-proj whose :m a caller replaced, as yawpitchroll's grid does, still matches"
+    (doseq [camera (take 8 equivalence-cameras)
+            :let [vp0 (s3/view-proj camera [800 450])
+                  vp (assoc vp0 :m (s3/compose (:m vp0) (s3/rotate-axis 50.0 0 1 0) (s3/translate 0 -3 1)))]
+            [pos size colour] equivalence-boxes]
+      (is (= (reference-cube [] vp nil pos size colour) (s3/cube [] vp nil pos size colour))
+          (str camera " " [pos size colour])))))
