@@ -1,7 +1,8 @@
 (ns raylib.scenes.fpcamera-test
   (:require [clojure.test :refer [deftest is testing]]
             [raylib.gesture :as gesture]
-            [raylib.scenes.fpcamera :as sc]))
+            [raylib.scenes.fpcamera :as sc]
+            [raylib.soft3d :as s3]))
 
 (def m {:screen [1206 2334]})
 (def screens [[1206 2334] [2334 1206] [800 450] [450 800]])
@@ -21,6 +22,7 @@
   (* 0.6 size (count s)))
 
 (defn- near? [a b] (< (abs (double (- a b))) 1e-9))
+(defn- near-px? [a b] (< (abs (double (- a b))) 1e-6))
 (defn- vnear? [a b] (and (= (count a) (count b)) (every? true? (map near? a b))))
 
 (defn- step
@@ -105,6 +107,33 @@
       (is (every? (fn [[_ & more]] (every? #(and (number? %) (< (abs (double %)) 1e5)) (take 6 more))) tris))
       (is (some (fn [[_ & more]] (some inside? (partition 2 (take 6 more)))) tris))
       (is (some (fn [[_ x0 y0 x1 y1]] (or (inside? [x0 y0]) (inside? [x1 y1]))) lines)))
+    (testing "what scene-list draws is seen through the fitted camera, a grid of 40 and all 40 columns"
+      ;; fit-camera for a field narrower than 800x450 keeps the original's
+      ;; horizontal view: hfov = 2 atan(tan(fovy/2) * 800/450), then
+      ;; fovy' = 2 atan(tan(hfov/2) / field aspect). Worked here from the
+      ;; formula, not by calling fit-camera.
+      (let [aspect (/ vw vh)
+            fovy (Math/toDegrees (* 2.0 (Math/atan (/ (* (/ 800.0 450.0) (Math/tan (Math/toRadians 30.0))) aspect))))
+            vp (s3/view-proj (assoc (cam start) :fovy fovy) (:viewport dims))
+            end (s3/world->screen vp [20.0 0.0 1.0])
+            ;; the same camera at the unfitted 60 degrees, to show it differs
+            unfitted (s3/world->screen (s3/view-proj (cam start) (:viewport dims)) [20.0 0.0 1.0])]
+        (is (< 100.0 fovy 180.0) "the field is narrow, so the fit widens the original's 60")
+        (is (> (abs (- (first end) (first unfitted))) 5.0))
+        (testing "the camera used is the fitted one: the grid line z = 1 ends at (20, 0, 1) where it projects"
+          (is (some (fn [l] (and (near-px? (nth l 3) (first end)) (near-px? (nth l 4) (second end)))) lines)))
+        (testing "the grid reaches +-20, so its slices are 40"
+          (is (some (fn [l] (let [[ex ey] (s3/world->screen vp [20.0 0.0 20.0])]
+                              (and (near-px? (nth l 3) ex) (near-px? (nth l 4) ey))))
+                    lines)))
+        (testing "the grid is 41 lines along x and, of the 41 along z, the 20 ahead of the near plane"
+          (is (= 61 (count lines))))
+        (testing "every column is drawn: the triangles are the sum of each column's own"
+          (is (= 40 (count sc/columns)))
+          (is (= (count tris)
+                 (reduce + (map (fn [{:keys [x z h colour]}]
+                                  (count (s3/cube [] vp nil [x (/ h 2.0) z] [2.0 h 2.0] colour)))
+                                sc/columns)))))))
     (testing "the sky colour is not a column's"
       (is (not-any? #(= sc/sky-colour (subvec % 7 11)) tris)))))
 
@@ -128,6 +157,12 @@
       (is (vnear? [k 2.0 k] e))))
   (testing "inside the dead zone nothing moves"
     (is (= (eye start) (eye (walked start (* 0.5 slop) 0.0)))))
+  (testing "strafing follows the yaw: right is (-sin yaw, cos yaw), the original's rgx = -fwz, rgz = fwx"
+    (doseq [yaw [(/ Math/PI 2.0) 0.6 -1.1]
+            :let [st (assoc start :yaw yaw)]]
+      (is (vnear? [(* speed (- (Math/sin yaw))) 2.0 (* speed (Math/cos yaw))] (eye (walked st 200.0 0.0))) (str "D at yaw " yaw))
+      (is (vnear? [(* speed (Math/sin yaw)) 2.0 (* speed (- (Math/cos yaw)))] (eye (walked st -200.0 0.0))) (str "A at yaw " yaw))
+      (is (vnear? [(* speed (Math/cos yaw)) 2.0 (* speed (Math/sin yaw))] (eye (walked st 0.0 -200.0))) (str "W at yaw " yaw))))
   (testing "walking follows the yaw: after a quarter turn up the glass is +z"
     (let [turned (assoc start :yaw (/ Math/PI 2.0))]
       (is (vnear? [0.0 2.0 speed] (eye (walked turned 0.0 -200.0))))))
