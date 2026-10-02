@@ -115,6 +115,7 @@
                      raylib.scenes.camera2d-test
                      raylib.scenes.camerazoom-test
                      raylib.scenes.platformer-test
+                     raylib.scenes.splitscreen-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
