@@ -16,9 +16,10 @@
 
   The original's caption sits below Back, with the 3D view in the field under
   it, full width to the bottom. The view is `raylib.soft3d`'s `[x y w h]`
-  viewport on that field, so the original's fovys are kept and the aspect is
-  the field's, which on a portrait phone shows less across than the original's
-  800x450 does. The grid reaches past the field's edges, so the draw method
+  viewport on that field. The original's fovys are kept while the field is at
+  least as wide as 800x450. In a narrower field `raylib.soft3d/fit-camera`
+  widens the perspective fovy, or scales the orthographic height, so the
+  original's horizontal view still fits. The grid reaches past the field's edges, so the draw method
   clips to the field.
 
   The state is `:ortho?` and the gesture. The grid depends on the camera and
@@ -82,16 +83,23 @@
   [state dims]
   (if (:ortho? state) (:orthographic dims) (:perspective dims)))
 
+(def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
+
+(defn- field-aspect [{[_ _ w h] :viewport}] (/ w h))
+
 (defn camera
   "The original's camera for `state`: (5, 5, 5) at the origin, perspective with
-  fovy 45, or orthographic with fovy 12."
-  [state]
+  fovy 45, or orthographic with fovy 12, fitted to `dims`' field by
+  `raylib.soft3d/fit-camera` (for orthographic that scales the 12 world units of
+  height)."
+  [state dims]
   (let [ortho? (:ortho? state)]
-    {:position [5.0 5.0 5.0]
-     :target [0.0 0.0 0.0]
-     :up [0.0 1.0 0.0]
-     :fovy (if ortho? 12.0 45.0)
-     :projection (if ortho? :orthographic :perspective)}))
+    (s3/fit-camera {:position [5.0 5.0 5.0]
+                    :target [0.0 0.0 0.0]
+                    :up [0.0 1.0 0.0]
+                    :fovy (if ortho? 12.0 45.0)
+                    :projection (if ortho? :orthographic :perspective)}
+                   original-aspect (field-aspect dims))))
 
 (defn grid-list
   "The grid of 10, spacing 1, as an unfinished draw list through `cam` onto
@@ -103,7 +111,7 @@
   "The finished draw list for `state`: `base` (the `grid-list` for its camera)
   and the three cubes."
   [base state dims]
-  (let [vp (s3/view-proj (camera state) (:viewport dims))]
+  (let [vp (s3/view-proj (camera state dims) (:viewport dims))]
     (s3/finish (reduce (fn [dl {:keys [at colour]}] (s3/cube dl vp nil at 1.0 colour))
                        base cubes))))
 

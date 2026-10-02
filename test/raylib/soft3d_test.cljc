@@ -308,3 +308,48 @@
     (is (close? [60.0 40.0] (end (s3/compose (s3/rotate-axis 90.0 0 1 0) (s3/translate 0 0 1)))))
     (testing "rotate-axis normalises its axis, as rlRotatef"
       (is (close? [50.0 40.0] (end (s3/rotate-axis 90.0 0 5 0)))))))
+
+;; --- fit-camera -------------------------------------------------------------
+
+(def ^:private orig-aspect (/ 800.0 450.0))
+
+(defn- fit-case
+  "A camera on +z looking at the origin from 10, so right is +x and the world
+  x at the target depth maps linearly to the screen."
+  [fovy projection]
+  {:position [0.0 0.0 10.0]
+   :target [0.0 0.0 0.0]
+   :up [0.0 1.0 0.0]
+   :fovy fovy
+   :projection projection})
+
+(defn- orig-half-width
+  "Half the original view's width at the target depth, in world units."
+  [{:keys [fovy projection]}]
+  (* orig-aspect
+     (if (= projection :orthographic)
+       (/ fovy 2.0)
+       (* 10.0 (Math/tan (Math/toRadians (/ fovy 2.0)))))))
+
+(deftest fit-camera-keeps-a-wide-field-unchanged
+  (doseq [projection [:perspective :orthographic]
+          fovy [45.0 12.0]
+          field [orig-aspect 2.0 3.5]
+          :let [c (fit-case fovy projection)]]
+    (is (= c (s3/fit-camera c orig-aspect field)) (str projection " " fovy " " field))))
+
+(deftest fit-camera-preserves-the-originals-horizontal-coverage-in-portrait
+  (doseq [projection [:perspective :orthographic]
+          fovy [45.0 12.0]
+          [w h] [[1206 2142] [450 648] [600 600]]
+          :let [c (fit-case fovy projection)
+                fitted (s3/fit-camera c orig-aspect (/ (double w) h))
+                vp (s3/view-proj fitted [w h])
+                hw (orig-half-width c)
+                [lx ly] (s3/project vp [(- hw) 0.0 0.0])
+                [rx ry] (s3/project vp [hw 0.0 0.0])]]
+    (testing (str projection " " fovy " " w "x" h)
+      (is (close? [0.0 (/ h 2.0)] [lx ly] 1e-6) "the original's left edge lands on the field's left edge")
+      (is (close? [(double w) (/ h 2.0)] [rx ry] 1e-6) "and its right edge on the right")
+      (is (> (:fovy fitted) fovy) "the vertical extent grew to hold it")
+      (is (= (dissoc c :fovy) (dissoc fitted :fovy)) "nothing else changed"))))

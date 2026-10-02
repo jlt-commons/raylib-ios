@@ -25,6 +25,12 @@
 
 (defn- tris [dl] (filterv (fn [it] (= :tri (nth it 0))) dl))
 
+(defn- inside? [[vx vy vw vh] dl]
+  (every? (fn [[_ & more]]
+            (every? (fn [[x y]] (and (<= (- vx 1e-6) x (+ vx vw 1e-6)) (<= (- vy 1e-6) y (+ vy vh 1e-6))))
+                    (partition 2 (take 6 more))))
+          (tris dl)))
+
 (deftest the-cube-turns-at-the-originals-rates
   (testing "the angle is one degree a frame about x and 0.7 of it about y"
     (is (near? 0.0 (rc/angle-x (frames 0))))
@@ -46,7 +52,7 @@
                 s (frames 0)
                 dims (rc/dimensions metrics measure)
                 [vx vy vw vh] (:viewport dims)
-                base (rc/grid-list (rc/camera) dims)
+                base (rc/grid-list (rc/camera dims) dims)
                 dl (rc/scene-list base s dims)
                 cube (tris dl)]]
     (testing (str screen)
@@ -57,7 +63,10 @@
                             (partition 2 (take 6 more))))
                   cube)
           "the cube's corners all lie inside the field")
-      (is (= (count base) (count (rc/grid-list (rc/camera) dims))) "the grid is the same from frame to frame"))))
+      (is (every? (fn [n] (inside? (:viewport dims) (rc/scene-list base (frames n) dims)))
+                  (range 0 720 7))
+          "the cube stays inside the field through a full spin")
+      (is (= (count base) (count (rc/grid-list (rc/camera dims) dims))) "the grid is the same from frame to frame"))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens

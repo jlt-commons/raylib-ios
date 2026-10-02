@@ -15,9 +15,10 @@
 
   There is no input and so no control to map. The original's caption sits below
   Back, with the 3D view in the field under it, full width to the bottom. The
-  view is `raylib.soft3d`'s `[x y w h]` viewport on that field, so the original's
-  45 degree fovy is kept and the aspect is the field's, which on a portrait
-  phone shows less of the scene across than the original's 800x450 does.
+  view is `raylib.soft3d`'s `[x y w h]` viewport on that field. The original's
+  45 degree fovy is kept while the field is at least as wide as 800x450. In a
+  narrower field `raylib.soft3d/fit-camera` widens it so the original's
+  horizontal view still fits, and the field shows more above and below.
 
   The grid never changes, so `grid-list` builds it once per layout and
   `scene-list` adds the cube to a copy each frame. The state holds only
@@ -65,14 +66,20 @@
               :size size}]
     (assoc geo :caption line :lines [line])))
 
+(def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
+
+(defn- field-aspect [{[_ _ w h] :viewport}] (/ w h))
+
 (defn camera
-  "The original's camera: (4, 4, 4) looking at the origin, fovy 45."
-  []
-  {:position [4.0 4.0 4.0]
-   :target [0.0 0.0 0.0]
-   :up [0.0 1.0 0.0]
-   :fovy 45.0
-   :projection :perspective})
+  "The original's camera, (4, 4, 4) looking at the origin with fovy 45, fitted
+  to `dims`' field by `raylib.soft3d/fit-camera`."
+  [dims]
+  (s3/fit-camera {:position [4.0 4.0 4.0]
+                  :target [0.0 0.0 0.0]
+                  :up [0.0 1.0 0.0]
+                  :fovy 45.0
+                  :projection :perspective}
+                 original-aspect (field-aspect dims)))
 
 (defn angle-x "The turn about x in degrees: the frame number." [state]
   (* 1.0 (:frame state)))
@@ -96,7 +103,7 @@
 (defn scene-list
   "The finished draw list for `state`: `base` (the `grid-list`) and the cube."
   [base state dims]
-  (let [vp (s3/view-proj (camera) (:viewport dims))]
+  (let [vp (s3/view-proj (camera dims) (:viewport dims))]
     (-> base
         (s3/cube vp (transform state) [0.0 0.0 0.0] 2.0 cube-colour)
         s3/finish)))

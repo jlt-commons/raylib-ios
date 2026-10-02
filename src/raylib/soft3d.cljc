@@ -17,6 +17,9 @@
     transform applies to a point first. That is rlgl's call order:
     rlTranslatef then rlRotatef is `(compose (translate ...) (rotate-axis ...))`.
 
+  `fit-camera` adapts a camera made for an original window to a field of another
+  aspect, so a tall phone field still shows the original's width.
+
   Building a frame: start from `[]`, thread it through the builders (`cube`,
   `cube-wires`, `grid`, `lines`), then `finish` it into the draw list. Every
   builder projects as it goes, so a back face, or a face or line behind the
@@ -559,3 +562,29 @@
                 :else (recur (inc i) under tris (conj! over it))))
         (let [sorted (sort (fn [a b] (compare (nth b 11) (nth a 11))) (persistent! tris))]
           (persistent! (reduce conj! (reduce conj! under sorted) (persistent! over))))))))
+
+(defn fit-camera
+  "`(fit-camera camera orig-aspect field-aspect)`: `camera` with its `:fovy`
+  adjusted so the view it had in an original window of aspect `orig-aspect`
+  (w/h) fits a field of aspect `field-aspect`. fovy is vertical, so a field
+  narrower than the original would show less across. When the field is at
+  least as wide as the original the camera is returned as it was. Otherwise the
+  original's horizontal extent is kept:
+
+  - perspective: hfov = 2 atan(tan(fovy/2) * orig-aspect), then the new
+    fovy = 2 atan(tan(hfov/2) / field-aspect), in degrees;
+  - orthographic: fovy is a height in world units, so it is scaled by
+    orig-aspect / field-aspect.
+
+  Everything the original showed across stays visible, and a taller field
+  shows more above and below."
+  [camera orig-aspect field-aspect]
+  (if (>= field-aspect orig-aspect)
+    camera
+    (let [ratio (/ (double orig-aspect) (double field-aspect))
+          fovy (double (:fovy camera))]
+      (assoc camera :fovy
+             (if (= (:projection camera) :orthographic)
+               (* fovy ratio)
+               (Math/toDegrees
+                (* 2.0 (Math/atan (* ratio (Math/tan (* 0.5 (Math/toRadians fovy))))))))))))

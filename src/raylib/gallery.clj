@@ -3105,7 +3105,7 @@
     (if (= screen cached-screen)
       [dims grid]
       (let [dims (rotcube/dimensions m host-measure)
-            grid (rotcube/grid-list (rotcube/camera) dims)]
+            grid (rotcube/grid-list (rotcube/camera dims) dims)]
         (reset! rotcube-cache [screen dims grid])
         [dims grid]))))
 
@@ -3148,7 +3148,7 @@
     (if (= k cached-key)
       [dims grid]
       (let [dims (ortho/dimensions m host-measure)
-            grid (ortho/grid-list (ortho/camera state) dims)]
+            grid (ortho/grid-list (ortho/camera state dims) dims)]
         (reset! ortho-cache [k dims grid])
         [dims grid]))))
 

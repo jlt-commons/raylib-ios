@@ -12,9 +12,9 @@
   the original: the orbit advances one step an update. The original's caption is
   kept and sits below Back, with the 3D view in the field under it, full width
   to the bottom. The view is `raylib.soft3d`'s `[x y w h]` viewport on that
-  field, so the original's fovy is kept and the aspect is the field's, which on
-  a portrait phone shows less across than the original's 800x450 does. The
-  grid reaches past the field's edges, so the draw method clips to the field.
+  field. The original's fovy is kept while the field is at least as wide as
+  800x450. In a narrower field `raylib.soft3d/fit-camera` widens it so the
+  original's horizontal view still fits. The grid reaches past the field's edges, so the draw method clips to the field.
 
   The camera moves, so the grid is projected afresh each frame: 42 lines. The
   state holds only `:frame`. Colours are `[r g b a]` vectors."
@@ -63,21 +63,27 @@
               :size size}]
     (assoc geo :caption line :lines [line])))
 
+(def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
+
+(defn- field-aspect [{[_ _ w h] :viewport}] (/ w h))
+
 (defn camera
   "The camera for `state`: on the circle of radius 12 at height 8, at the angle
-  `0.02 * frame`, looking at (0, 1, 0)."
-  [state]
+  `0.02 * frame`, looking at (0, 1, 0) with fovy 45, fitted to `dims`' field by
+  `raylib.soft3d/fit-camera`."
+  [state dims]
   (let [a (* step (:frame state))]
-    {:position [(* radius (Math/cos a)) height (* radius (Math/sin a))]
-     :target [0.0 1.0 0.0]
-     :up [0.0 1.0 0.0]
-     :fovy 45.0
-     :projection :perspective}))
+    (s3/fit-camera {:position [(* radius (Math/cos a)) height (* radius (Math/sin a))]
+                    :target [0.0 1.0 0.0]
+                    :up [0.0 1.0 0.0]
+                    :fovy 45.0
+                    :projection :perspective}
+                   original-aspect (field-aspect dims))))
 
 (defn scene-list
   "The finished draw list for `state`: the grid of 20 and the cube."
   [state dims]
-  (let [vp (s3/view-proj (camera state) (:viewport dims))]
+  (let [vp (s3/view-proj (camera state dims) (:viewport dims))]
     (-> []
         (s3/grid vp 20 1.0)
         (s3/cube vp nil [0.0 1.0 0.0] 2.0 cube-colour)

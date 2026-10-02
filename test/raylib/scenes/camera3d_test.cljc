@@ -22,9 +22,15 @@
 
 (defn- tris [dl] (filterv (fn [it] (= :tri (nth it 0))) dl))
 
+(defn- inside? [[vx vy vw vh] dl]
+  (every? (fn [[_ & more]]
+            (every? (fn [[x y]] (and (<= (- vx 1e-6) x (+ vx vw 1e-6)) (<= (- vy 1e-6) y (+ vy vh 1e-6))))
+                    (partition 2 (take 6 more))))
+          (tris dl)))
+
 (deftest the-camera-orbits-at-the-originals-rate
   (testing "frame 0 is at (12, 8, 0) looking at (0, 1, 0), fovy 45, perspective"
-    (let [c (c3/camera (frames 0))]
+    (let [c (c3/camera (frames 0) (c3/dimensions {:screen [2334 1206]} measure))]
       (is (every? true? (map near? [12.0 8.0 0.0] (:position c))))
       (is (= [0.0 1.0 0.0] (:target c)))
       (is (= [0.0 1.0 0.0] (:up c)))
@@ -32,7 +38,7 @@
       (is (= :perspective (:projection c)))))
   (testing "0.02 radians a frame at radius 12, height fixed at 8"
     (doseq [n [1 10 100 314]
-            :let [[x y z] (:position (c3/camera (frames n)))
+            :let [[x y z] (:position (c3/camera (frames n) (c3/dimensions {:screen [1206 2334]} measure)))
                   a (* 0.02 n)]]
       (is (near? (* 12.0 (Math/cos a)) x) (str n))
       (is (near? 8.0 y) (str n))
@@ -43,17 +49,20 @@
           :let [metrics {:screen screen}
                 s (frames 0)
                 dims (c3/dimensions metrics measure)
-                [vx vy vw vh] (:viewport dims)
                 dl (c3/scene-list s dims)
                 cube (tris dl)]]
     (testing (str screen)
       (is (= 4 (count cube)) "two faces, +x and +y, two triangles each, seen from (12,8,0)")
       (is (> (count (remove (fn [it] (= :tri (nth it 0))) dl)) 40) "the grid of 20 has 42 lines")
-      (is (every? (fn [[_ & more]]
-                    (every? (fn [[x y]] (and (<= vx x (+ vx vw)) (<= vy y (+ vy vh))))
-                            (partition 2 (take 6 more))))
-                  cube)
-          "the cube's corners all lie inside the field"))))
+      (is (every? (fn [n] (inside? (:viewport dims) (c3/scene-list (frames n) dims)))
+                  (range 0 320 20))
+          "the cube stays inside the field through an orbit"))))
+
+(deftest a-portrait-field-keeps-the-originals-horizontal-view
+  (let [land (c3/camera (frames 0) (c3/dimensions {:screen [2334 1206]} measure))
+        tall (c3/camera (frames 0) (c3/dimensions {:screen [1206 2334]} measure))]
+    (is (= 45.0 (:fovy land)))
+    (is (> (:fovy tall) 45.0))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens
