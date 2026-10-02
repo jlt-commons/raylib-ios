@@ -235,3 +235,36 @@
           (is (every? number? (concat (:offset c) (:target c) [(:rotation c) (:zoom c)])))
           (is (near? sx (first (:offset c))) "the player sits at the viewport centre")
           (is (near? sy (second (:offset c)))))))))
+
+(deftest a-stick-belongs-to-the-finger-that-started-it
+  (let [a c1
+        held (-> start (step [a]) (step [(plus a 300 0)]))
+        far (plus a -400 0)]
+    (testing "the followed thumb swapped for another finger in one frame: the player stops"
+      (let [swapped (step held [far])]
+        (is (= (p1 held) (p1 swapped)) "no reversal")
+        (is (= {:centre far
+                :finger far} (first (:sticks swapped))) "a fresh stick at the stranger")
+        (testing "and it steers from there"
+          (let [on (step swapped [(plus far 300 0)])]
+            (is (near? (+ 3.0 (first (p1 swapped))) (first (p1 on))))))))
+    (testing "the thumb lifts while a stranger rests in the half: the player stops"
+      (let [rest (-> start (step [a]) (step [(plus a 300 0) far]))
+            lifted (step rest [far])]
+        (is (near? 203.0 (first (p1 rest))))
+        (is (= (p1 rest) (p1 lifted)) "no reversal")
+        (is (= {:centre far
+                :finger far} (first (:sticks lifted))))))
+    (testing "a fast but plausible move within one frame is still the same finger"
+      (let [moved (step held [(plus a 300 200)])]
+        (is (= a (get-in moved [:sticks 0 :centre])))
+        (is (= (plus a 300 200) (get-in moved [:sticks 0 :finger])))))))
+
+(deftest the-follow-bound-is-sized-to-the-half
+  (doseq [screen screens
+          :let [dims (ss/dimensions {:screen screen} measure)
+                half (first (:halves dims))
+                [_ _ w h] half
+                b (ss/follow-bound half)]]
+    (is (near? (* 0.4 (min w h)) b) (str screen))
+    (is (> b (gesture/slop {:screen screen})) "well beyond a tap's wobble")))

@@ -33,12 +33,17 @@
     faster (the keys add two axes, 4.24 a frame, the one deliberate
     difference). A stick ends when its half has no point.
   - Two thumbs work at once, one per half. If two points are in one half, the
-    stick follows the one nearest its previous finger, so it does not jump to
-    a stranger, and a fresh stick takes the lesser point by x then y so the
-    order of `:touch-points` never matters.
+    stick follows the one nearest its previous finger, but only when that is
+    within `follow-bound` of it (two fifths of the half's shorter side). A
+    nearest point farther than that is another finger, whether it replaced the
+    thumb in one frame or the thumb lifted while it rested there. The old stick
+    then ends and a fresh one starts on it, so the player stops and never
+    reverses against the old centre. A fresh stick takes the lesser point by x
+    then y so the order of `:touch-points` never matters.
   - A thumb that slides across the divider ends the stick it left, and starts a
     fresh one in the other half at the crossing, so nothing jumps. If that half
-    already has a thumb, the stick takes whichever point is nearer its finger.
+    already has a thumb, the stick keeps it unless the other point is the
+    nearer one and within `follow-bound`.
   - A touch under `gesture/back-region` belongs to the host and is ignored, as
     if it were not there. Only `:touch-points` is read, so a release position
     never is. A rotation of the phone drops both sticks, whose pixels are the
@@ -208,17 +213,37 @@
           (first pts)
           (rest pts)))
 
+(defn follow-bound
+  "The farthest a finger may travel in one frame and still be the one a stick
+  follows, for the half `[x y w h]`: two fifths of the half's shorter side. A
+  thumb can cross a good part of a half in one frame in a flick, so this is
+  sized to the half and not to `gesture/slop`, which is a tap's wobble and would
+  drop a stick during an ordinary fast drag. A different finger, whether it
+  replaces the thumb in one frame or rests in the half while the thumb lifts, is
+  almost always farther than this, since two thumbs hardly land that close."
+  [[_ _ w h]]
+  (* 0.4 (min w h)))
+
 (defn- next-stick
-  "A half's stick after this frame, given the points `pts` in it. No point ends
-  it. With none before, the lesser point is the centre and the finger. Otherwise
-  the centre stays and the finger is the point nearest the old finger."
-  [stick pts]
+  "A half's stick after this frame, given the points `pts` in it and its
+  `bound` (see `follow-bound`). No point ends it. With none before, the lesser
+  point is the centre and the finger. Otherwise the point nearest the old finger
+  is the same finger when it is within `bound` of it, and the centre stays. If
+  it is farther it is another finger, so the old stick ends and a fresh one
+  starts centred on that point, which stops the player instead of reversing it
+  against the old centre."
+  [stick pts bound]
   (cond
     (empty? pts) nil
-    (nil? stick) (let [p (lesser pts)] {:centre p
-                                        :finger p})
-    :else {:centre (:centre stick)
-           :finger (pick (:finger stick) pts)}))
+    (nil? stick) (let [p (lesser pts)]
+                   {:centre p
+                    :finger p})
+    :else (let [p (pick (:finger stick) pts)]
+            (if (<= (Math/sqrt (d2 (:finger stick) p)) bound)
+              {:centre (:centre stick)
+               :finger p}
+              {:centre p
+               :finger p}))))
 
 (defn advance
   "One frame. Each touch point not under Back goes to the half it lies in, each
@@ -234,7 +259,7 @@
         by-half (reduce (fn [acc p] (update acc (half-of dims p) conj p))
                         [[] []]
                         points)
-        sticks (mapv next-stick sticks by-half)
+        sticks (mapv next-stick sticks by-half (map follow-bound (:halves dims)))
         players (mapv (fn [[x y] stick]
                         (let [[dx dy] (or (stick-dir stick metrics) [0.0 0.0])]
                           [(+ x (* dx player-speed)) (+ y (* dy player-speed))]))
