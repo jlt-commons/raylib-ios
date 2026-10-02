@@ -49,6 +49,7 @@
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.fontsizes :as fsizes]
             [raylib.scenes.formattext :as ftext]
+            [raylib.scenes.freecam :as freecam]
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gestures :as gestures]
             [raylib.scenes.gradient :as grad]
@@ -138,7 +139,7 @@
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene) (wireframes/scene)])
+             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -172,7 +173,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3228,3 +3229,38 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (wireframes/scene-list state dims))))
     (draw-caption! (:caption dims) wireframes/caption-colour)))
+
+(def ^:private freecam-cache
+  "The last `[screen dims]` for `:freecam`. Its camera moves, so only the layout
+  and the HUD's measured text are kept."
+  (atom nil))
+
+(defn- freecam-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @freecam-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (freecam/dimensions m host-measure)]
+        (reset! freecam-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :freecam [_ state {:keys [m safe]}]
+  (clear-to! freecam/background-colour)
+  (let [dims (freecam-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        [hx hy hw hh] (:hud dims)
+        [x0 y0 x1 y1] [(int hx) (int hy) (int (+ hx hw)) (int (+ hy hh))]
+        edge (pack freecam/hud-edge-colour)
+        [rx ry rw rh] (:reset dims)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (freecam/scene-list state dims))))
+    ;; The original's translucent rect and its outline, then its help text.
+    (rl/draw-rectangle x0 y0 (- x1 x0) (- y1 y0) (pack freecam/hud-fill-colour))
+    (rl/draw-line x0 y0 x1 y0 edge)
+    (rl/draw-line x1 y0 x1 y1 edge)
+    (rl/draw-line x1 y1 x0 y1 edge)
+    (rl/draw-line x0 y1 x0 y0 edge)
+    (doseq [[k line] (map-indexed vector (:hud-lines dims))]
+      (draw-caption! line (if (zero? k) freecam/hud-title-colour freecam/hud-text-colour)))
+    (rl/draw-rectangle (int rx) (int ry) (int rw) (int rh) (pack freecam/button-colour))
+    (draw-caption! (:reset-label dims) freecam/button-label-colour)))

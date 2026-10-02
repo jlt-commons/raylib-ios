@@ -124,6 +124,7 @@
                      raylib.scenes.ortho-test
                      raylib.scenes.spincubes-test
                      raylib.scenes.wireframes-test
+                     raylib.scenes.freecam-test
                      raylib.scenes.worldscreen-test
                      raylib.easings-test
                      raylib.scenes.clock-test
