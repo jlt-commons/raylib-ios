@@ -44,6 +44,8 @@
        (step :down [p])
        (step :release [] away))))
 
+(defn- dist3 [a b] (Math/sqrt (reduce + (map #(let [d (- %1 %2)] (* d d)) a b))))
+
 (defn- idle [state] (step state :idle [] nil))
 
 (defn- screen-of [state pt] (s3/world->screen (sc/view state dims) pt))
@@ -273,3 +275,102 @@
             (is (<= (+ x (measure s size)) w) s)
             (is (>= y fy2) s)
             (is (<= (+ y size) (+ fy2 fh)) s)))))))
+
+;; --- the hit state is drawn ---------------------------------------------------
+
+(def red [230 41 55 255])
+(def maroon [190 33 55 255])
+(def green [0 228 48 255])
+(def gray [130 130 130 255])
+
+(defn- colour-of [item] (if (= :tri (nth item 0)) (subvec item 7 11) (subvec item 5 9)))
+(defn- of-colour [dl kind c] (filterv #(and (= kind (nth % 0)) (= c (colour-of %))) dl))
+(defn- drifted
+  "`state` a few updates on, so the camera is no longer where the ray was cast."
+  [state]
+  (nth (iterate idle state) 60))
+
+(deftest a-hit-is-drawn-with-its-ray-and-its-green-wires
+  (let [hit (drifted (tap start (centre-of start)))
+        no-ray (assoc hit :ray nil)
+        dl (sc/scene-list hit dims)
+        base (sc/scene-list no-ray dims)]
+    (is (true? (:hit? hit)))
+    (testing "the cube is RED, flat, and its wires MAROON"
+      (is (pos? (count (of-colour dl :tri red))))
+      (is (zero? (count (of-colour dl :tri gray))))
+      (is (pos? (count (of-colour base :line maroon)))))
+    (testing "the larger wires are GREEN, and there are none before a hit"
+      (is (pos? (count (of-colour dl :line green))))
+      (is (zero? (count (of-colour (sc/scene-list (drifted start) dims) :line green)))))
+    (testing "the ray adds MAROON lines on top of the wires"
+      (is (> (count (of-colour dl :line maroon)) (count (of-colour base :line maroon)))))
+    (testing "before any pick there is no ray, so nothing beyond the wires"
+      (is (zero? (count (of-colour (sc/scene-list (drifted start) dims) :line maroon)))))))
+
+(deftest a-miss-is-drawn-with-its-ray-and-no-green
+  (let [missed (drifted (tap start [(+ vx 20.0) (+ vy 20.0)]))
+        dl (sc/scene-list missed dims)
+        base (sc/scene-list (assoc missed :ray nil) dims)]
+    (is (false? (:hit? missed)))
+    (is (pos? (count (of-colour dl :tri gray))) "the cube stays GRAY")
+    (is (zero? (count (of-colour dl :tri red))))
+    (is (zero? (count (of-colour dl :line green))))
+    (is (> (count (of-colour dl :line maroon)) (count (of-colour base :line maroon))) "the ray is drawn")))
+
+(defn- inside? [[x y z]]
+  (let [e 1e-6]
+    (and (< (+ -1.0 e) x (- 1.0 e)) (< (+ 0.0 e) y (- 2.0 e)) (< (+ -1.0 e) z (- 1.0 e)))))
+
+(deftest the-ray-is-split-so-nothing-is-drawn-inside-the-box
+  (let [s (tap start (centre-of start))
+        ray (:ray s)
+        pieces (sc/ray-pieces ray)
+        {:keys [distance point]} (:pick s)
+        along (fn [[a b] t] (mapv #(+ %1 (* t (- %2 %1))) a b))]
+    (testing "a ray through the box is two pieces, split at the entry and the exit"
+      (is (= 2 (count pieces)))
+      (is (vnear? (:position ray) (ffirst pieces) 1e-9))
+      (is (vnear? point (second (first pieces)) 1e-6) "the first piece ends where the pick hit")
+      (is (vnear? (mapv + (:position ray) (map #(* sc/ray-length %) (:direction ray)))
+                  (second (second pieces)) 1e-6) "the second runs on to the ray's end"))
+    (testing "no point of either piece is strictly inside the box"
+      (doseq [pc pieces
+              t (range 0.0 1.0001 0.01)]
+        (is (not (inside? (along pc t))) (str pc " " t))))
+    (testing "the exit is further than the entry"
+      (is (> (dist3 (second (first pieces)) (first (second pieces))) 1.0))
+      (is (near? distance (dist3 (:position ray) (second (first pieces))) 1e-6)))
+    (testing "a ray that misses is one whole piece"
+      (let [miss (:ray (tap start [(+ vx 20.0) (+ vy 20.0)]))]
+        (is (= 1 (count (sc/ray-pieces miss))))))
+    (testing "the drawn list holds no maroon line point inside the box in world terms: the piece ends are on the surface"
+      (is (every? (fn [[a b]] (and (not (inside? a)) (not (inside? b)))) pieces)))))
+
+(deftest the-readout-text-is-pinned
+  (let [s (assoc start :hit? true :pick {:hit? true
+                                         :distance 12.34
+                                         :point [-1.0 2.0 -0.004]
+                                         :normal [-1.0 0.0 0.0]})]
+    (is (= ["BOX SELECTED" "distance 12.34" "point -1.00 2.00 0.00" "normal -1 0 0"]
+           (map :s (sc/readout s))))
+    (is (= "point 0.05 -0.05 10.00"
+           (:s (nth (sc/readout (assoc-in s [:pick :point] [0.05 -0.05 10.0])) 2))))
+    (is (= [[0 228 48 255] [80 80 80 255] [80 80 80 255] [80 80 80 255]]
+           (map :colour (sc/readout s))))
+    (is (= [{:s "missed"
+             :colour [190 33 55 255]}]
+           (sc/readout (assoc start :pick {:hit? false}))))))
+
+(deftest a-drag-keeps-the-selection
+  (let [c (centre-of start)
+        picked (tap start c)
+        pts (mapv (fn [i] [(+ (first c) (* 30.0 i)) (+ (second c) 400.0)]) (range 8))
+        s (-> picked
+              (step :press [(first pts)])
+              (as-> s (reduce #(step %1 :down [%2]) s (rest pts)))
+              (step :release [] [0.0 0.0]))]
+    (is (true? (:hit? picked)))
+    (is (true? (:hit? s)))
+    (is (= (:ray picked) (:ray s)))
+    (is (not= (:angle picked) (:angle s)))))

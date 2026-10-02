@@ -47,7 +47,10 @@
   along its direction as `DrawRay` does, clipped at the near plane. From the
   camera that cast it, it is seen end-on: a single point at the tapped pixel,
   which is correct and also invisible until the camera moves on. The lines are
-  drawn after every face, so a ray behind the cube shows through it.
+  drawn after every face and there is no depth buffer, so `ray-pieces` cuts the
+  stretch inside the cube out of the ray, split at the ray's entry and exit.
+  What is left of the ray behind the cube can still show through it from some
+  angles.
 
   A face with a corner behind the near plane is dropped whole. The original's
   fovy is kept while the field is as wide as 800x450 and widened by
@@ -119,8 +122,9 @@
   [metrics measure]
   (let [widest (apply max (map #(measure % 100) widest-texts))
         {:keys [size pad text-y]
-         [fx fy] :viewport
-         :as geo} (assoc (s3/field metrics widest) :look-scale (:look-scale (geometry metrics)))
+         [fx fy fw] :viewport
+         :as field} (s3/field metrics widest)
+        geo (assoc field :look-scale (/ original-width fw))
         pitch (max (inc size) (int (* 1.4 size)))
         caption {:s hint
                  :x pad
@@ -162,6 +166,37 @@
 
 ;; --- the scene --------------------------------------------------------------
 
+(defn ray-pieces
+  "The segments `[[x y z] [x y z]]` of `ray` (`{:position :direction}`) to
+  draw: `DrawRay`'s line, 10000 units long, minus the stretch inside the cube.
+  There is no depth buffer here, so a line through the opaque cube would show
+  across it once the camera has moved. The stretch is cut out with the slab
+  test (the same maths `raylib.soft3d/ray-box` uses), leaving the piece before
+  the entry and the piece after the exit, or one piece when the ray misses the
+  box, or starts inside it. A part of the ray that lies behind the cube can
+  still show through it from some angles."
+  [{:keys [position direction]}]
+  (let [[ox oy oz] (mapv double position)
+        [dx dy dz] (mapv double direction)
+        at (fn [t] [(+ ox (* dx t)) (+ oy (* dy t)) (+ oz (* dz t))])
+        whole [[ox oy oz] (at ray-length)]
+        slab (fn [o d lo hi]
+               (if (zero? d)
+                 (when (< lo o hi) [-1.0e30 1.0e30])
+                 (let [t1 (/ (- lo o) d)
+                       t2 (/ (- hi o) d)]
+                   [(min t1 t2) (max t1 t2)])))
+        spans [(slab ox dx -1.0 1.0) (slab oy dy 0.0 2.0) (slab oz dz -1.0 1.0)]]
+    (if (some nil? spans)
+      [whole]
+      (let [t-in (apply max (map first spans))
+            t-out (apply min (map second spans))]
+        (if (or (>= t-in t-out) (<= t-out 0.0) (>= t-in ray-length))
+          [whole]
+          (cond-> []
+            (> t-in 0.0) (conj [[ox oy oz] (at t-in)])
+            (< t-out ray-length) (conj [(at t-out) (peek whole)])))))))
+
 (defn scene-list
   "The finished draw list for `state`: the grid of 10, the cube drawn flat as
   `DrawCube` draws it and its wires (RED and MAROON while selected, with the
@@ -169,8 +204,7 @@
   [state dims]
   (let [vp (view state dims)
         hit? (:hit? state)
-        {[ox oy oz] :position
-         [dx dy dz] :direction} (:ray state)]
+        ray (:ray state)]
     (cond-> (-> []
                 (s3/grid vp 10 1.0)
                 (s3/cube vp nil cube-centre cube-size
@@ -178,9 +212,7 @@
                 (s3/cube-wires vp nil cube-centre cube-size
                                (if hit? (:hit-wires colours) (:wires colours)) {:hide-back? true}))
       hit? (s3/cube-wires vp nil cube-centre (+ cube-size 0.2) (:selection colours) {:hide-back? true})
-      (:ray state) (s3/lines vp nil [[[ox oy oz]
-                                      [(+ ox (* dx ray-length)) (+ oy (* dy ray-length)) (+ oz (* dz ray-length))]
-                                      (:ray colours)]])
+      ray (s3/lines vp nil (mapv (fn [[a b]] [a b (:ray colours)]) (ray-pieces ray)))
       true s3/finish)))
 
 (defn- f2
