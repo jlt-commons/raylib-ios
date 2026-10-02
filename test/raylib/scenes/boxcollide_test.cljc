@@ -60,8 +60,8 @@
   (testing "inside the dead zone an axis stays put"
     (is (= [0.0 0.0] (pos (pushed start (* 0.5 slop) (* 0.5 slop)))))
     (is (= [0.0 -0.18] (pos (pushed start (* 0.5 slop) (* -2.0 slop))))))
-  (testing "each held frame adds 0.18, however far the finger is"
-    (let [held (step (pushed start 100.0 0.0) :down [(at stick-pt 400.0 0.0)])]
+  (testing "each held frame adds 0.18, however far the finger is dragged"
+    (let [held (step (pushed start 100.0 0.0) :down [(at stick-pt 250.0 0.0)])]
       (is (near? 0.36 (:px held)))))
   (testing "a finger that began before the scene opened is no stick"
     (is (= [0.0 0.0] (pos (step start :down [(at stick-pt 100.0 0.0)])))))
@@ -129,7 +129,7 @@
     (is (= #{} (sc/hits 6.5 0.0)) "|6.5 - 4| = 2.5 is out on x while z overlaps"))
   (testing "two boxes at once: (2.6, 0) is inside box 1 (1.4 < 2) and box 4 (1.0 < 2)"
     (is (= #{0 3} (sc/hits 2.6 0.0))))
-  (testing "box 2 at (-4, 3) reaches 2.3: (-4, 5.2) is in, (-4, 5.3) is out"
+  (testing "box 2 at (-4, 3) reaches 2.3: (-4, 5.2) is in, (-4, 5.4) is out"
     (is (= #{1} (sc/hits -4.0 5.2)))
     (is (= #{} (sc/hits -4.0 5.4))))
   (testing "far away hits nothing"
@@ -161,6 +161,53 @@
       (is (contains? cols (shades sc/hit-colour)) "the fourth box's top face at full shade")
       (is (contains? cols (shades sc/box-colour)) "the clear boxes' top faces")
       (is (contains? cols (shades sc/player-colour)) "the player's top face"))))
+
+;; --- whose finger is the stick ----------------------------------------------------
+
+(def other-pt [300.0 1700.0])
+
+(deftest a-stick-starts-only-on-a-fresh-press
+  (let [resting (step start :down [stick-pt])]
+    (testing "a finger already down is not adopted when a second one lands, in either order"
+      (doseq [pts [[stick-pt other-pt] [other-pt stick-pt]]]
+        (let [s (step resting :press pts)]
+          (is (= other-pt (get-in s [:stick :centre])) "the stick is at the new finger")
+          (is (= [0.0 0.0] (pos s))))))
+    (testing "the resting finger moving on moves nothing, the new one steers"
+      (let [s (-> resting
+                  (step :press [stick-pt other-pt])
+                  (step :down [(at stick-pt 200.0 0.0) other-pt]))]
+        (is (= [0.0 0.0] (pos s)) "the old finger moved right, no motion")))
+    (testing "the new finger steers"
+      (let [s (-> resting
+                  (step :press [stick-pt other-pt])
+                  (step :down [stick-pt (at other-pt 100.0 0.0)]))]
+        (is (= [0.18 0.0] (pos s)))))
+    (testing "a second finger landing under Back starts no stick and adopts nobody"
+      (let [s (-> resting
+                  (step :press [stick-pt [100.0 60.0]])
+                  (step :down [(at stick-pt 200.0 0.0) [100.0 60.0]]))]
+        (is (nil? (:stick s)))
+        (is (= [0.0 0.0] (pos s)))))))
+
+(deftest the-stick-belongs-to-its-own-finger
+  (let [a (pushed start 100.0 0.0)]
+    (testing "a second finger landing leaves the stick on its first finger"
+      (let [s (step a :press [(at stick-pt 100.0 0.0) other-pt])]
+        (is (= stick-pt (get-in s [:stick :centre])))
+        (is (= (at stick-pt 100.0 0.0) (get-in s [:stick :at])))
+        (is (near? 0.36 (:px s)))))
+    (testing "when its finger lifts while another is down the stick ends and nothing moves"
+      (let [both (step a :press [(at stick-pt 100.0 0.0) other-pt])
+            s (step both :down [other-pt])]
+        (is (nil? (:stick s)))
+        (is (= (pos both) (pos s)))
+        (is (= (pos both) (pos (nth (iterate #(step % :down [other-pt]) s) 5))))))
+    (testing "the other finger lifting leaves the stick going"
+      (let [both (step a :press [(at stick-pt 100.0 0.0) other-pt])
+            s (step both :down [(at stick-pt 100.0 0.0)])]
+        (is (some? (:stick s)))
+        (is (near? 0.54 (:px s)))))))
 
 ;; --- the first frame ----------------------------------------------------------------
 
