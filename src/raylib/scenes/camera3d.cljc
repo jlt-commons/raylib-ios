@@ -14,7 +14,8 @@
   to the bottom. The view is `raylib.soft3d`'s `[x y w h]` viewport on that
   field. The original's fovy is kept while the field is at least as wide as
   800x450. In a narrower field `raylib.soft3d/fit-camera` widens it so the
-  original's horizontal view still fits. The grid reaches past the field's edges, so the draw method clips to the field.
+  original's horizontal view still fits. The grid reaches past the field's
+  edges, so the draw method clips to the field.
 
   The camera moves, so the grid is projected afresh each frame: 42 lines. The
   state holds only `:frame`. Colours are `[r g b a]` vectors."

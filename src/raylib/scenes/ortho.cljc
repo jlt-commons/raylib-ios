@@ -19,8 +19,8 @@
   viewport on that field. The original's fovys are kept while the field is at
   least as wide as 800x450. In a narrower field `raylib.soft3d/fit-camera`
   widens the perspective fovy, or scales the orthographic height, so the
-  original's horizontal view still fits. The grid reaches past the field's edges, so the draw method
-  clips to the field.
+  original's horizontal view still fits. The grid reaches past the field's
+  edges, so the draw method clips to the field.
 
   The state is `:ortho?` and the gesture. The grid depends on the camera and
   layout only, so `grid-list` builds it for one mode and a draw can keep both.

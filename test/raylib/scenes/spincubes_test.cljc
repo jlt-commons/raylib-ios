@@ -72,6 +72,25 @@
           "the cubes stay inside the field through a spin")
       (is (= (count base) (count (sc/grid-list (sc/camera dims) dims))) "the grid is the same from frame to frame"))))
 
+(deftest the-palette-runs-left-to-right
+  ;; Cube i stands at x = 2i - 4 and wears palette colour i, so the faces of
+  ;; each colour sit further right than the last colour's. A palette shifted by
+  ;; one cube would break the order.
+  (let [dims (sc/dimensions {:screen [1206 2334]} measure)
+        base (sc/grid-list (sc/camera dims) dims)
+        faces (tris (sc/scene-list base (frames 0) dims))
+        shades [1.0 0.85 0.7 0.5 0.4]
+        colour-of (fn [[r g b]]
+                    (set (map (fn [sh] [(int (* sh r)) (int (* sh g)) (int (* sh b))]) shades)))
+        mean-x (fn [colour]
+                 (let [mine (filter #(contains? (colour-of colour) (subvec % 7 10)) faces)]
+                   (/ (reduce + (map (fn [it] (/ (+ (nth it 1) (nth it 3) (nth it 5)) 3.0)) mine))
+                      (count mine))))
+        xs (mapv mean-x sc/palette)]
+    (is (= 5 (count xs)))
+    (is (apply < xs) "red is leftmost and violet rightmost")
+    (is (every? #(< (nth xs %) (nth xs (inc %))) (range 4)))))
+
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens
           :let [[w h] screen

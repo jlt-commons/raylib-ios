@@ -136,6 +136,11 @@
     (is (= #{2} (sc/hits 0.0 -2.6))))
   (testing "and exactly 2.5 is out, the test is strict"
     (is (= #{} (sc/hits 0.0 -2.5))))
+  (testing "the x axis is strict too: box 0 (4, 0) reaches 2, so |2 - 4| = 2 is out"
+    (is (not (contains? (sc/hits 2.0 0.0) 0)))
+    (is (contains? (sc/hits 2.001 0.0) 0) "and a hair inside is in")
+    (is (not (contains? (sc/hits 6.0 0.0) 0)) "from the far side as well")
+    (is (contains? (sc/hits 5.999 0.0) 0)))
   (testing "overlapping on x alone is no hit: box 5 at (-6, -3) reaches 2.1"
     (is (= #{4} (sc/hits -4.0 -3.0)) "|-4 + 6| = 2 < 2.1 and z the same")
     (is (= #{} (sc/hits -4.0 -0.5)) "x overlaps but |-0.5 + 3| = 2.5 is not under 2.1"))

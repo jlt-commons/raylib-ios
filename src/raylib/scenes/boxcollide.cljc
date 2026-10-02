@@ -38,9 +38,9 @@
 
   Nothing reads a frame time, like the original: the speed is per update. The
   original's text line at the top is kept as a caption below Back: its
-  \"COLLISION!\" while the player overlaps a box, and \"drag to move the player\"
-  where the original says \"WASD move the player\". Both are measured in
-  `dimensions` so the wider fits. The camera's fovy is the original's while the
+  \"COLLISION!\" while the player overlaps a box, and \"drag to move the
+  player\" where the original says \"WASD move the player\". Both are measured
+  in `dimensions` so the wider fits. The camera's fovy is the original's while the
   3D area is as wide as 800x450 and widened by `raylib.soft3d/fit-camera` in a
   narrower one. A face with a corner behind the near plane is dropped whole.
 
@@ -200,9 +200,10 @@
 (defn advance
   "One frame, as the original's loop body: `px` gains `speed` for D and loses it
   for A, `pz` gains it for S and loses it for W, the keys being the stick's
-  (`stick-keys`), and both axes scaled by `diagonal` when both are on. A release frame with fewer than two points lifts everything,
-  and its position is never read. A rotation of the phone drops the stick,
-  whose pixels are the old screen's."
+  (`stick-keys`), and both axes scaled by `diagonal` when both are on. A release
+  frame with fewer than two points lifts everything, and its position is never
+  read. A rotation of the phone drops the stick, whose pixels are the old
+  screen's."
   [state input]
   (let [metrics (:metrics input)
         dims (geometry metrics)

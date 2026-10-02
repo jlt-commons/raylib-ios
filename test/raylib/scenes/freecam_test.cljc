@@ -143,6 +143,14 @@
       (is (near? (Math/cos 0.001) (dot [0.0 1.0 0.0] (unit (view (cam up)))) 1e-9)))
     (testing "and far down stops 0.001 rad short of straight down"
       (is (near? (- (Math/cos 0.001)) (dot [0.0 1.0 0.0] (unit (view (cam down)))) 1e-9)))
+    (testing "short of it, not 0.001 past: the view keeps the side it looked to"
+      ;; cos is the same either side of vertical, so only the horizontal part
+      ;; of the view tells. It started toward (-1, -1) and must still point there.
+      (let [side (fn [c] (let [[x _ z] (view (cam c))] (+ (* -1.0 x) (* -1.0 z))))]
+        (is (pos? (side up)))
+        (is (pos? (side down)))
+        (is (near? (Math/sin 0.001) (/ (side up) (* (Math/sqrt 2.0) (len (view (cam up))))) 1e-6)
+            "and it is 0.001 rad from vertical")))
     (testing "up is never rotated (rotateUp false)"
       (is (= [0.0 1.0 0.0] (:up (cam up)))))))
 
@@ -383,10 +391,12 @@
                     (:target p))))
       (let [p (sc/camera-pitch c 3.0)
             v (unit (v- (:target p) (:position p)))]
-        (is (near? (Math/cos 0.001) (v 1))))
+        (is (near? (Math/cos 0.001) (v 1)))
+        (is (neg? (v 2)) "it still leans the way it did, not 0.001 past vertical"))
       (let [p (sc/camera-pitch c -3.0)
             v (unit (v- (:target p) (:position p)))]
-        (is (near? (- (Math/cos 0.001)) (v 1)))))))
+        (is (near? (- (Math/cos 0.001)) (v 1)))
+        (is (neg? (v 2)) "and so does the downward stop")))))
 
 (deftest buttons-avoid-back
   (doseq [screen screens

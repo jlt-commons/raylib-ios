@@ -24,8 +24,8 @@
 
   Building a frame: start from `[]`, thread it through the builders (`cube`,
   `cube-wires`, `grid`, `lines`), then `finish` it into the draw list. Every
-  builder projects as it goes, so a back face, or a face or line behind the
-  near plane, never becomes an item.
+  builder projects as it goes, so a back face, or a face behind the near plane,
+  never becomes an item, and a line behind it is clipped to it instead.
 
   The draw list is a vector of flat items:
 
@@ -51,7 +51,10 @@
   There is no depth buffer. `finish` paints in layers: the grid and `:under`
   lines, then faces far to near by mean depth, then wires and `:over` lines.
   So wires draw over every face, including a cube's hidden back edges, where
-  raylib's depth test would hide them."
+  raylib's depth test would hide them, unless `cube-wires` is given
+  `{:hide-back? true}`, which leaves those edges out. A cube's faces take
+  raylib-jlt's `cube!` shades by face, or one flat colour with
+  `{:shade :flat}`, which is rmodels.c `DrawCube`."
   (:require [raylib.gesture :as gesture]))
 
 ;; --- vectors and matrices --------------------------------------------------
