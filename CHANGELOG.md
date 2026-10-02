@@ -31,9 +31,11 @@ Notable changes, newest first. Dates are the day the work landed.
   at `rlEnd`, so a toggle around immediate-mode calls had already been put back
   by the time the triangles drew. The scene now emits the front winding, and the
   culling binding is gone.
-- **2D Split Screen measured at 58 fps** on an iPhone 17 Pro, with 440 labels a
-  frame. The other four new scenes and the fixed Helitorus are not timed yet, so
-  the docs now say the first eighty-four were measured at 52 to 60 fps.
+- **All six measured on an iPhone 17 Pro.** 2D Camera, 2D Camera Zoom, 2D Split
+  Screen, Input Gestures and Helitorus run at 58 fps and 2D Platformer at 59, so
+  every one of the ninety scenes has a measured rate. Split Screen draws 440
+  labels a frame, and Helitorus holds 58 to 60 at a detail of 64 with its tube
+  drawn solid.
 
 ### Found
 

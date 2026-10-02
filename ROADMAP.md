@@ -77,10 +77,6 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
-- **Time five scenes and the fixed Helitorus.** 2D Camera, 2D Camera Zoom, 2D
-  Platformer and Input Gestures have no fps in the catalog yet. Helitorus ran at
-  59 to 60 fps at its start detail of 64, but on a draw path that was then
-  fixed, so its cell is empty too.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -96,7 +92,7 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   `camera_2d_platformer`, `camera_2d_split_screen`, `input_gestures` and
   `helitorus`, which make ninety scenes and give Toys sixty-six. They add
   `raylib.camera2d`, `raylib.host/with-camera-2d` and the `:raylib-gesture`
-  input key, and empty the scalar-binding group. 2D Split Screen holds 58 fps
+  input key, and empty the scalar-binding group. All six run at 58 or 59 fps
   on an iPhone 17 Pro. Helitorus starts at a detail of 64 because 260 ran at 19
   fps, and it no longer toggles culling, since rlgl draws at the batch flush.
 - 2026-10-01: every scene measured on an iPhone 17 Pro, all 84 at 52 to 60 fps,
