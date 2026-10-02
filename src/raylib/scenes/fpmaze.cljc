@@ -47,7 +47,7 @@
   - Both work at once, each by its own finger.
 
   `raylib.stick` decides whose finger it is, as in `raylib.scenes.fpcamera`
-  (whose finger tracking this copies, since it is private there): a stick or a
+  (`stick/begin-owners` and `stick/follow-pair` are shared): a stick or a
   turn begins only on a finger that was not down the frame before, inside its
   region, follows it by touch id, and ends when it lifts. A rotation of the
   phone drops both. A tap moves nothing.
@@ -440,46 +440,6 @@
 
 ;; --- fingers --------------------------------------------------------------------
 
-(defn- d2 [[ax ay] [bx by]]
-  (let [dx (- (double ax) (double bx))
-        dy (- (double ay) (double by))]
-    (+ (* dx dx) (* dy dy))))
-
-(defn- follow-both
-  "`look` and `stick` (either may be nil) each moved to its own finger by
-  `raylib.stick/follow`, as `[look' stick']`. Without ids both could claim the
-  one nearest point. Then the owner that moved less keeps it and the other
-  follows from what is left. As in `raylib.scenes.fpcamera`."
-  [look stick frame]
-  (let [l (stick/follow look frame)
-        s (stick/follow stick frame)]
-    (if (and l s (= (:at l) (:at s)))
-      (let [without (fn [at] (update frame :points #(filterv (fn [q] (not= q at)) %)))]
-        (if (<= (d2 (:at l) (:at look)) (d2 (:at s) (:at stick)))
-          [l (stick/follow stick (without (:at l)))]
-          [(stick/follow look (without (:at s))) s]))
-      [l s])))
-
-(defn- begin
-  "`{:look :stick}` with a turn or a stick begun on each fresh finger (a finger
-  that was not down last frame) in its region, when it has none. A finger that
-  is already an owner's is skipped, and one outside the field (under Back) is
-  nothing."
-  [{:keys [look stick]
-    :as owners} dims fresh]
-  (reduce (fn [acc {:keys [at id]}]
-            (if (or (= at (:at look)) (= at (:at stick)))
-              acc
-              (case (free/region dims at)
-                :look (if (:look acc) acc (assoc acc :look {:at at
-                                                            :id id}))
-                :stick (if (:stick acc) acc (assoc acc :stick {:centre at
-                                                               :at at
-                                                               :id id}))
-                acc)))
-          owners
-          fresh))
-
 (defn- turn-by
   "The heading after a drag of `dx` pixels: LEFT adds and RIGHT subtracts (lines
   118-119), so a drag right subtracts, at `sensitivity` a pixel times `800 /
@@ -528,11 +488,12 @@
                :metrics metrics
                :press? (= :press phase)
                :free? (constantly true)}
-        [look stick] (follow-both (:look state) (:stick state) frame)
+        [look stick] (stick/follow-pair (:look state) (:stick state) frame)
         fresh (stick/fresh frame state)
         {look' :look
-         stick' :stick} (begin {:look look
-                                :stick stick} dims fresh)
+         stick' :stick} (stick/begin-owners {:look look
+                                             :stick stick}
+                                            #(free/region dims %) fresh)
         dx (when (and look (:look state))
              (- (double (first (:at look))) (double (first (:at (:look state))))))
         turned (cond-> state

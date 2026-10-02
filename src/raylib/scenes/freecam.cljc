@@ -335,26 +335,6 @@
 (defn- stick-result [moved]
   (when moved {:stick moved}))
 
-(defn- d2 [[ax ay] [bx by]]
-  (let [dx (- (double ax) (double bx))
-        dy (- (double ay) (double by))]
-    (+ (* dx dx) (* dy dy))))
-
-(defn- follow-both
-  "`look` and `stick` (either may be nil) each moved to its own finger by
-  `raylib.stick/follow`, as `[look' stick']`. Without ids both could claim the
-  one nearest point. Then the owner that moved less keeps it and the other
-  follows from what is left."
-  [look stick frame]
-  (let [l (stick/follow look frame)
-        s (stick/follow stick frame)]
-    (if (and l s (= (:at l) (:at s)))
-      (let [without (fn [at] (update frame :points #(filterv (fn [q] (not= q at)) %)))]
-        (if (<= (d2 (:at l) (:at look)) (d2 (:at s) (:at stick)))
-          [l (stick/follow stick (without (:at l)))]
-          [(stick/follow look (without (:at s))) s]))
-      [l s])))
-
 (defn- track
   "What the fingers do this frame, from the previous `state` and the current
   `points` (with their touch `ids`, or nil): `:look` and `:stick` (the tracking
@@ -377,7 +357,7 @@
                :metrics metrics
                :free? (constantly true)}
         both (fn []
-               (let [[l s] (follow-both look stick frame)]
+               (let [[l s] (stick/follow-pair look stick frame)]
                  (merge (look-result look l) (stick-result s))))]
     (cond
       (or (zero? n) (> n 2)) {}

@@ -107,6 +107,43 @@
      :at at
      :id id}))
 
+(defn begin-owners
+  "`owners`, a map that may hold `:look` and `:stick`, with a look or a stick
+  begun on each fresh finger (`fresh`, as `fresh` returns it) whose
+  `(region point)` is `:look` or `:stick`, for each one `owners` lacks. A finger
+  that is already an owner's is skipped, and one where `region` gives nil (under
+  Back, outside the field) is nothing. The first fresh finger in a region wins.
+  A look is `{:at :id}`, a stick `{:centre :at :id}`."
+  [{:keys [look stick]
+    :as owners} region fresh]
+  (reduce (fn [acc {:keys [at id]}]
+            (if (or (= at (:at look)) (= at (:at stick)))
+              acc
+              (case (region at)
+                :look (if (:look acc) acc (assoc acc :look {:at at
+                                                            :id id}))
+                :stick (if (:stick acc) acc (assoc acc :stick {:centre at
+                                                               :at at
+                                                               :id id}))
+                acc)))
+          owners
+          fresh))
+
+(defn follow-pair
+  "`look` and `stick` (either may be nil) each moved to its own finger by
+  `follow`, as `[look' stick']`. Without ids both could claim the one nearest
+  point. Then the owner that moved less keeps it and the other follows from what
+  is left."
+  [look stick frame]
+  (let [l (follow look frame)
+        s (follow stick frame)]
+    (if (and l s (= (:at l) (:at s)))
+      (let [without (fn [at] (update frame :points #(filterv (fn [q] (not= q at)) %)))]
+        (if (<= (d2 (:at l) (:at look)) (d2 (:at s) (:at stick)))
+          [l (follow stick (without (:at l)))]
+          [(follow look (without (:at s))) s]))
+      [l s])))
+
 (defn next-stick
   "The stick after this frame. A held `stick` follows its own finger and ends
   when that is gone (`follow`). Without one, `begin` may start one. Nothing

@@ -144,3 +144,55 @@
     (is (nil? (stick/fresh (assoc f :press? false) {:pts []
                                                     :ids nil
                                                     :n 0})))))
+
+(deftest begin-owners-starts-each-region-on-its-own-fresh-finger
+  (let [region (fn [[x _]] (cond (< x 400.0) :look (< x 900.0) :stick))
+        l [100.0 800.0]
+        s [600.0 1200.0]
+        f (fn [& pts] (mapv (fn [p] {:at p
+                                     :id nil}) pts))]
+    (testing "one look and one stick, each from its region"
+      (is (= {:look {:at l
+                     :id nil}
+              :stick {:centre s
+                      :at s
+                      :id nil}}
+             (stick/begin-owners {} region (f l s)))))
+    (testing "an existing owner is kept, and its finger is not adopted twice"
+      (let [held {:look {:at l
+                         :id 1}}]
+        (is (= held (stick/begin-owners held region (f l))))
+        (is (= (assoc held :stick {:centre s
+                                   :at s
+                                   :id nil})
+               (stick/begin-owners held region (f l s))))))
+    (testing "a finger outside every region is nothing, and no fresh finger begins nothing"
+      (is (= {} (stick/begin-owners {} region (f [1000.0 800.0]))))
+      (is (= {} (stick/begin-owners {} region []))))))
+
+(deftest follow-pair-moves-each-owner-to-its-own-finger
+  (let [look {:at a
+              :id 4}
+        stick {:centre b
+               :at b
+               :id 5}]
+    (testing "with ids, each reads its own point whatever the order"
+      (let [f (frame :down [(at b 10.0 0.0) (at a 10.0 0.0)] [5 4])
+            [l s] (stick/follow-pair look stick f)]
+        (is (= (at a 10.0 0.0) (:at l)))
+        (is (= (at b 10.0 0.0) (:at s)))))
+    (testing "a lifted owner ends and the other finger is not adopted"
+      (let [f (frame :down [b] [5])
+            [l s] (stick/follow-pair look stick f)]
+        (is (nil? l))
+        (is (= b (:at s)))))
+    (testing "either owner may be nil"
+      (is (= [nil nil] (stick/follow-pair nil nil (frame :down [a] [4])))))
+    (testing "without ids, one point wanted by both goes to the owner that moved less"
+      (let [look {:at a}
+            stick {:centre a
+                   :at (at a 100.0 0.0)}
+            f (frame :down [(at a 40.0 0.0)] nil)
+            [l s] (stick/follow-pair look stick f)]
+        (is (= (at a 40.0 0.0) (:at l)))
+        (is (nil? s))))))
