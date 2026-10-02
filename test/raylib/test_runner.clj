@@ -135,6 +135,7 @@
                      raylib.scenes.wavecubes-test
                      raylib.scenes.solarsystem-test
                      raylib.scenes.pointcloud-test
+                     raylib.scenes.spheres-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

@@ -97,6 +97,7 @@
             [raylib.scenes.shapes :as shp]
             [raylib.scenes.snake :as snk]
             [raylib.scenes.solarsystem :as solarsystem]
+            [raylib.scenes.spheres :as spheres]
             [raylib.scenes.spincubes :as spincubes]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
@@ -150,7 +151,7 @@
              (rotcube/scene) (c3d/scene) (ortho/scene)
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
-             (fpcamera/scene) (fpmaze/scene) (split3d/scene)])
+             (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -185,7 +186,7 @@
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
-             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d]}
+             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3491,6 +3492,27 @@
                       (doseq [item static] (draw-minimap-item! item thick))
                       (doseq [item (fpmaze/minimap-player state dims)] (draw-minimap-item! item thick))))
     (draw-caption! (:caption dims) fpmaze/caption-colour)))
+
+(def ^:private spheres-cache
+  "The last `[screen dims]` for `:spheres`. The camera never moves, so the
+  layout and the text size depend on the screen alone."
+  (atom nil))
+
+(defn- spheres-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @spheres-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (spheres/dimensions m host-measure)]
+        (reset! spheres-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :spheres [_ state {:keys [m safe]}]
+  (clear-to! spheres/background-colour)
+  (let [dims (spheres-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (spheres/scene-list state dims))))
+    (draw-caption! (:caption dims) spheres/caption-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
