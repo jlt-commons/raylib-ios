@@ -1,7 +1,8 @@
 (ns raylib.scenes.spheres-test
   (:require [clojure.test :refer [deftest is testing]]
             [raylib.gesture :as gesture]
-            [raylib.scenes.spheres :as sc]))
+            [raylib.scenes.spheres :as sc]
+            [raylib.soft3d :as s3]))
 
 (def screens [[1206 2334] [2334 1206] [800 450] [450 800]])
 
@@ -165,13 +166,14 @@
           seen (set (map (fn [it] (subvec it 7 11)) faces))]
       (doseq [c sc/palette]
         (is (some seen (shades c)) (str c)))))
-  (testing "the balls are painted far to near by their centres' distance from the eye"
+  (testing "balls that touch no other are painted far to near by their centres' distance from the eye"
     (let [dims (sc/dimensions {:screen [1206 2334]} measure)
           eye (:position (sc/camera dims))
-          order (sc/paint-order (:balls start) eye)
+          groups (sc/paint-groups (:balls start) eye)
           d2 (fn [{:keys [x y z]}] (let [[ex ey ez] eye] (+ (* (- x ex) (- x ex)) (* (- y ey) (- y ey)) (* (- z ez) (- z ez)))))]
-      (is (= 6 (count order)))
-      (is (apply >= (map d2 order)))))
+      (is (= 6 (count (apply concat groups))))
+      (is (every? #(= 1 (count %)) groups) "the first six are disjoint")
+      (is (apply >= (map #(d2 (first %)) groups)))))
   (testing "triangles wind the way rlgl keeps"
     (let [dims (sc/dimensions {:screen [1206 2334]} measure)]
       (is (every? (fn [[_ x1 y1 x2 y2 x3 y3]]
@@ -193,3 +195,78 @@
         (is (<= (+ y size) fy) "the caption sits above the field"))
       (is (>= fy (+ back-y back-h)) "the field is below Back")
       (is (near? h (+ fy fh)) "and runs to the bottom"))))
+
+(deftest tessellation-and-frames-are-pinned
+  (is (= [6 8] [sc/rings sc/slices]) "the lowered tessellation the budget and the disclosure rest on")
+  (is (= [10 14] [sc/original-rings sc/original-slices]))
+  (let [dims (sc/dimensions metrics measure)]
+    (is (= 232 (count (tris (sc/scene-list start dims)))) "measured at the start on 1206x2334"))
+  (is (= 0 (:frame start)))
+  (is (= 7 (:frame (nth (iterate tick start) 7)))))
+
+(deftest reflect-is-strict-at-the-walls
+  (testing "touching a wall exactly is not a bounce (the original's < and >)"
+    (is (= [-3.5 -0.2] (sc/reflect -3.5 -0.2 0.5)))
+    (is (= [3.5 0.2] (sc/reflect 3.5 0.2 0.5))))
+  (testing "a hair past it is"
+    (is (= [-3.5 0.18] (mapv #(/ (Math/round (* 1e6 %)) 1e6) (sc/reflect -3.5000001 -0.2 0.5))))))
+
+(deftest every-tap-deals-new-balls
+  (let [s1 (first (sc/spawn (:seed start)))
+        seed1 (second (sc/spawn (:seed start)))
+        [s2 seed2] (sc/spawn seed1)
+        s3b (first (sc/spawn seed2))
+        t1 (tap start [600.0 1200.0])
+        t2 (tap t1 [600.0 1200.0])
+        t3 (tap t2 [600.0 1200.0])]
+    (is (= s1 (:balls t1)))
+    (is (= s2 (:balls t2)) "the second tap goes on from where the first stopped")
+    (is (= s3b (:balls t3)) "and the third")
+    (is (= 4 (count (distinct [(:balls start) (:balls t1) (:balls t2) (:balls t3)]))) "start is not dealt again")
+    (is (apply distinct? [(:balls t1) (:balls t2) (:balls t3)]))))
+
+(def ^:private ball {:vx 0.0
+                     :vy 0.0
+                     :vz 0.0})
+
+(deftest balls-that-intersect-are-sorted-together
+  (let [dims (sc/dimensions {:screen [1206 2334]} measure)
+        cam (sc/camera dims)
+        eye (:position cam)
+        vp (s3/view-proj cam (:viewport dims))
+        a (assoc ball :x 0.0 :y 0.0 :z 0.0 :r 0.6 :colour [230 41 55 255])
+        b (assoc ball :x 0.5 :y 0.2 :z 0.5 :r 0.4 :colour [0 228 48 255])
+        c (assoc ball :x 3.0 :y 0.0 :z -3.0 :r 0.4 :colour [0 121 241 255])
+        far (assoc ball :x -3.0 :y 0.0 :z -3.0 :r 0.4 :colour [255 203 0 255])
+        whole (fn [balls]
+                (reduce (fn [dl {:keys [x y z r colour]}]
+                          (s3/sphere dl vp nil [x y z] r colour {:rings sc/rings
+                                                                 :slices sc/slices}))
+                        [] balls))
+        body (fn [balls] (vec (drop 22 (sc/scene-list {:balls balls} dims))))
+        depths (fn [dl] (mapv #(nth % 11) dl))]
+    (testing "groups: touching balls, transitively, and no others"
+      (is (= [2] (mapv count (sc/paint-groups [a b] eye))))
+      (is (= [1 1] (mapv count (sc/paint-groups [a c] eye))))
+      (let [m (assoc ball :x 0.9 :y 0.0 :z 0.0 :r 0.4 :colour [0 0 0 255])
+            e (assoc ball :x -0.9 :y 0.0 :z 0.0 :r 0.4 :colour [0 0 0 255])]
+        (is (= [3] (mapv count (sc/paint-groups [e a m] eye))) "e and m each touch a, not each other")))
+    (testing "the pair is a case where the nearer centre's whole ball paints over a farther triangle"
+      (is (not (apply >= (depths (whole [a b]))))
+          "ball by ball, b (nearer) after a, some of a's triangles are nearer than some of b's"))
+    (testing "an intersecting pair comes out sorted by triangle depth, with the same triangles"
+      (let [dl (body [a b])]
+        (is (apply >= (depths dl)))
+        (is (= (frequencies (whole [a b])) (frequencies dl)))))
+    (testing "disjoint balls stay whole, far to near"
+      (let [dl (body [c far])
+            d2 (fn [{:keys [x y z]}] (let [[ex ey ez] eye] (+ (* (- x ex) (- x ex)) (* (- y ey) (- y ey)) (* (- z ez) (- z ez)))))
+            order (sort-by (comp - d2) [c far])]
+        (is (= (whole order) dl))))
+    (testing "a group is placed among the other balls by its centroid, far to near"
+      (let [dl (body [far a b c])
+            ab (body [a b])]
+        (is (= (count dl) (+ (count ab) (count (whole [far])) (count (whole [c])))))
+        (is (= ab (vec (take-last (count ab) dl)))
+            "from the eye (10, 8, 10): far (402), then c (282), then the group (about 252)")
+        (is (= (whole [far]) (vec (take (count (whole [far])) dl))))))))
