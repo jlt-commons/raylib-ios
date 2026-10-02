@@ -190,9 +190,9 @@
       (is (= 3 (:twists (step (assoc start :twists 4) [wm])))))
     (testing "detail moves by 4 every frame it is held"
       (let [frames (take 4 (iterate #(step % [dp]) start))]
-        (is (= [260 264 268 272] (mapv :nu frames))))
-      (is (= [260 256 252 248] (mapv :nu (take 4 (iterate #(step % [dm]) start)))))
-      (is (= 260 (:nu (step start [dp dm]))) "both held cancel out"))
+        (is (= [64 68 72 76] (mapv :nu frames))))
+      (is (= [64 60 60 60] (mapv :nu (take 4 (iterate #(step % [dm]) start)))))
+      (is (= 64 (:nu (step start [dp dm]))) "both held cancel out"))
     (testing "detail clamps at 60 and 900"
       (is (= 900 (:nu (step (assoc start :nu 898) [dp]))))
       (is (= 900 (:nu (step (assoc start :nu 900) [dp]))))
@@ -201,10 +201,10 @@
     (testing "a button held with a finger in the field turns the field too"
       (let [p (field-centre g)
             s (-> start (step [p dp]) (step [(at p 30.0 0.0) dp]))]
-        (is (= 268 (:nu s)))
+        (is (= 72 (:nu s)))
         (is (some? (:drag s)))))
     (testing "the start is the original's"
-      (is (= 260 (:nu start)))
+      (is (= 64 (:nu start)) "chosen from the phone's 19 fps at the original's 260")
       (is (= 14 (:twists start)))
       (is (= 250.0 (:zoom start))))))
 
@@ -323,7 +323,7 @@
   (is (= "fps 60 | compute 3.2 ms | draw 4.5 ms" (h/hud-line 60.0 3.2 4.5)))
   (is (= "fps 0 | compute 0.0 ms | draw 0.0 ms" (h/hud-line 0.0 0.0 0.0)))
   (is (= "fps 58 | compute 12.0 ms | draw 0.1 ms" (h/hud-line 58.4 11.96 0.06)))
-  (is (= "windings 14 | detail 260" (h/status-line start))))
+  (is (= "windings 14 | detail 64" (h/status-line start))))
 
 (deftest first-frame-draws
   (testing "the state after init alone has everything a draw reads"
@@ -365,3 +365,51 @@
                           a))
                 total (* nu h/nv)]
             (is (< (* 0.25 total) facing (* 0.75 total)))))))))
+
+(defn- quad-shades
+  "`[facing others]`: the shade of each quad's first point, split by the draw's
+  backface test (the sign of the 2D cross product of the first two edges)."
+  [bufs nu]
+  (let [sx (:sx bufs)
+        sy (:sy bufs)
+        shade (:shade bufs)
+        quads (for [i (range nu)
+                    j (range h/nv)
+                    :let [a (+ (* i h/nv) j)
+                          b (+ (* i h/nv) (mod (inc j) h/nv))
+                          c (+ (* (mod (inc i) nu) h/nv) (mod (inc j) h/nv))
+                          cross (- (* (- (aget sx b) (aget sx a)) (- (aget sy c) (aget sy a)))
+                                   (* (- (aget sy b) (aget sy a)) (- (aget sx c) (aget sx a))))]]
+                [(pos? cross) (aget shade a)])
+        mean (fn [xs] (/ (reduce + 0.0 xs) (max 1 (count xs))))]
+    [(mean (map second (filter first quads)))
+     (mean (map second (remove first quads)))]))
+
+(deftest the-figure-is-not-mirrored
+  (testing "the quads that face the camera are the lit ones"
+    (doseq [rot-y [0.0 1.3 2.6 4.0 5.2]
+            rot-x [-0.8 0.0 0.55 1.2]
+            :let [state (assoc start :rot-y rot-y :rot-x rot-x :nu 400)
+                  [facing others] (quad-shades (computed state portrait) 400)]]
+      (testing (str rot-y " " rot-x)
+        (is (> facing (+ others 4.0)) (str facing " vs " others)))))
+  (testing "a known vertex lands where the original's formulas put it"
+    ;; Ring 0 at theta 0, point 0, no rotation, clock 0: the spine is at
+    ;; (R + r, 0, 0), so the point is on the +x side of the centre and, being
+    ;; on the spine's y = 0, within a tube radius of the centre's level.
+    (let [state (assoc start :rot-x 0.0 :rot-y 0.0 :clock 0.0 :twists 3 :nu 60)
+          bufs (computed state portrait)
+          [cx cy] (:centre geo)]
+      (is (> (aget (:sx bufs) 0) cx) "ring 0 is right of centre")
+      (is (< (abs (- cy (aget (:sy bufs) 0))) 20.0) "and level with it, give or take the tube"))
+    ;; Turning the figure by +y moves a point on +x toward the viewer's far
+    ;; side (z1 = wx * sin), which shrinks it and so pulls x toward the centre.
+    (let [at-rot (fn [ry] (let [b (computed (assoc start :rot-x 0.0 :rot-y ry :clock 0.0 :twists 3 :nu 60) portrait)]
+                            (aget (:sx b) 0)))
+          [cx _] (:centre geo)]
+      (is (< (- (at-rot 0.3) cx) (- (at-rot 0.0) cx)) "a +y turn takes ring 0 away from the camera"))
+    ;; A tilt by +x lifts points with positive y... ring 0 has y = 0, so use a
+    ;; point a quarter turn round (ring nu/4, which sits at +y in the plane).
+    (let [b (computed (assoc start :rot-x 0.0 :rot-y 0.0 :clock 0.0 :twists 3 :nu 60) portrait)
+          [_ cy] (:centre geo)]
+      (is (< (aget (:sy b) (* 15 h/nv)) cy) "a point at +y on the torus is drawn above the centre"))))

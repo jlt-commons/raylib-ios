@@ -38,9 +38,13 @@
   radians and zoom 110 to 520. The original's 1000 by 560 window becomes the
   field: the centre of the figure is the field's centre and the zoom, which the
   state keeps in the original's units, is multiplied by `:scale`, the smaller
-  of the field's width over 1000 and its height over 560. The starting detail is
-  the original's 260. Its frame cost on a phone is for the device pass to
-  measure.
+  of the field's width over 1000 and its height over 560.
+
+  The original starts at 260 rings. This starts at 64 (`start-nu`), chosen from
+  a measurement: at 260 the phone ran 19 fps, with compute 29.5 ms and draw 19.5
+  ms, because jolt's interpreter is far slower than native on arithmetic. Both
+  halves scale with the ring count, so estimate: about 12 ms a frame at 64. The
+  limits are the original's 60 to 900, so \"detail +\" still reaches 260.
 
   Controls here:
   - A one-finger drag in the field turns the figure, in place of the mouse
@@ -103,6 +107,10 @@
   "Each button's id and the label drawn on it, in left-to-right order."
   [[:windings-minus "windings -"] [:windings-plus "windings +"]
    [:detail-minus "detail -"] [:detail-plus "detail +"]])
+
+(def start-nu
+  "The starting ring count. The original's is 260; 64 is chosen from the phone\n  measuring 19 fps at 260, an estimate of about 12 ms a frame at 64."
+  64)
 
 (def hint "drag: turn - pinch: zoom")
 
@@ -488,7 +496,7 @@
       (contains? held :detail-minus) (update :nu #(max min-nu (- % detail-step))))))
 
 (defn- init [{:keys [metrics]}]
-  [{:nu 260
+  [{:nu start-nu
     :twists 14
     :rot-x 0.55
     :rot-y 0.0
