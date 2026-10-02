@@ -81,7 +81,14 @@
     (is (= [6.0 4.9] (sc/slide 6.0 4.9 0.0 -0.1)) "straight into the wall: no move")
     (is (vnear? [6.5 4.9] (sc/slide 6.0 4.9 0.5 -0.1)) "diagonally: the free x is kept")
     (is (= [6.0 5.0] (sc/slide 6.0 5.0 0.0 -0.4)) "a blocked move stays put, it is not clamped to the wall")
-    (is (vnear? [6.25 6.5] (sc/slide 6.0 6.0 0.25 0.5)) "open ground moves freely"))
+    (is (vnear? [6.25 6.5] (sc/slide 6.0 6.0 0.25 0.5)) "open ground moves freely")
+    (testing "z is tested at the x already moved to, not at the old x"
+      ;; from (6.5, 6.5) z alone to 7.5 is free, and x alone to 7.2 is free, but
+      ;; at x 7.2 the corner (8.1, 8.4) is in the wall cell (2, 2)
+      (is (not (sc/blocked? 6.5 7.5)))
+      (is (not (sc/blocked? 7.2 6.5)))
+      (is (sc/blocked? 7.2 7.5))
+      (is (vnear? [7.2 6.5] (sc/slide 6.5 6.5 0.7 1.0)) "x moves, then z is refused")))
   (testing "walking into the wall, held for 100 updates, stops at the radius"
     (let [north (assoc start :heading Math/PI)
           end (held north 100 0.0 -200.0)]
@@ -264,6 +271,106 @@
         (is (seq pts))
         (is (every? inside? pts))))))
 
+(defn- cell-of [x] (long (Math/floor (/ x 4.0))))
+
+(defn- drawn-face?
+  "Does stepping from `a` to `b`, in different cells, enter a wall through a face
+  `raylib.soft3d/cube` draws: both its corners at least 0.05 along the view?
+  Written apart from `march`."
+  [[ax az] [bx bz] [px pz] fx fz]
+  (let [ca (cell-of ax) cb (cell-of bx) za (cell-of az) zb (cell-of bz)
+        along (fn [x z] (+ (* (- x px) fx) (* (- z pz) fz)))]
+    (cond
+      ;; through a lattice point exactly: a grazing line, which the wall stops
+      (and (not= ca cb) (not= za zb)) true
+      (not= ca cb) (let [xf (* 4.0 (if (> cb ca) cb (inc cb)))]
+                     (>= (min (along xf (* 4.0 zb)) (along xf (* 4.0 (inc zb)))) 0.05))
+      :else (let [zf (* 4.0 (if (> zb za) zb (inc zb)))]
+              (>= (min (along (* 4.0 cb) zf) (along (* 4.0 (inc cb)) zf)) 0.05)))))
+
+(defn- seen?
+  "Is the point `target`, inside the wall cell index `own`, seen from the eye
+  `[px pz]`? The segment is cut at every grid line it crosses (sorted by how far
+  along it they fall, so unlike `march` this is not a walk) and each crossing
+  into a wall is judged: through a face the cube draws it blocks, through a
+  dropped one it does not. Reaching `own` first means seen. A crossing through a
+  lattice point is judged by the cell it lands in and its two neighbours."
+  [[px pz] fx fz [tx tz] own]
+  (let [dx (- tx px)
+        dz (- tz pz)
+        lines (fn [p d]
+                (if (zero? d)
+                  []
+                  (let [lo (min p (+ p d))
+                        hi (max p (+ p d))]
+                    (for [k (range (inc (long (Math/floor (/ lo 4.0)))) (inc (long (Math/floor (/ hi 4.0)))))]
+                      (/ (- (* 4.0 k) p) d)))))
+        ts (sort (distinct (concat (lines px dx) (lines pz dz))))]
+    (loop [ts ts]
+      (if (empty? ts)
+        true
+        (let [t (first ts)
+              before (let [e (- t 1.0e-9)] [(cell-of (+ px (* e dx))) (cell-of (+ pz (* e dz)))])
+              after (let [e (+ t 1.0e-9)] [(cell-of (+ px (* e dx))) (cell-of (+ pz (* e dz)))])
+              [bx bz] before
+              [ax az] after]
+          (cond
+            (> t 1.0) true
+            (= (+ ax (* 16 az)) own) (not (and (not= ax bx) (not= az bz)
+                                               (sc/wall? ax bz) (sc/wall? bx az)))
+            (and (not= ax bx) (not= az bz) (sc/wall? ax bz) (sc/wall? bx az)) false
+            (sc/wall? ax az) (if (drawn-face? [(+ px (* (- t 1.0e-9) dx)) (+ pz (* (- t 1.0e-9) dz))]
+                                              [(+ px (* (+ t 1.0e-9) dx)) (+ pz (* (+ t 1.0e-9) dz))]
+                                              [px pz] fx fz)
+                               false
+                               (recur (rest ts)))
+            :else (recur (rest ts))))))))
+
+(defn- robustly-seen?
+  "`seen?` from the eye and from the eye moved 0.01 to either side of the line
+  to the point. A sliver of wall thinner than that at the eye (a line through two
+  corners that touch, say) is under a pixel at any distance a maze corridor
+  gives, and counts as hidden."
+  [[px pz] fx fz [tx tz] own]
+  (let [dx (- tx px)
+        dz (- tz pz)
+        l (Math/hypot dx dz)
+        nx (* 0.01 (/ (- dz) l))
+        nz (* 0.01 (/ dx l))]
+    (and (seen? [px pz] fx fz [tx tz] own)
+         (seen? [(+ px nx) (+ pz nz)] fx fz [tx tz] own)
+         (seen? [(- px nx) (- pz nz)] fx fz [tx tz] own))))
+
+(defn- on-glass-side?
+  "Is `[tx tz]` in front of the eye and inside the view's left and right planes?"
+  [{:keys [px pz]} fx fz tan-half [tx tz]]
+  (let [dx (- tx px)
+        dz (- tz pz)
+        along (+ (* dx fx) (* dz fz))]
+    (and (> along 0.05) (<= (abs (- (* dx fz) (* dz fx))) (* along tan-half)))))
+
+(defn- footprint-points
+  "12 points just inside a wall's footprint: its four corners and two a side."
+  [{:keys [x z]}]
+  (let [h 1.99
+        o [-0.66 0.66]]
+    (vec (concat (for [a [-1 1] b [-1 1]] [(+ x (* a h)) (+ z (* b h))])
+                 (for [a o] [(+ x a) (+ z h)]) (for [a o] [(+ x a) (- z h)])
+                 (for [a o] [(+ x h) (+ z a)]) (for [a o] [(- x h) (+ z a)])))))
+
+(def ^:private sample-poses
+  "About 300 poses: every third open cell, three spots in it, 8 headings, on the
+  phone's portrait screen and a wide one. The full 35,712-pose sweep is
+  .superpowers/.../P1.T3-sweep.clj."
+  (vec (for [[n [cx cy]] (map-indexed vector (for [cy (range 16) cx (range 16) :when (not (sc/wall? cx cy))] [cx cy]))
+             :when (zero? (mod n 5))
+             [ox oz] [[0.9 0.9] [2.0 2.0] [3.1 3.1]]
+             :let [x (+ (* 4.0 cx) ox) z (+ (* 4.0 cy) oz)]
+             :when (not (sc/blocked? x z))
+             k (range 0 8)
+             s [[1206 2334] [2334 1206]]]
+         [(assoc start :px x :pz z :heading (* k (/ Math/PI 4))) s])))
+
 (deftest culling-leaves-the-picture-alone
   (let [dims (sc/dimensions m measure)
         [vx vy vw vh] (:viewport dims)
@@ -272,27 +379,52 @@
                           ys (map #(nth it %) [2 4 6])]
                       (and (<= (apply min xs) (+ vx vw)) (>= (apply max xs) vx)
                            (<= (apply min ys) (+ vy vh)) (>= (apply max ys) vy))))
-        uncut (fn [state]
+        built (fn [state walls]
                 (let [vp (s3/view-proj (sc/camera state dims) (:viewport dims))]
                   (s3/finish
                    (reduce (fn [dl {:keys [x z colour]}]
                              (s3/cube dl vp nil [x 1.5 z] [4.0 3.0 4.0] colour))
                            (s3/grid [] vp 40 4.0)
-                           sc/walls))))
+                           walls))))
         glass (fn [dl] (set (filter #(and (= :tri (first %)) (on-glass? %)) dl)))
         poses (for [[cx cy] [[1 1] [1 8] [7 5] [13 13] [14 1] [4 11]]
                     k (range 8)]
                 (assoc start :px (* (+ cx 0.5) 4.0) :pz (* (+ cy 0.5) 4.0) :heading (* k (/ Math/PI 4))))]
-    (testing "the walls it keeps are fewer than all of them from the start"
-      (is (< (count (sc/visible-walls start dims)) (count sc/walls)))
-      (is (pos? (count (sc/visible-walls start dims)))))
-    (testing "every triangle that reaches the glass is still there, from 48 poses"
+    (testing "the sides and the back are cut: fewer walls than all from the start"
+      (is (< (count (sc/frustum-walls start dims)) (count sc/walls)))
+      (is (< (count (sc/visible-walls start dims)) (count (sc/frustum-walls start dims)))))
+    (testing "every triangle that reaches the glass is still there with only the view cut, from 48 poses"
       (doseq [p poses]
-        (is (= (glass (uncut p)) (glass (sc/scene-list p dims)))
+        (is (= (glass (built p sc/walls)) (glass (built p (sc/frustum-walls p dims))))
             (str (pos p) " " (:heading p)))))
     (testing "turned the other way the player sees different walls"
       (is (not= (set (sc/visible-walls start dims))
                 (set (sc/visible-walls (assoc start :heading Math/PI) dims)))))))
+
+(deftest occlusion-hides-only-what-is-hidden
+  (testing "a wall that is cut for being behind others has no footprint point in sight"
+    (let [removed (atom 0)
+          bad (atom [])]
+      (doseq [[st screen] sample-poses
+              :let [dims (sc/dimensions {:screen screen} measure)
+                    keep (set (map :cell (sc/visible-walls st dims)))
+                    fx (Math/sin (:heading st))
+                    fz (Math/cos (:heading st))
+                    tan-half (* (Math/tan (Math/toRadians (* 0.5 (:fovy (sc/camera st dims))))) (:aspect dims))]
+              w (sc/frustum-walls st dims)
+              :when (not (contains? keep (:cell w)))]
+        (swap! removed inc)
+        (when (some #(and (on-glass-side? st fx fz tan-half %) (robustly-seen? [(:px st) (:pz st)] fx fz % (:cell w)))
+                    (footprint-points w))
+          (swap! bad conj [(:px st) (:pz st) (:heading st) screen (:cell w)])))
+      (is (> @removed 1000) "a real number of walls were tested")
+      (is (empty? @bad) (str (take 5 @bad)))))
+  (testing "a corridor hides everything beyond its first bend"
+    (let [dims (sc/dimensions m measure)
+          cells (set (map :cell (sc/visible-walls start dims)))]
+      (is (< (count cells) 60))
+      (is (contains? cells (+ 0 (* 1 16))) "the wall at the end of the row beside the start")
+      (is (not (contains? cells (+ 15 (* 15 16)))) "the far corner is out of sight"))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens
