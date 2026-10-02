@@ -13,6 +13,8 @@
 
 (defn- near? [a b] (< (abs (double (- a b))) 1e-9))
 
+(defn- near-1e-6? [a b] (< (abs (double (- a b))) 1e-6))
+
 (defn- frames
   "The state after `n` updates with nothing touching the screen."
   [n]
@@ -32,9 +34,10 @@
           (tris dl)))
 
 (deftest the-cloud-is-1500-seeded-points
-  (testing "1500 points, as the original"
-    (is (= 1500 sc/n-points))
-    (is (= 1500 (count sc/points))))
+  (testing "400 points here, 1500 in the original"
+    (is (= 400 sc/n-points))
+    (is (= 1500 sc/original-points))
+    (is (= 400 (count sc/points))))
   (testing "the same cloud every time: building it again gives the same points"
     (is (= sc/points (sc/make-points))))
   (testing "the first two points, from the LCG seeded 20261002 and read by hand"
@@ -48,8 +51,8 @@
   (testing "the cloud fills the box: both ends of each axis are close to reached"
     (doseq [axis [0 1 2]
             :let [vs (map #(nth % axis) sc/points)]]
-      (is (< (reduce min vs) -4.9))
-      (is (> (reduce max vs) 4.9))))
+      (is (< (reduce min vs) -4.5))
+      (is (> (reduce max vs) 4.5))))
   (testing "colour follows position, (int (+ 128 (* 25 c))) per axis, alpha 255"
     (is (every? (fn [[x y z [r g b a]]]
                   (= [(int (+ 128 (* 25 x))) (int (+ 128 (* 25 y))) (int (+ 128 (* 25 z))) 255] [r g b a]))
@@ -70,7 +73,7 @@
                 dl (sc/scene-list (frames 0) dims)
                 faces (tris dl)]]
     (testing (str screen)
-      (is (= 3000 (count faces)) "every point is in front of the camera: a square of 2 triangles each")
+      (is (= 800 (count faces)) "every point is in front of the camera: a square of 2 triangles each")
       (is (= (count faces) (count dl)) "no lines")
       (is (every? (fn [[_ _ _ _ _ _ _ r g b a]] (some #{[r g b a]} (map #(nth % 3) sc/points))) faces)
           "each square wears its point's colour")
@@ -88,16 +91,58 @@
 
 (deftest squares-wind-like-rlgl-keeps
   (let [dims (sc/dimensions {:screen [1206 2334]} measure)]
-    (is (= 3000 (count (tris (sc/scene-list (frames 77) dims)))))
+    (is (= 800 (count (tris (sc/scene-list (frames 77) dims)))))
     (is (every? (fn [[_ x1 y1 x2 y2 x3 y3]]
                   (neg? (- (* (- x2 x1) (- y3 y1)) (* (- y2 y1) (- x3 x1)))))
                 (tris (sc/scene-list (frames 77) dims))))))
 
-(deftest nearer-points-draw-last
+(deftest far-points-draw-first-to-within-a-bucket
   (let [dims (sc/dimensions {:screen [1206 2334]} measure)
         ds (map #(nth % 11) (sc/scene-list (frames 0) dims))]
-    (is (= 3000 (count ds)))
-    (is (= ds (sort > ds)) "far to near by depth")))
+    (is (= 800 (count ds)))
+    (is (every? (fn [[a b]] (>= (+ a sc/bucket-width) b)) (partition 2 1 ds))
+        "never nearer than the bucket before it by more than a bucket's depth")
+    (is (> (first ds) (+ 5.0 (last ds))) "and the run goes from far to near")
+    (is (apply = (map #(nth % 11) (take 2 (sc/scene-list (frames 0) dims)))) "a square's two triangles sit together")))
+
+(defn- square-of
+  "The two triangles in `dl` of colour `colour` at view depth `depth`, which
+  should be one point's square."
+  [dl colour depth]
+  (filterv (fn [it] (and (= colour (subvec it 7 11)) (< (abs (- depth (nth it 11))) 1e-6))) (tris dl)))
+
+(deftest a-square-is-the-size-of-the-cubes-face
+  ;; The first point is (2.3, -2.7, 4.0), the camera is at z = 12, so at frame 0
+  ;; the point is at view depth 8. A cube of side 0.06 seen head on at that
+  ;; depth covers the screen distance between the point and the point moved
+  ;; 0.06 in x, since x is linear in the projection at a fixed depth.
+  (let [dims (sc/dimensions {:screen [1206 2334]} measure)
+        vp (s3/view-proj (sc/camera dims) (:viewport dims))
+        [sx sy] (s3/project vp [2.3 -2.7 4.0])
+        [sx2] (s3/project vp [2.36 -2.7 4.0])
+        sq (square-of (sc/scene-list (frames 0) dims) [185 60 228 255] 8.0)
+        [_ x1 y1 _ y2 x3 _] (first sq)]
+    (is (= 2 (count sq)))
+    (is (< 1.0 (- sx2 sx) 10.0) "a few pixels")
+    (is (near? (- sx2 sx) (- x3 x1)) "as wide as the cube's face")
+    (is (near? (- sx2 sx) (- y2 y1)) "and as high")
+    (is (near? sx (/ (+ x1 x3) 2.0)) "centred on the point")
+    (is (near? sy (/ (+ y1 y2) 2.0)))))
+
+(deftest the-list-uses-the-rotation
+  ;; Frame 300 is 90 degrees: rlRotatef about y takes (x, y, z) to
+  ;; (x cos + z sin, y, -x sin + z cos) = (z, y, -x). The first point
+  ;; (2.3, -2.7, 4.0) goes to (4.0, -2.7, -2.3), at view depth 12 + 2.3.
+  (let [dims (sc/dimensions {:screen [1206 2334]} measure)
+        vp (s3/view-proj (sc/camera dims) (:viewport dims))
+        [sx sy] (s3/project vp [4.0 -2.7 -2.3])
+        sq (square-of (sc/scene-list (frames 300) dims) [185 60 228 255] 14.3)
+        [_ x1 y1 _ y2 x3 _] (first sq)]
+    (is (= 2 (count sq)))
+    (is (near-1e-6? sx (/ (+ x1 x3) 2.0)))
+    (is (near-1e-6? sy (/ (+ y1 y2) 2.0)))
+    (let [[ux uy] (s3/project vp [2.3 -2.7 4.0])]
+      (is (> (+ (abs (- ux sx)) (abs (- uy sy))) 3.0) "which is not where the unturned point projects"))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens

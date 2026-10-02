@@ -86,6 +86,31 @@
   (is (= [200 200 200 255] sc/moon-colour) "LIGHTGRAY")
   (is (= [3.0 1.4 0.7] [sc/sun-size sc/earth-size sc/moon-size])))
 
+(deftest each-body-is-drawn-where-its-transform-puts-it
+  ;; At frame 90 the Earth orbit is 45 degrees and the Moon's 180, so by hand the
+  ;; Earth stands at (9 cos 45, 0, -9 sin 45) and the Moon 2.6 from it along
+  ;; the direction at 45 + 180 = 225 degrees.
+  (let [dims (sc/dimensions {:screen [1206 2334]} measure)
+        vp (s3/view-proj (sc/camera dims) (:viewport dims))
+        rad (fn [d] (Math/toRadians d))
+        earth [(* 9.0 (Math/cos (rad 45.0))) 0.0 (- (* 9.0 (Math/sin (rad 45.0))))]
+        moon [(+ (nth earth 0) (* 2.6 (Math/cos (rad 225.0)))) 0.0
+              (+ (nth earth 2) (- (* 2.6 (Math/sin (rad 225.0)))))]
+        faces (tris (sc/scene-list (frames 90) dims))
+        shades (fn [[r g b]] (set (map (fn [f] [(int (* f r)) (int (* f g)) (int (* f b))]) [1.0 0.85 0.7 0.5 0.4])))
+        centre-of (fn [colour]
+                    (let [mine (filter (fn [it] (contains? (shades colour) (subvec it 7 10))) faces)
+                          pts (mapcat (fn [it] (partition 2 (subvec it 1 7))) mine)]
+                      [(/ (reduce + (map first pts)) (count pts)) (/ (reduce + (map second pts)) (count pts))]))
+        dist (fn [[ax ay] [bx by]] (Math/sqrt (+ (* (- ax bx) (- ax bx)) (* (- ay by) (- ay by)))))
+        pe (vec (take 2 (s3/project vp earth)))
+        pm (vec (take 2 (s3/project vp moon)))
+        gap (dist pe pm)]
+    (is (< 20.0 gap) "the Earth and the Moon are apart on the screen")
+    (is (< (dist (centre-of sc/earth-colour) pe) (* 0.4 gap)) "the Earth's faces cluster on the Earth")
+    (is (< (dist (centre-of sc/moon-colour) pm) (* 0.4 gap)) "the Moon's faces cluster on the Moon, not on the Earth")
+    (is (< (dist (centre-of sc/sun-colour) (vec (take 2 (s3/project vp [0.0 0.0 0.0])))) (* 0.4 gap)) "and the Sun's on the Sun")))
+
 (deftest first-frame-draws
   (doseq [screen screens
           :let [metrics {:screen screen}
