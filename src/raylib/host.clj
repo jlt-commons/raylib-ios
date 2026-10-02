@@ -372,16 +372,19 @@
   the last applies first, so a world point is moved by minus the target, scaled,
   rotated and moved by the offset, which is GetCameraMatrix2D. rlgl transforms
   at rlVertex time while the stack is pushed, so no batch flush is needed. The
-  pop is in a `finally`, so a draw that throws cannot leave the stack pushed."
+  pop is in a `finally`, so a draw that throws cannot leave the stack pushed.
+
+  Any number is accepted in the camera: jolt's FFI rejects an integer for a
+  `:float` parameter, so every value is coerced with `double` here."
   [{[ox oy] :offset
     [tx ty] :target
     :keys [rotation zoom]} f]
   (rl-push-matrix)
   (try
-    (rl-translatef ox oy 0.0)
-    (rl-rotatef rotation 0.0 0.0 1.0)
-    (rl-scalef zoom zoom 1.0)
-    (rl-translatef (- tx) (- ty) 0.0)
+    (rl-translatef (double ox) (double oy) 0.0)
+    (rl-rotatef (double rotation) 0.0 0.0 1.0)
+    (rl-scalef (double zoom) (double zoom) 1.0)
+    (rl-translatef (- (double tx)) (- (double ty)) 0.0)
     (f)
     (finally (rl-pop-matrix))))
 
