@@ -43,49 +43,28 @@
    {:at [1.5 0.5 0.0]
     :colour [0 121 241 255]}])
 
-(defn geometry
-  "The layout for `metrics`' `:screen`: `:size` the caption's text size, `:pad`
-  the gap around it and `:viewport` the field `[x y w h]` below the caption,
-  which is below Back and runs to the bottom."
-  [metrics]
-  (let [[w h] (:screen metrics)
-        back-bottom 120
-        size (max 16 (int (* 0.03 (min w h))))
-        pad (max 8 (int (* 0.5 size)))
-        text-y (+ back-bottom pad)
-        ftop (+ text-y size pad)]
-    {:size size
-     :pad pad
-     :text-y text-y
-     :viewport [0.0 (double ftop) (double w) (double (- h ftop))]}))
+(def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
 
 (defn dimensions
-  "`geometry` plus both captions as `{:s :x :y :size}`: `:perspective`,
-  `:orthographic`, and `:lines` with both so a test can check they fit. The
-  size is cut back from `geometry`'s when the wider would cover more than 0.92
-  of the width. `measure` is `(fn [s size] -> px)`."
+  "`raylib.soft3d/field` plus both captions as `{:s :x :y :size}`:
+  `:perspective`, `:orthographic`, and `:lines` with both so a test can check
+  they fit. `measure` is `(fn [s size] -> px)`."
   [metrics measure]
-  (let [{:keys [size pad text-y]
-         [_ _ w _] :viewport
-         :as geo} (geometry metrics)
-        widest (apply max (map #(measure % 100) (vals captions)))
-        size (max 8 (min size (int (/ (* 0.92 w 100.0) widest))))
+  (let [widest (apply max (map #(measure % 100) (vals captions)))
+        {:keys [size pad text-y]
+         :as field} (s3/field metrics widest)
         line (fn [s] {:s s
                       :x pad
                       :y text-y
                       :size size})
         persp (line (:perspective captions))
         orth (line (:orthographic captions))]
-    (assoc geo :perspective persp :orthographic orth :lines [persp orth])))
+    (assoc field :perspective persp :orthographic orth :lines [persp orth])))
 
 (defn caption
   "The caption line for `state`'s mode."
   [state dims]
   (if (:ortho? state) (:orthographic dims) (:perspective dims)))
-
-(def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
-
-(defn- field-aspect [{[_ _ w h] :viewport}] (/ w h))
 
 (defn camera
   "The original's camera for `state`: (5, 5, 5) at the origin, perspective with
@@ -99,7 +78,7 @@
                     :up [0.0 1.0 0.0]
                     :fovy (if ortho? 12.0 45.0)
                     :projection (if ortho? :orthographic :perspective)}
-                   original-aspect (field-aspect dims))))
+                   original-aspect (:aspect dims))))
 
 (defn grid-list
   "The grid of 10, spacing 1, as an unfinished draw list through `cam` onto

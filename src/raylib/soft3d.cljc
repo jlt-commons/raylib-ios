@@ -17,6 +17,8 @@
     transform applies to a point first. That is rlgl's call order:
     rlTranslatef then rlRotatef is `(compose (translate ...) (rotate-axis ...))`.
 
+  `field` is the layout every 3D scene shares: a caption line below Back and
+  the 3D field under it, with the field's `:viewport` and `:aspect`.
   `fit-camera` adapts a camera made for an original window to a field of another
   aspect, so a tall phone field still shows the original's width.
 
@@ -49,7 +51,8 @@
   There is no depth buffer. `finish` paints in layers: the grid and `:under`
   lines, then faces far to near by mean depth, then wires and `:over` lines.
   So wires draw over every face, including a cube's hidden back edges, where
-  raylib's depth test would hide them.")
+  raylib's depth test would hide them."
+  (:require [raylib.gesture :as gesture]))
 
 ;; --- vectors and matrices --------------------------------------------------
 
@@ -588,3 +591,34 @@
                (* fovy ratio)
                (Math/toDegrees
                 (* 2.0 (Math/atan (* ratio (Math/tan (* 0.5 (Math/toRadians fovy))))))))))))
+
+(defn field
+  "`(field metrics)` or `(field metrics widest)`: the layout every 3D scene
+  shares, for `metrics`' `:screen` `[w h]`. A caption line sits below Back and
+  the 3D field fills the rest, full width to the bottom. Back's bottom is read
+  from `raylib.gesture/back-region`, never a literal. Returns
+
+  - `:viewport` `[x y w h]`, the field in scene pixels, to hand to `view-proj`
+    and to scissor the draw to;
+  - `:aspect` `w/h` of the field, for `fit-camera`;
+  - `:size`, `:pad` and `:text-y`, the caption's text size, the gap around it
+    and its y, so the caption sits between Back and the field.
+
+  The size is the larger of 16 and 0.03 of the shorter side. With `widest`,
+  the width of the widest caption measured at size 100 (`(measure s 100)`), it
+  is cut back, to 8 at the least, so that caption covers no more than 0.92 of
+  the width. A scene builds its own `{:s :x :y :size}` lines from these."
+  ([metrics] (field metrics nil))
+  ([metrics widest]
+   (let [[w h] (:screen metrics)
+         [_ back-y _ back-h] gesture/back-region
+         base (max 16 (int (* 0.03 (min w h))))
+         size (if widest (max 8 (min base (int (/ (* 0.92 w 100.0) widest)))) base)
+         pad (max 8 (int (* 0.5 base)))
+         text-y (+ back-y back-h pad)
+         ftop (+ text-y base pad)]
+     {:size size
+      :pad pad
+      :text-y text-y
+      :aspect (/ (double w) (- h ftop))
+      :viewport [0.0 (double ftop) (double w) (double (- h ftop))]})))

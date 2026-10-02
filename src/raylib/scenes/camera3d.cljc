@@ -30,42 +30,19 @@
 (def height "The camera's height. The original's." 8.0)
 (def step "Radians a frame. The original's." 0.02)
 
-(defn geometry
-  "The layout for `metrics`' `:screen`: `:size` the caption's text size, `:pad`
-  the gap around it and `:viewport` the field `[x y w h]` below the caption,
-  which is below Back and runs to the bottom."
-  [metrics]
-  (let [[w h] (:screen metrics)
-        back-bottom 120
-        size (max 16 (int (* 0.03 (min w h))))
-        pad (max 8 (int (* 0.5 size)))
-        text-y (+ back-bottom pad)
-        ftop (+ text-y size pad)]
-    {:size size
-     :pad pad
-     :text-y text-y
-     :viewport [0.0 (double ftop) (double w) (double (- h ftop))]}))
-
 (defn dimensions
-  "`geometry` plus the caption as `{:s :x :y :size}`, in `:lines` as well so a
-  test can check it fits. The size is cut back from `geometry`'s when the
-  caption would cover more than 0.92 of the width. `measure` is
-  `(fn [s size] -> px)`."
+  "`raylib.soft3d/field` plus the caption as `{:s :x :y :size}`, in `:lines` as
+  well so a test can check it fits. `measure` is `(fn [s size] -> px)`."
   [metrics measure]
   (let [{:keys [size pad text-y]
-         [_ _ w _] :viewport
-         :as geo} (geometry metrics)
-        widest (measure caption-text 100)
-        size (max 8 (min size (int (/ (* 0.92 w 100.0) widest))))
+         :as field} (s3/field metrics (measure caption-text 100))
         line {:s caption-text
               :x pad
               :y text-y
               :size size}]
-    (assoc geo :caption line :lines [line])))
+    (assoc field :caption line :lines [line])))
 
 (def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
-
-(defn- field-aspect [{[_ _ w h] :viewport}] (/ w h))
 
 (defn camera
   "The camera for `state`: on the circle of radius 12 at height 8, at the angle
@@ -78,7 +55,7 @@
                     :up [0.0 1.0 0.0]
                     :fovy 45.0
                     :projection :perspective}
-                   original-aspect (field-aspect dims))))
+                   original-aspect (:aspect dims))))
 
 (defn scene-list
   "The finished draw list for `state`: the grid of 20 and the cube."

@@ -4,6 +4,7 @@
   MatrixPerspective, MatrixOrtho and rlgl.h rlRotatef, rmodels.c DrawCubeWires,
   DrawGrid and GetRayCollisionBox, and raylib-jlt's models.clj cube! shades."
   (:require [clojure.test :refer [deftest is testing]]
+            [raylib.gesture :as gesture]
             [raylib.soft3d :as s3]))
 
 (defn- close?
@@ -353,3 +354,31 @@
       (is (close? [(double w) (/ h 2.0)] [rx ry] 1e-6) "and its right edge on the right")
       (is (> (:fovy fitted) fovy) "the vertical extent grew to hold it")
       (is (= (dissoc c :fovy) (dissoc fitted :fovy)) "nothing else changed"))))
+
+;; --- field --------------------------------------------------------------------
+
+(deftest field-starts-below-back-and-runs-to-the-bottom
+  (doseq [[w h :as screen] [[1206 2334] [2334 1206] [800 450] [450 800]]
+          :let [[_ back-y _ back-h] gesture/back-region
+                back-bottom (+ back-y back-h)
+                {:keys [text-y size pad aspect]
+                 [vx vy vw vh] :viewport} (s3/field {:screen screen})]]
+    (testing (str screen)
+      (is (>= text-y back-bottom) "the caption line is below Back")
+      (is (>= vy (+ text-y size)) "and the field below the caption")
+      (is (> vy back-bottom))
+      (is (= [0.0 (double w)] [vx vw]) "full width")
+      (is (close? [(double h)] [(+ vy vh)]) "to the bottom")
+      (is (close? [(/ vw vh)] [aspect]))
+      (is (pos? pad)))))
+
+(deftest field-follows-back-region
+  (with-redefs [gesture/back-region [0 0 400 300]]
+    (is (>= (:text-y (s3/field {:screen [1206 2334]})) 300) "a taller Back pushes the field down")))
+
+(deftest field-cuts-the-text-size-to-fit
+  (let [roomy (s3/field {:screen [450 800]})
+        cut (s3/field {:screen [450 800]} 3000.0)]
+    (is (= (:size roomy) (:size (s3/field {:screen [450 800]} 10.0))) "a short caption keeps the size")
+    (is (< (:size cut) (:size roomy)))
+    (is (<= (* 3000.0 (/ (:size cut) 100.0)) (* 0.92 450)) "the widest caption fits 0.92 of the width")))
