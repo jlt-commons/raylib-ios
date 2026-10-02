@@ -77,6 +77,7 @@
             [raylib.scenes.particles :as parts]
             [raylib.scenes.pendulum :as pend]
             [raylib.scenes.penrose :as pen]
+            [raylib.scenes.picking :as picking]
             [raylib.scenes.piechart :as pie]
             [raylib.scenes.platformer :as platformer]
             [raylib.scenes.pong :as pong]
@@ -141,7 +142,8 @@
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)])
+             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
+             (picking/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -175,7 +177,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3338,3 +3340,26 @@
                     (fn [] (rl/draw-3d! (boxcollide/scene-list grid state dims))))
     (draw-caption! (assoc (:caption dims) :s (boxcollide/caption-text state))
                    (boxcollide/caption-colour state))))
+
+(def ^:private picking-cache
+  "The last `[screen dims]` for `:picking`. Its camera moves, but the layout and
+  the text size depend on the screen alone."
+  (atom nil))
+
+(defn- picking-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @picking-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (picking/dimensions m host-measure)]
+        (reset! picking-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :picking [_ state {:keys [m safe]}]
+  (clear-to! (:background picking/colours))
+  (let [dims (picking-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (picking/scene-list state dims))))
+    (draw-caption! (:caption dims) (:hint picking/colours))
+    (doseq [[{:keys [s colour]} slot] (map vector (picking/readout state) (:readout-slots dims))]
+      (draw-caption! (assoc slot :s s) colour))))
