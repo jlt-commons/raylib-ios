@@ -31,6 +31,11 @@
     another is down. A rotation of the phone drops it. A tap moves nothing.
   - Nothing else in the original reads input.
 
+  The painter orders whole boxes, face by face, so while the player overlaps a
+  box one of the player's faces can paint over a face of that box where a depth
+  buffer would sort them per pixel. The box is red then, and this is a known
+  limit of `raylib.soft3d`.
+
   Nothing reads a frame time, like the original: the speed is per update. The
   original's text line at the top is kept as a caption below Back: its
   \"COLLISION!\" while the player overlaps a box, and \"drag to move the player\"

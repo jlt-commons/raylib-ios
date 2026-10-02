@@ -20,6 +20,11 @@
   narrower field `raylib.soft3d/fit-camera` widens it so the original's
   horizontal view still fits, and the field shows more above and below.
 
+  The grid is drawn under every face (`raylib.soft3d/finish` puts all grid
+  lines first). The cube is centred on y = 0, so half of it is below the grid,
+  and where raylib's depth buffer would show grid lines in front of its lower
+  half they are hidden here. Splitting the cube at the grid is follow-up work.
+
   The grid never changes, so `grid-list` builds it once per layout and
   `scene-list` adds the cube to a copy each frame. The state holds only
   `:frame`. Colours are `[r g b a]` vectors."

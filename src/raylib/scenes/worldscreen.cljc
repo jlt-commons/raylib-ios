@@ -23,6 +23,11 @@
   original's horizontal view still fits. All text uses the field's text size,
   where the original uses 20, so the readout and the label scale with the phone.
 
+  The grid is drawn under every face (`raylib.soft3d/finish` puts all grid
+  lines first). The cube is centred on y = 0, so half of it is below the grid,
+  and where raylib's depth buffer would show grid lines in front of its lower
+  half they are hidden here. Splitting the cube at the grid is follow-up work.
+
   The camera moves, so the grid is projected afresh each frame: 22 lines. The
   state holds only `:t`. Colours are `[r g b a]` vectors."
   (:require [raylib.soft3d :as s3]))

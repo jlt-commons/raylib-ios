@@ -56,6 +56,11 @@
   of `raylib.soft3d`. Flying into the cube makes its faces vanish rather than
   clip. Lines (the grid and the wires) are clipped to the near plane.
 
+  The grid is drawn under every face (`raylib.soft3d/finish` puts all grid
+  lines first). The cube is centred on y = 0, so half of it is below the grid,
+  and where raylib's depth buffer would show grid lines in front of its lower
+  half they are hidden here. Splitting the cube at the grid is follow-up work.
+
   The HUD box of the original (a translucent rect, its outline and four lines
   of help text, at (10, 10) of an 800x450 window) is kept, its text changed to
   the touch controls, sized in `dimensions` and drawn in the top left of the
