@@ -139,6 +139,21 @@ calls was back to what it had been. Nothing in the project binds culling now.
 Helitorus now emits the front winding rlgl keeps, checking each triangle by its
 own sign, and so draws at every detail.
 
+## Drawing 3D in software
+
+No 3D mode is bound, so the ten 3D scenes project every vertex themselves in
+`raylib.soft3d` and send flat triangles and lines through `raylib.host/draw-3d!`.
+Three rules matter. There is no depth buffer, so `finish` paints the grid and
+under-lines first, then the faces far to near by mean depth, then the wires. That
+painter order is wrong where a grid line should cross a cube's lower half, and
+the catalog rows for the cube scenes say so. Every triangle is built with
+the front winding rlgl keeps, decided by the sign of its screen-space cross
+product, because rlgl culls at the batch flush and nothing after that can fix a
+wrong winding. And a face with any corner behind the near plane is dropped while
+a line is clipped to it, so nothing wraps through infinity. `fit-camera` widens
+the original's fovy in a field narrower than 800 by 450, which keeps the
+original's horizontal view in a portrait phone.
+
 ## Cost
 
 Cheaper than it looks. The colour wheel is 540 vertices a frame and holds 59 fps;

@@ -1,8 +1,8 @@
 # raylib-ios
 
 raylib 6.0 and SDL2 rendering on a physical iPhone, driven from Clojure running
-on Chez Scheme via [Jolt](https://github.com/jolt-lang/jolt). Ninety scenes,
-every one measured at 52 to 60 fps, as threaded portable bytecode,
+on Chez Scheme via [Jolt](https://github.com/jolt-lang/jolt). A hundred scenes,
+the first ninety measured at 52 to 60 fps, as threaded portable bytecode,
 with no JIT and nothing generated at run time.
 
 This is the orientation page. The two guides after it are the ones worth
@@ -74,7 +74,7 @@ That separation is not tidiness. Three of the scenes came from the
 [Jolt Android experiment](https://github.com/jasalt/jolt-android-experiment)
 byte-identical, sha256 verified, along with three more namespaces carrying the
 contract itself. They were written for a different platform and run here
-untouched. The other eighty-seven are ports from
+untouched. The other ninety-seven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 ## The guides
@@ -113,7 +113,7 @@ rlgl's matrix stack does the work.
 the two scenes that fill rather than outline, and why raylib's own shapes API
 cannot draw a triangle with a different colour at each corner.
 
-**[The scenes](scene-catalog.html)** lists all ninety with what each costs
+**[The scenes](scene-catalog.html)** lists all hundred with what each costs
 per frame and what it measured.
 
 ## Getting it running

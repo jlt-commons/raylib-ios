@@ -9,11 +9,11 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of ninety scenes, each one a pure `.cljc`
+What runs today: a gallery of a hundred scenes, each one a pure `.cljc`
 simulation under an iOS owner loop of about thirty lines. Three of them,
 Following Eyes, Touch Trail and Flappy Bird, came byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-at `6d2b291`, and the other eighty-seven are ports from
+at `6d2b291`, and the other ninety-seven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Tap a card to
 open a scene, tap Back to leave it. The bird flaps on a press edge.
 

@@ -5,11 +5,11 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 92 of
-them are in the gallery as of 2026-10-02, which leaves 95. That counts
-examples and not scenes: the gallery has 87 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 102 of
+them are in the gallery as of 2026-10-02, which leaves 85. That counts
+examples and not scenes: the gallery has 97 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 87 + 2 + 3 = 92. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 97 + 2 + 3 = 102. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
@@ -18,20 +18,33 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (95).** These need something the project doesn't bind or the
+**Blocked for now (85).** These need something the project doesn't bind or the
 phone doesn't have: shaders (20), textures, images and render textures (34), 3D
-cameras and models (21), desktop windowing (7), the keyboard, gamepad or
-clipboard (6), files and drag-and-drop (4), and audio (3). A few could be
-rewritten rather than ported. The wireframe 3D ones could project in software
-the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
-`bunnymark` would work as plain rectangles.
+cameras and models (11), desktop windowing (7), the keyboard, gamepad or
+clipboard (6), files and drag-and-drop (4), and audio (3). The batch 9 triage on
+2026-10-02 found that about 32 of the 95 then blocked could be rebuilt with what
+is already bound, and ten of them landed in that batch as software-projected 3D
+scenes. These remain rewrite-ready:
+
+- 3D, projected in software: `bouncing_spheres`, `camera_3d_first_person`,
+  `camera_3d_split_screen`, `dna_helix`, `first_person_maze`,
+  `geometric_shapes`, `point_cloud`, `rlgl_solar_system`, `waving_cubes` and
+  `basic_voxel`.
+- Textures drawn as primitives: `billboard_rendering`,
+  `directional_billboard`, `textured_cube`, `bunnymark`, `background_scrolling`
+  and `sprite_stacking`.
+- Render textures done with a scissor or a scale: `fog_of_war`,
+  `smooth_pixelperfect`, `viewport_scaling` and `window_letterbox`.
+- Other: `doom` and `reasings`.
+- `blend_modes` and `particles_blending`, which need `BeginBlendMode` and
+  `EndBlendMode`, two scalar bindings.
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 2686 lines and grows
+- **Split the drawing out of `raylib.gallery`.** It is 3365 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace.
-- **Rebalance the categories.** Toys holds 66 of the 90 scenes, and Games has 11, so a scroll
+- **Rebalance the categories.** Toys holds 76 of the 100 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -55,7 +68,21 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   a touch exactly on that edge changes sides by one pixel.
 - **Lift the relative thumb-stick into `raylib.gesture`.** `stick-dir`,
   `next-stick` and `knob` are the same text in `survivors` and `nudge`. One home
-  means a fix to the stick lands once.
+  means a fix to the stick lands once. `raylib.stick` now exists and `freecam`,
+  `yawpitchroll` and `boxcollide` use it, so this is a matter of moving
+  `survivors` and `nudge` onto it, or onto the part of it that fits.
+- **Time the ten 3D scenes on the phone.** None of `rotcube`, `camera3d`,
+  `ortho`, `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
+  `boxcollide` and `picking` has run on a device. The per-frame estimate puts
+  Wireframe Shapes heaviest, at about 7.6 ms. Fill the fps cells in the catalog
+  and take a look at each on the phone.
+- **Fix the painter's grid-first order.** `raylib.soft3d` paints the grid under
+  every face, so grid lines that cross a cube's lower half are hidden where a
+  depth buffer would show them. A below-grid, above-grid order would fix it.
+- **Close freecam's two-finger gap.** When two fingers land on the same frame,
+  the look path can still adopt a finger that was already down.
+- **Move `nudge` and `splitscreen` onto `raylib.stick`.** Each keeps its own
+  tracker, and the shared one could replace both.
 - **Give the older games the idle `:press` exception.** Tetris, Asteroids,
   Snake, Space Invaders and Pong store `gesture/idle` on the frame the game ends
   even when that frame is a fresh press, so a tap landing on that one frame is
@@ -88,6 +115,12 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 
 ## Done
 
+- 2026-10-02: ten raylib-jlt 3D examples, `rotcube`, `camera3d`, `ortho`,
+  `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
+  `boxcollide` and `picking`, which make a hundred scenes and give Toys
+  seventy-six. They are projected in software through the new `raylib.soft3d`,
+  drawn by `raylib.host/draw-3d!`, and `raylib.stick` tracks the thumb-stick by
+  touch id. No new bindings. None has run on the phone yet.
 - 2026-10-02: six scenes, `camera2d`, `camera_2d_mouse_zoom`,
   `camera_2d_platformer`, `camera_2d_split_screen`, `input_gestures` and
   `helitorus`, which make ninety scenes and give Toys sixty-six. They add

@@ -62,6 +62,18 @@ the box size, the font size and the wrap mode.
 because `BeginMode2D` loads the identity matrix and would throw that translate
 away. The camera math itself stays pure, in `raylib.camera2d`.
 
+**3D examples.** A 3D example is projected in software, because the project
+binds no 3D mode. The pure part is `raylib.soft3d`: `field` lays out the caption
+and the 3D view under Back, `fit-camera` widens the original's fovy for a
+portrait field, the builders (`cube`, `cube-wires`, `grid`, `lines`) project as
+they go, and `finish` sorts the result far to near. The draw method hands that
+list to `raylib.host/draw-3d!`, scissored to the field. Nothing behind the near
+plane is drawn and every triangle keeps rlgl's front winding.
+
+**Thumb-sticks.** A scene that steers with a relative stick tracks it with
+`raylib.stick`, which follows one finger by its touch id and never adopts a
+finger that was already down. `freecam`, `yawpitchroll` and `boxcollide` use it.
+
 **Gestures.** A scene that wants raylib's own recogniser reads `:raylib-gesture`
 from its input, which is the code from `GetGestureDetected`, as `gestures` does.
 It only ever reports one finger, so pinch never appears there.

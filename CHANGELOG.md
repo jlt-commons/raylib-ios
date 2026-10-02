@@ -6,6 +6,25 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Ten 3D scenes, a hundred in all.** Toys now holds seventy-six. Rotating Cube,
+  3D Camera, Orthographic Projection, Spinning Cubes, World to Screen and
+  Wireframe Shapes turn and orbit with no input. 3D Free Camera rebuilds raylib's
+  free camera, with a drag to look and a thumb-stick to move. Yaw Pitch Roll
+  flies a plane of five boxes with a thumb-stick, Box Collisions walks a cube
+  among five static boxes, and 3D Picking casts a ray through a tap. None of them
+  has run on the phone yet, so their fps cells are empty. The per-frame estimate
+  puts Wireframe Shapes heaviest, at about 7.6 ms.
+- **3D from scalar calls and no depth buffer.** `raylib.soft3d` holds raylib's
+  Camera3D projection, the transforms, the cube, wire, grid and line builders, a
+  draw list sorted far to near, `field` for the layout and `fit-camera`, which
+  widens the original's view to fit a portrait field. Every triangle keeps the
+  front winding rlgl culls by, and nothing behind the near plane is drawn.
+  `raylib.host/draw-3d!` sends the list out in one batch per run of triangles
+  or lines. No new raylib bindings.
+- **One thumb-stick tracker.** `raylib.stick` follows a finger by its touch id
+  and never adopts one that was already down. Free Camera, Yaw Pitch Roll and
+  Box Collisions use it, and Nudge and Split Screen keep their own for now.
+
 - **Six scenes, ninety in all.** Toys now holds sixty-six. 2D Camera moves a box
   through a skyline with a relative thumb-stick on x, pinches to zoom and twists
   to rotate. 2D Camera Zoom pans under one finger and pinches in log space about
@@ -39,6 +58,10 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Found
 
+- **The painter's order has two known limits.** The grid is painted under every
+  face, so grid lines that cross a cube's lower half are hidden where a depth
+  buffer would show them. And in 3D Free Camera, two fingers landing on the same
+  frame can still make the look path adopt one that was already down.
 - **raylib's gesture recogniser fires under the SDL host.** A real finger logged
   TAP, HOLD, SWIPE RIGHT and SWIPE DOWN. DRAG and DOUBLETAP were not seen, and
   pinch can't fire, because SDL feeds raylib one finger at a time.

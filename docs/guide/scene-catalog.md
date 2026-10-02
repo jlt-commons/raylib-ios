@@ -1,9 +1,11 @@
 # The scenes
 
-Ninety, in four categories. Three come byte-identical from
+A hundred, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other eighty-seven are ports from
+with their sha256 verified, and the other ninety-seven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
+The ten 3D scenes added on 2026-10-02 have not been timed on the phone yet, so
+their fps cells are empty.
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
 seam described in [a REPL on the phone](a-repl-on-the-phone.html). Anything at
