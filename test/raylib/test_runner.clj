@@ -126,6 +126,7 @@
                      raylib.scenes.wireframes-test
                      raylib.scenes.freecam-test
                      raylib.scenes.yawpitchroll-test
+                     raylib.scenes.boxcollide-test
                      raylib.scenes.worldscreen-test
                      raylib.easings-test
                      raylib.scenes.clock-test

@@ -27,6 +27,7 @@
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.bounce :as bounce]
+            [raylib.scenes.boxcollide :as boxcollide]
             [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
             [raylib.scenes.camera2d :as c2d]
@@ -140,7 +141,7 @@
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene)])
+             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -174,7 +175,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3314,3 +3315,26 @@
         (rl/draw-rectangle (int bx) (int by) (int bw) (int bh)
                            (pack (if (contains? held id) ypr/button-held-colour ypr/button-colour)))
         (draw-caption! label ypr/button-label-colour)))))
+
+(def ^:private boxcollide-cache
+  "The last `[screen dims grid]` for `:boxcollide`. The camera never moves, so
+  the layout, the text size and the grid depend on the screen alone."
+  (atom nil))
+
+(defn- boxcollide-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims grid] @boxcollide-cache]
+    (if (= screen cached-screen)
+      [dims grid]
+      (let [dims (boxcollide/dimensions m host-measure)
+            grid (boxcollide/grid-list (boxcollide/camera dims) dims)]
+        (reset! boxcollide-cache [screen dims grid])
+        [dims grid]))))
+
+(defmethod draw-scene! :boxcollide [_ state {:keys [m safe]}]
+  (clear-to! boxcollide/background-colour)
+  (let [[dims grid] (boxcollide-layout m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (boxcollide/scene-list grid state dims))))
+    (draw-caption! (assoc (:caption dims) :s (boxcollide/caption-text state))
+                   (boxcollide/caption-colour state))))
