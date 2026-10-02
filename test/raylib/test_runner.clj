@@ -112,6 +112,7 @@
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.camera2d-test
+                     raylib.soft3d-test
                      raylib.scenes.camera2d-test
                      raylib.scenes.camerazoom-test
                      raylib.scenes.platformer-test

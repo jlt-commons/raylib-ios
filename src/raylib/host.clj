@@ -87,6 +87,7 @@
 (ffi/defcfn begin-scissor-mode  "BeginScissorMode"  [:int :int :int :int] :void)
 (ffi/defcfn end-scissor-mode    "EndScissorMode"    [] :void)
 (def RL-TRIANGLES 0x0004)
+(def RL-LINES 0x0001)
 (def FLAG-WINDOW-HIGHDPI 0x2000)
 
 ;; There is deliberately no safe-area-top here. SDL_GetDisplayUsableBounds
@@ -281,6 +282,38 @@
         (rl-vertex-2f (float (- x2 px)) (float (- y2 py)))
         (rl-vertex-2f (float (+ x2 px)) (float (+ y2 py)))
         (rl-end)))))
+
+(defn draw-3d!
+  "Emit a `raylib.soft3d` draw list: `[:tri x1 y1 x2 y2 x3 y3 r g b a ...]` and
+  `[:line x1 y1 x2 y2 r g b a ...]` items, in order, ignoring anything after the
+  colour (soft3d's sort keys). Each run of consecutive triangles goes out in one
+  rlBegin(RL_TRIANGLES) and each run of lines in one rlBegin(RL_LINES), so a
+  finished list of grid, faces and wires is three batches.
+
+  The triangles are sent as they come. soft3d only ever builds them with the
+  negative y-down cross product, the winding rlgl keeps (`draw-triangle`), and
+  rlgl culls at its later flush, so swapping vertices here would only lose them.
+  Coordinates are coerced to double at the FFI, since jolt refuses an integer
+  for a :float parameter."
+  [dl]
+  (let [n (count dl)]
+    (loop [i 0 mode nil]
+      (if (< i n)
+        (let [it (nth dl i)
+              kind (nth it 0)]
+          (when-not (= kind mode)
+            (when mode (rl-end))
+            (rl-begin (if (= kind :tri) RL-TRIANGLES RL-LINES)))
+          (if (= kind :tri)
+            (do (rl-color-4ub (nth it 7) (nth it 8) (nth it 9) (nth it 10))
+                (rl-vertex-2f (double (nth it 1)) (double (nth it 2)))
+                (rl-vertex-2f (double (nth it 3)) (double (nth it 4)))
+                (rl-vertex-2f (double (nth it 5)) (double (nth it 6))))
+            (do (rl-color-4ub (nth it 5) (nth it 6) (nth it 7) (nth it 8))
+                (rl-vertex-2f (double (nth it 1)) (double (nth it 2)))
+                (rl-vertex-2f (double (nth it 3)) (double (nth it 4)))))
+          (recur (inc i) kind))
+        (when mode (rl-end))))))
 
 (defn rgba [r g b a] (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left a 24)))
 (def RAYWHITE  (rgba 245 245 245 255))
