@@ -550,6 +550,104 @@
                      (seg m ox oy w h (- e) 0.0 v e 0.0 v colour :under))))
         dl))))
 
+(defn- sphere-row
+  "The projected vertices of one latitude ring of `sphere`: slices + 1 of them,
+  the last on the first's longitude so every quad reads j and j + 1."
+  [m d ox oy w h cx cy cz radius lat coss sins slices]
+  (let [y (+ cy (* radius (Math/sin lat)))
+        rr (* radius (Math/cos lat))]
+    (loop [j 0 out (transient [])]
+      (if (<= j slices)
+        (recur (inc j) (conj! out (project* m d ox oy w h
+                                            (+ cx (* rr (nth coss j))) y
+                                            (+ cz (* rr (nth sins j))))))
+        (persistent! out)))))
+
+(defn sphere
+  "`(sphere dl vp xf [x y z] radius [r g b a])` or `(sphere ... {:rings 12
+  :slices 16})`: a latitude and longitude sphere centred on the point, under
+  transform `xf` (nil for none). It is raylib-jlt models.clj `sphere!` (the
+  stand-in for rmodels.c DrawSphereEx, which has no depth sorting to mirror).
+
+  Ring i spans latitude -pi/2 + pi*i/rings to -pi/2 + pi*(i+1)/rings and slice
+  j spans longitude 2*pi*j/slices to 2*pi*(j+1)/slices. Each quad is
+  `[p00 p10 p11 p01]` (p<ring edge><longitude>: p0 is the lower latitude) and
+  goes in as sphere!'s two triangles, (p00 p10 p11) and (p00 p11 p01). The band is
+  shaded by `0.45 + 0.55 * (y0 + y1 + 2) / 4`, y0 and y1 being the sines of its
+  two latitudes, by `(int (* f c))` on r, g and b with alpha 255, as sphere!'s
+  `shade-color`.
+
+  Each triangle goes in only when it faces the camera, and a quad with a corner
+  behind the near plane is dropped, as `cube` does. A quad touching a pole has
+  two coincident corners, so one of its triangles is edge-on and is dropped."
+  ([dl vp xf pos radius colour] (sphere dl vp xf pos radius colour {}))
+  ([dl vp xf [cx cy cz] radius [cr cg cb] {:keys [rings slices]
+                                           :or {rings 12
+                                                slices 16}}]
+   (let [[m d] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         cx (double cx) cy (double cy) cz (double cz) radius (double radius)
+         two-pi (* 2.0 Math/PI)
+         lon (fn [j] (* two-pi (/ (double j) slices)))
+         coss (mapv (fn [j] (Math/cos (lon j))) (range (inc slices)))
+         sins (mapv (fn [j] (Math/sin (lon j))) (range (inc slices)))
+         lat (fn [i] (- (* Math/PI (/ (double i) rings)) (/ Math/PI 2.0)))
+         row (fn [i] (sphere-row m d ox oy w h cx cy cz radius (lat i) coss sins slices))]
+     (loop [i 0 below (row 0) dl dl]
+       (if (< i rings)
+         (let [above (row (inc i))
+               y0 (Math/sin (lat i)) y1 (Math/sin (lat (inc i)))
+               f (+ 0.45 (* 0.55 (/ (+ y0 y1 2.0) 4.0)))
+               r (int (* f cr)) g (int (* f cg)) b (int (* f cb))]
+           (recur (inc i) above
+                  (loop [j 0 dl dl]
+                    (if (< j slices)
+                      (let [p00 (nth below j) p01 (nth below (inc j))
+                            p10 (nth above j) p11 (nth above (inc j))]
+                        (recur (inc j)
+                               (if (and p00 p01 p10 p11)
+                                 (let [depth (* 0.25 (+ (nth p00 2) (nth p01 2) (nth p10 2) (nth p11 2)))]
+                                   (-> dl
+                                       (tri p00 p10 p11 r g b 255 depth)
+                                       (tri p00 p11 p01 r g b 255 depth)))
+                                 dl)))
+                      dl))))
+         dl)))))
+
+(defn plane
+  "`(plane dl vp xf [x y z] [sx sz] [r g b a])`: rmodels.c DrawPlane, the unit
+  quad on the XZ plane scaled to `sx` by `sz` and centred on the point, under
+  transform `xf` (nil for none). Its normal is +y and its corners are
+  (-.5 0 -.5), (-.5 0 .5), (.5 0 .5), (.5 0 -.5) of that, as DrawPlane's
+  rlVertex3f calls, drawn as the triangles (1 2 3) and (1 3 4). `size` may be
+  one number for a square. The colour is flat, alpha kept, as rlColor4ub.
+
+  It is one-sided like raylib's: each triangle goes in only when it faces the
+  camera, so a plane seen from below draws nothing. A corner behind the near
+  plane drops it whole."
+  [dl vp xf [cx cy cz] size [cr cg cb ca]]
+  (let [[m d] (frame vp xf)
+        {ox :x
+         oy :y
+         w :w
+         h :h} vp
+        [sx sz] (if (number? size) [size size] size)
+        hx (/ (double sx) 2.0) hz (/ (double sz) 2.0)
+        cx (double cx) cy (double cy) cz (double cz)
+        p1 (project* m d ox oy w h (- cx hx) cy (- cz hz))
+        p2 (project* m d ox oy w h (- cx hx) cy (+ cz hz))
+        p3 (project* m d ox oy w h (+ cx hx) cy (+ cz hz))
+        p4 (project* m d ox oy w h (+ cx hx) cy (- cz hz))]
+    (if (and p1 p2 p3 p4)
+      (let [depth (* 0.25 (+ (nth p1 2) (nth p2 2) (nth p3 2) (nth p4 2)))]
+        (-> dl
+            (tri p1 p2 p3 cr cg cb ca depth)
+            (tri p1 p3 p4 cr cg cb ca depth)))
+      dl)))
+
 ;; --- finishing --------------------------------------------------------------
 
 (defn finish

@@ -382,3 +382,127 @@
     (is (= (:size roomy) (:size (s3/field {:screen [450 800]} 10.0))) "a short caption keeps the size")
     (is (< (:size cut) (:size roomy)))
     (is (<= (* 3000.0 (/ (:size cut) 100.0)) (* 0.92 450)) "the widest caption fits 0.92 of the width")))
+
+;; --- sphere and plane -------------------------------------------------------
+
+(def ^:private front-ortho
+  "Orthographic from +z, top 5, on 100 by 100: world (x, y, z) lands at
+  (50 + 10x, 50 - 10y)."
+  {:position [0.0 0.0 10.0]
+   :target [0.0 0.0 0.0]
+   :up [0.0 1.0 0.0]
+   :fovy 10.0
+   :projection :orthographic})
+
+(defn- rounded-verts
+  "A :tri's three screen vertices, rounded."
+  [it]
+  (mapv (fn [v] (Math/round (double v))) (subvec it 1 7)))
+
+(deftest sphere-bands-match-models-clj
+  ;; models.clj sphere!: brightness = 0.45 + 0.55 * (y0 + y1 + 2) / 4 per band,
+  ;; shade-color = (int (* f c)) on r g b, alpha 255. y = sin(lat), lat running
+  ;; from -pi/2 to pi/2 over the rings.
+  (let [rings 12
+        expected (vec (for [i (range rings)
+                            :let [y0 (Math/sin (- (* Math/PI (/ (double i) rings)) (/ Math/PI 2.0)))
+                                  y1 (Math/sin (- (* Math/PI (/ (double (inc i)) rings)) (/ Math/PI 2.0)))
+                                  f (+ 0.45 (* 0.55 (/ (+ y0 y1 2.0) 4.0)))]]
+                        [(int (* f 200)) (int (* f 100)) (int (* f 50)) 255]))
+        vp (s3/view-proj front-ortho [100 100])
+        ts (tris (s3/finish (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 77])))]
+    (testing "the first and last bands, worked by hand"
+      ;; first: y0 = -1, y1 = sin(-75 deg) = -0.9659, f = 0.45 + 0.55 * 0.0341 / 4 = 0.45469
+      ;; last: y0 = 0.9659, y1 = 1, f = 0.45 + 0.55 * 3.9659 / 4 = 0.99532
+      (is (= [90 45 22 255] (first expected)))
+      (is (= [199 99 49 255] (last expected))))
+    (testing "every band's shade shows, and nothing else, alpha 255"
+      (is (= (set expected) (set (map colour-of ts)))))
+    (testing "bands get brighter toward +y"
+      (is (apply < (map first expected))))))
+
+(deftest sphere-bands-small-case-by-hand
+  ;; rings 2: bands y -1..0 and 0..1, brightness 0.45 + 0.55 * 1/4 = 0.5875 and
+  ;; 0.45 + 0.55 * 3/4 = 0.8625. [200 100 50] -> [117 58 29] and [172 86 43].
+  (let [vp (s3/view-proj front-ortho [100 100])
+        ts (tris (s3/finish (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 255] {:rings 2
+                                                                               :slices 4})))]
+    (is (= #{[117 58 29 255] [172 86 43 255]} (set (map colour-of ts))))))
+
+(deftest sphere-tessellation-matches
+  ;; rings 2, slices 4, radius 2 at the origin. Quad (i, j) is [p00 p10 p11 p01],
+  ;; p<lat><lon> with lat i/i+1 and lon j/j+1, drawn as (p00 p10 p11) and
+  ;; (p00 p11 p01), as quad-3f splits it.
+  (testing "from above, the northern band's four quads reach the pole"
+    ;; r0 = 1 at the equator, r1 = cos(pi/2) = 0 at the pole (50 50). Lon 0 is
+    ;; +x, lon 90 is +z: equator points (70 50), (50 70), (30 50), (50 30).
+    (let [vp (s3/view-proj top-down [100 100])
+          ts (tris (s3/finish (s3/sphere [] vp nil [0 0 0] 2.0 [255 255 255 255] {:rings 2
+                                                                                  :slices 4})))
+          vs (set (map rounded-verts ts))]
+      (is (contains? vs [70 50 50 50 50 70]))
+      (is (contains? vs [50 70 50 50 30 50]))
+      (is (contains? vs [30 50 50 50 50 30]))
+      (is (contains? vs [50 30 50 50 70 50]))))
+  (testing "from the front, the southern band's first quad: p00 (0 -2 0), p10 (2 0 0), p11 (0 0 2)"
+    (let [vp (s3/view-proj front-ortho [100 100])
+          ts (tris (s3/finish (s3/sphere [] vp nil [0 0 0] 2.0 [255 255 255 255] {:rings 2
+                                                                                  :slices 4})))
+          vs (set (map rounded-verts ts))]
+      (is (contains? vs [50 70 70 50 50 50]))))
+  (testing "the centre and radius move it: centre (1 0 2), radius 1, from above"
+    (let [vp (s3/view-proj top-down [100 100])
+          ts (tris (s3/finish (s3/sphere [] vp nil [1 0 2] 1.0 [255 255 255 255] {:rings 2
+                                                                                  :slices 4})))
+          vs (set (map rounded-verts ts))]
+      ;; equator (2 0 2) -> (70 70), pole (1 1 2) -> (60 70), (1 0 3) -> (60 80)
+      (is (contains? vs [70 70 60 70 60 80])))))
+
+(deftest sphere-front-winding
+  (doseq [camera around
+          xf [nil (s3/rotate-axis 30.0 1 0 0)
+              (s3/compose (s3/translate 0.5 0 0) (s3/rotate-axis 70.0 0.3 1 0))]]
+    (let [vp (s3/view-proj camera [390 600])
+          ts (tris (s3/finish (s3/sphere [] vp xf [0 0 0] 2.0 [200 100 50 255])))
+          solid (filterv (fn [it] (> (Math/abs (double (cross it))) 1e-6)) ts)]
+      (testing (str camera)
+        (is (seq ts))
+        (is (every? neg? (map cross solid)))
+        (is (every? (fn [it] (= 255 (nth it 10))) ts)))))
+  (testing "the defaults are 12 rings and 16 slices: 192 quads, so up to 384 triangles"
+    (let [vp (s3/view-proj (cam [0 0 10] [0 0 0] 45.0 :perspective) [390 600])
+          all (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 255])
+          small (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 255] {:rings 2
+                                                                   :slices 4})]
+      (is (< 100 (count all) 385))
+      (is (< (count small) 9)))))
+
+(deftest sphere-behind-the-camera-is-dropped
+  (let [vp (s3/view-proj (cam [0 0 10] [0 0 0] 90.0 :perspective) [100 100])]
+    (is (empty? (s3/sphere [] vp nil [0 0 20] 2.0 [255 0 0 255])))))
+
+(deftest plane-matches-drawplane
+  ;; DrawPlane: translate to the centre, scale (sx 1 sz), quad (-.5 -.5),
+  ;; (-.5 .5), (.5 .5), (.5 -.5) in x z. Centre (1 0 2), size 4 by 6: x -1..3,
+  ;; z -1..5 -> screen x 40..80, y 40..100 from above.
+  (let [vp (s3/view-proj top-down [100 100])
+        ts (tris (s3/finish (s3/plane [] vp nil [1 0 2] [4 6] [10 20 30 128])))]
+    (is (= 2 (count ts)))
+    (is (= [[40 40 40 100 80 100] [40 40 80 100 80 40]]
+           (mapv rounded-verts (sort-by (fn [it] (nth it 5)) ts))))
+    (is (= #{[10 20 30 128]} (set (map colour-of ts))) "flat, alpha kept")
+    (is (every? neg? (map cross ts)))))
+
+(deftest plane-seen-from-below-is-dropped
+  ;; the normal is +y: from y = -10 it is a back face
+  (let [below (s3/view-proj {:position [0.0 -10.0 0.0]
+                             :target [0.0 0.0 0.0]
+                             :up [0.0 0.0 1.0]
+                             :fovy 10.0
+                             :projection :orthographic} [100 100])
+        above (s3/view-proj top-down [100 100])]
+    (is (empty? (s3/plane [] below nil [0 0 0] [4 4] [1 2 3 255])))
+    (is (= 2 (count (s3/plane [] above nil [0 0 0] [4 4] [1 2 3 255]))))
+    (testing "and a transform that flips it over flips the verdict"
+      (is (= 2 (count (s3/plane [] below (s3/rotate-axis 180.0 1 0 0) [0 0 0] [4 4] [1 2 3 255]))))
+      (is (empty? (s3/plane [] above (s3/rotate-axis 180.0 1 0 0) [0 0 0] [4 4] [1 2 3 255]))))))
