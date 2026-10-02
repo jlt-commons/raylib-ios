@@ -30,6 +30,7 @@
             [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
             [raylib.scenes.camera2d :as c2d]
+            [raylib.scenes.camera3d :as c3d]
             [raylib.scenes.camerazoom :as czoom]
             [raylib.scenes.clipbox :as clipbox]
             [raylib.scenes.clock :as clock]
@@ -66,6 +67,7 @@
             [raylib.scenes.minesweeper :as msw]
             [raylib.scenes.multitouch :as multi]
             [raylib.scenes.nudge :as nudge]
+            [raylib.scenes.ortho :as ortho]
             [raylib.scenes.outlines :as outl]
             [raylib.scenes.pacman :as pacman]
             [raylib.scenes.pacman.maze :as maze]
@@ -81,6 +83,7 @@
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rlgltriangle :as rlgl]
+            [raylib.scenes.rotcube :as rotcube]
             [raylib.scenes.rounded :as rnd]
             [raylib.scenes.screens :as screens]
             [raylib.scenes.sector :as sector]
@@ -130,7 +133,8 @@
              (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
              (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
-             (gestures/scene) (helitorus/scene)])
+             (gestures/scene) (helitorus/scene)
+             (rotcube/scene) (c3d/scene) (ortho/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -163,7 +167,8 @@
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus]}
+             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
+             :rotcube :camera3d :ortho]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3067,3 +3072,89 @@
                                  helitorus/button-held-colour
                                  helitorus/button-colour)))
       (rl/draw-text label label-x label-y label-size (pack helitorus/button-label-colour)))))
+
+;; --- rotcube, camera3d and ortho: software 3D -----------------------------------
+
+(defn- draw-in-field!
+  "Run `f` with drawing clipped to the 3D field `[x y w h]`, in scene pixels.
+  BeginScissorMode takes screen pixels, so the field is moved by the offset the
+  gallery translates the scene by (the safe region's corner). Scissor does not
+  nest: it replaces the gallery's own, so the safe region's is put back after."
+  [safe [fx fy fw fh] f]
+  (rl/begin-scissor-mode (int (+ (:x safe) fx)) (int (+ (:y safe) fy)) (int fw) (int fh))
+  (try
+    (f)
+    (finally
+      (rl/end-scissor-mode)
+      (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe)))))
+
+(defn- draw-caption! [{:keys [s x y size]} colour]
+  (let [[r g b a] colour]
+    (rl/draw-text s (int x) (int y) (int size) (rl/rgba r g b a))))
+
+(defn- clear-to! [[r g b a]] (rl/clear-background (rl/rgba r g b a)))
+
+(def ^:private rotcube-cache
+  "The last `[screen dims grid]` for `:rotcube`. The grid and the caption size
+  depend on the screen alone, so they are not rebuilt each frame."
+  (atom nil))
+
+(defn- rotcube-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims grid] @rotcube-cache]
+    (if (= screen cached-screen)
+      [dims grid]
+      (let [dims (rotcube/dimensions m host-measure)
+            grid (rotcube/grid-list (rotcube/camera) dims)]
+        (reset! rotcube-cache [screen dims grid])
+        [dims grid]))))
+
+(defmethod draw-scene! :rotcube [_ state {:keys [m safe]}]
+  (clear-to! rotcube/background-colour)
+  (let [[dims grid] (rotcube-layout m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (rotcube/scene-list grid state dims))))
+    (draw-caption! (:caption dims) rotcube/caption-colour)))
+
+(def ^:private camera3d-cache
+  "The last `[screen dims]` for `:camera3d`. Its camera moves, so only the
+  layout is kept."
+  (atom nil))
+
+(defn- camera3d-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @camera3d-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (c3d/dimensions m host-measure)]
+        (reset! camera3d-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :camera3d [_ state {:keys [m safe]}]
+  (clear-to! c3d/background-colour)
+  (let [dims (camera3d-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (c3d/scene-list state dims))))
+    (draw-caption! (:caption dims) c3d/caption-colour)))
+
+(def ^:private ortho-cache
+  "The last `[[screen ortho?] dims grid]` for `:ortho`. The grid is the one for
+  the mode being drawn, so the key holds both the screen and the mode."
+  (atom nil))
+
+(defn- ortho-layout [m state]
+  (let [k [(:screen m) (boolean (:ortho? state))]
+        [cached-key dims grid] @ortho-cache]
+    (if (= k cached-key)
+      [dims grid]
+      (let [dims (ortho/dimensions m host-measure)
+            grid (ortho/grid-list (ortho/camera state) dims)]
+        (reset! ortho-cache [k dims grid])
+        [dims grid]))))
+
+(defmethod draw-scene! :ortho [_ state {:keys [m safe]}]
+  (clear-to! ortho/background-colour)
+  (let [[dims grid] (ortho-layout m state)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (ortho/scene-list grid state dims))))
+    (draw-caption! (ortho/caption state dims) ortho/caption-colour)))

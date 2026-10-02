@@ -119,6 +119,9 @@
                      raylib.scenes.splitscreen-test
                      raylib.scenes.gestures-test
                      raylib.scenes.helitorus-test
+                     raylib.scenes.rotcube-test
+                     raylib.scenes.camera3d-test
+                     raylib.scenes.ortho-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
