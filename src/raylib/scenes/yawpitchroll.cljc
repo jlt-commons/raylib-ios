@@ -207,18 +207,24 @@
 
 (def plane
   "The original's `draw-plane!`: fuselage, nose, wings, tailplane and fin, each
-  `[centre size colour]`, in its order. The wing (7 wide) and the tailplane
-  (2.6 wide) are each two outer panels instead of one box, from 0.01 inside the
-  fuselage's side (x = +-0.54) to the original's tips (3.5 and 1.3). The
-  inboard part lay inside the fuselage and was never visible. `raylib.soft3d`
-  sorts whole faces by mean depth, which cannot order a box that passes through
-  another, and the split leaves boxes that only touch."
+  `[centre size colour]` plus, for a panel, the shade of the end face that
+  `scene-list` leaves out (see `hidden-end`), in the original's order.
+
+  `raylib.soft3d` sorts whole faces by mean depth, which cannot order a box
+  that passes through another, so the wing (7 wide) and the tailplane (2.6 wide)
+  are cut where they meet the fuselage. Each has two outer panels, from 0.01
+  inside the fuselage's side (x = +-0.54) to the original's tips (3.5 and 1.3).
+  The inboard part of the wing lay wholly inside the fuselage and is gone. The
+  tailplane (z 1.55..2.25) overhangs the fuselage's rear (z 2.2), so a centre
+  strip of that overhang, 1.1 wide and 0.05 deep, keeps the silhouette. Colours,
+  heights and the rest of the depth are the original's."
   [[[0.0 0.0 0.0] [1.1 0.7 4.4] [200 205 215 255]]
    [[0.0 0.0 -2.6] [0.7 0.5 1.2] [160 165 180 255]]
-   [[2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255]]
-   [[-2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255]]
-   [[0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255]]
-   [[-0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255]]
+   [[2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255] 0.7]
+   [[-2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255] 0.85]
+   [[0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255] 0.7]
+   [[-0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255] 0.85]
+   [[0.0 0.0 2.225] [1.1 0.18 0.05] [0 82 172 255]]
    [[0.0 0.7 2.0] [0.16 1.3 0.7] [230 41 55 255]]])
 
 (defn plane-transform
@@ -249,13 +255,30 @@
   (let [vp (s3/view-proj cam (:viewport dims))]
     (s3/grid [] (assoc vp :m (s3/compose (:m vp) (s3/translate 0.0 -3.0 0.0))) 12 1.0)))
 
+(defn- hidden-end
+  "`dl` without the triangles of the face of shade `shade` that `cube` just
+  added after index `from`. A panel's inboard end lies inside the fuselage
+  whichever way the plane turns, so it is never seen, but the painter would
+  draw it over the fuselage. `cube` has no way to leave a face out, and this
+  drops the face by its colour, `(int (* shade c))` on r, g and b."
+  [dl from shade [r g b]]
+  (let [c [(int (* shade r)) (int (* shade g)) (int (* shade b))]]
+    (reduce (fn [out i]
+              (let [t (nth dl i)]
+                (if (= c (subvec t 7 10)) out (conj out t))))
+            (subvec dl 0 from)
+            (range from (count dl)))))
+
 (defn scene-list
   "The finished draw list for `state`: `base` (the `grid-list`) and the plane."
   [base state dims]
   (let [vp (s3/view-proj (camera dims) (:viewport dims))
         xf (plane-transform state)]
     (s3/finish
-     (reduce (fn [dl [pos size colour]] (s3/cube dl vp xf pos size colour))
+     (reduce (fn [dl [pos size colour shade]]
+               (let [from (count dl)
+                     out (s3/cube dl vp xf pos size colour)]
+                 (if shade (hidden-end out from shade colour) out)))
              base
              plane))))
 
