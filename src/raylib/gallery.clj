@@ -108,6 +108,7 @@
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
             [raylib.scenes.wheelbox :as wbox]
+            [raylib.scenes.wireframes :as wireframes]
             [raylib.scenes.worldscreen :as worldscreen]
             [raylib.scenes.writing :as writ]
             [raylib.scroll :as scroll]))
@@ -137,7 +138,7 @@
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene)])
+             (spincubes/scene) (worldscreen/scene) (wireframes/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -171,7 +172,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3207,3 +3208,23 @@
     (draw-caption! (:caption dims) worldscreen/caption-colour)
     (draw-caption! (worldscreen/readout state dims) worldscreen/readout-colour)
     (draw-caption! (worldscreen/label state dims) worldscreen/label-colour)))
+
+(def ^:private wireframes-cache
+  "The last `[screen dims]` for `:wireframes`."
+  (atom nil))
+
+(defn- wireframes-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @wireframes-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (wireframes/dimensions m host-measure)]
+        (reset! wireframes-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :wireframes [_ state {:keys [m safe]}]
+  (clear-to! wireframes/background-colour)
+  (let [dims (wireframes-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (wireframes/scene-list state dims))))
+    (draw-caption! (:caption dims) wireframes/caption-colour)))
