@@ -342,46 +342,57 @@
 (defn- tri
   "Append triangle p q s when its y-down cross product is negative, the winding
   rlgl keeps; drop it otherwise."
-  [dl p q s r g b depth]
+  [dl p q s r g b a depth]
   (let [x1 (nth p 0) y1 (nth p 1) x2 (nth q 0) y2 (nth q 1) x3 (nth s 0) y3 (nth s 1)]
     (if (neg? (- (* (- x2 x1) (- y3 y1)) (* (- y2 y1) (- x3 x1))))
-      (conj dl [:tri x1 y1 x2 y2 x3 y3 r g b 255 depth])
+      (conj dl [:tri x1 y1 x2 y2 x3 y3 r g b a depth])
       dl)))
 
 (defn cube
-  "`(cube dl vp xf [x y z] size [r g b a])`: raylib-jlt models.clj `cube!`, an
-  axis-aligned box centred on the point, under transform `xf` (nil for none).
-  `size` is a number or `[sx sy sz]`. Each face is shaded as cube! shades it,
-  front +z 1.0, back -z 0.5, left -x 0.7, right +x 0.85, top +y 1.0 and
-  bottom -y 0.4, by `(int (* shade c))` on r, g and b, with alpha 255. A face
-  goes in as cube!'s two triangles, each only when it faces the camera, and
-  not at all when a corner is behind the near plane."
-  [dl vp xf [cx cy cz] size [cr cg cb]]
-  (let [[m d] (frame vp xf)
-        {ox :x
-         oy :y
-         w :w
-         h :h} vp
-        [sx sy sz] (sizes size)
-        x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
-        y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
-        z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
-        c [(project* m d ox oy w h x0 y0 z0) (project* m d ox oy w h x1 y0 z0)
-           (project* m d ox oy w h x0 y1 z0) (project* m d ox oy w h x1 y1 z0)
-           (project* m d ox oy w h x0 y0 z1) (project* m d ox oy w h x1 y0 z1)
-           (project* m d ox oy w h x0 y1 z1) (project* m d ox oy w h x1 y1 z1)]]
-    (loop [i 0 dl dl]
-      (if (< i 6)
-        (let [f (nth faces i)
-              a (nth c (nth f 0)) b (nth c (nth f 1))
-              e (nth c (nth f 2)) g (nth c (nth f 3))]
-          (if (and a b e g)
-            (let [shade (nth f 4)
-                  r (int (* shade cr)) gg (int (* shade cg)) bb (int (* shade cb))
-                  depth (* 0.25 (+ (nth a 2) (nth b 2) (nth e 2) (nth g 2)))]
-              (recur (inc i) (-> dl (tri a b e r gg bb depth) (tri a e g r gg bb depth))))
-            (recur (inc i) dl)))
-        dl))))
+  "`(cube dl vp xf [x y z] size [r g b a])` or `(cube ... {:shade :flat})`:
+  an axis-aligned box centred on the point, under transform `xf` (nil for
+  none). `size` is a number or `[sx sy sz]`.
+
+  By default it is raylib-jlt models.clj `cube!`: each face shaded as cube!
+  shades it, front +z 1.0, back -z 0.5, left -x 0.7, right +x 0.85, top +y 1.0
+  and bottom -y 0.4, by `(int (* shade c))` on r, g and b, with alpha 255.
+  With `{:shade :flat}` it is rmodels.c `DrawCube`, which sets one
+  rlColor4ub(r, g, b, a) for every face: the colour unchanged, alpha
+  included. Use it where the original calls `draw-cube!`.
+
+  A face goes in as cube!'s two triangles, each only when it faces the camera,
+  and not at all when a corner is behind the near plane."
+  ([dl vp xf pos size colour] (cube dl vp xf pos size colour {}))
+  ([dl vp xf [cx cy cz] size [cr cg cb ca] {:keys [shade]}]
+   (let [[m d] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         [sx sy sz] (sizes size)
+         x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
+         y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
+         z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
+         c [(project* m d ox oy w h x0 y0 z0) (project* m d ox oy w h x1 y0 z0)
+            (project* m d ox oy w h x0 y1 z0) (project* m d ox oy w h x1 y1 z0)
+            (project* m d ox oy w h x0 y0 z1) (project* m d ox oy w h x1 y0 z1)
+            (project* m d ox oy w h x0 y1 z1) (project* m d ox oy w h x1 y1 z1)]]
+     (loop [i 0 dl dl]
+       (if (< i 6)
+         (let [f (nth faces i)
+               a (nth c (nth f 0)) b (nth c (nth f 1))
+               e (nth c (nth f 2)) g (nth c (nth f 3))]
+           (if (and a b e g)
+             (let [flat? (= shade :flat)
+                   f (nth f 4)
+                   r (if flat? cr (int (* f cr)))
+                   gg (if flat? cg (int (* f cg)))
+                   bb (if flat? cb (int (* f cb)))
+                   aa (if flat? ca 255)
+                   depth (* 0.25 (+ (nth a 2) (nth b 2) (nth e 2) (nth g 2)))]
+               (recur (inc i) (-> dl (tri a b e r gg bb aa depth) (tri a e g r gg bb aa depth))))
+             (recur (inc i) dl)))
+         dl)))))
 
 (defn- seg-clip
   "Append a segment given in clip space, (x1 y1 z1 w1)-(x2 y2 z2 w2), clipped
@@ -442,30 +453,66 @@
    6 2  7 3
    4 0  5 1])
 
+(def ^:private wire-faces
+  "The two faces (indices into `faces`) that meet at each `wire-edges` edge."
+  [0 5  0 3  0 4  0 2
+   1 5  1 3  1 4  1 2
+   2 4  3 4
+   2 5  3 5])
+
+(defn- facing?
+  "Whether the quad of `faces` entry `f` faces the camera, from the clip-space
+  corners `c`. The determinant of three corners' (x y w) is the 2D ndc cross
+  product times w1 w2 w3, so it is positive for a counter-clockwise (front)
+  face whichever side of the near plane its corners lie, and no projection
+  through infinity is needed."
+  [c f]
+  (let [p (nth c (nth f 0)) q (nth c (nth f 1)) r (nth c (nth f 2))
+        px (nth p 0) py (nth p 1) pw (nth p 3)
+        qx (nth q 0) qy (nth q 1) qw (nth q 3)
+        rx (nth r 0) ry (nth r 1) rw (nth r 3)]
+    (pos? (+ (* px (- (* qy rw) (* qw ry)))
+             (- (* py (- (* qx rw) (* qw rx))))
+             (* pw (- (* qx ry) (* qy rx)))))))
+
 (defn cube-wires
-  "`(cube-wires dl vp xf [x y z] size [r g b a])`: rmodels.c DrawCubeWires,
-  the box's twelve edges in its order (front face, back face, then the top and
-  bottom joins), under transform `xf` (nil for none). `size` is a number or
-  `[width height length]`. They go in the `:over` layer."
-  [dl vp xf [cx cy cz] size colour]
-  (let [[m] (frame vp xf)
-        {ox :x
-         oy :y
-         w :w
-         h :h} vp
-        [sx sy sz] (sizes size)
-        x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
-        y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
-        z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
-        c [(clip4 m x0 y0 z0) (clip4 m x1 y0 z0) (clip4 m x0 y1 z0) (clip4 m x1 y1 z0)
-           (clip4 m x0 y0 z1) (clip4 m x1 y0 z1) (clip4 m x0 y1 z1) (clip4 m x1 y1 z1)]]
-    (loop [i 0 dl dl]
-      (if (< i 24)
-        (let [p (nth c (nth wire-edges i)) q (nth c (nth wire-edges (inc i)))]
-          (recur (+ i 2)
-                 (seg-clip dl ox oy w h (nth p 0) (nth p 1) (nth p 2) (nth p 3)
-                           (nth q 0) (nth q 1) (nth q 2) (nth q 3) colour :over)))
-        dl))))
+  "`(cube-wires dl vp xf [x y z] size [r g b a])` or
+  `(cube-wires ... {:hide-back? true})`: rmodels.c DrawCubeWires, the box's
+  twelve edges in its order (front face, back face, then the top and bottom
+  joins), under transform `xf` (nil for none). `size` is a number or
+  `[width height length]`. They go in the `:over` layer, after every face.
+
+  With no depth buffer, the default draws all twelve, which is what raylib
+  shows for wires drawn alone. `{:hide-back? true}` drops each edge whose two
+  faces both face away from the camera, which is what raylib's depth test
+  hides when an opaque box fills the wires. A scene passes it when it draws
+  a solid `cube` of the same box under the wires, as DrawCube followed by
+  DrawCubeWires does, and leaves it off for wires with nothing inside."
+  ([dl vp xf pos size colour] (cube-wires dl vp xf pos size colour {}))
+  ([dl vp xf [cx cy cz] size colour {:keys [hide-back?]}]
+   (let [[m] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         [sx sy sz] (sizes size)
+         x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
+         y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
+         z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
+         c [(clip4 m x0 y0 z0) (clip4 m x1 y0 z0) (clip4 m x0 y1 z0) (clip4 m x1 y1 z0)
+            (clip4 m x0 y0 z1) (clip4 m x1 y0 z1) (clip4 m x0 y1 z1) (clip4 m x1 y1 z1)]
+         front (when hide-back? (mapv (fn [f] (facing? c f)) faces))]
+     (loop [i 0 dl dl]
+       (if (< i 24)
+         (if (and front
+                  (not (nth front (nth wire-faces i)))
+                  (not (nth front (nth wire-faces (inc i)))))
+           (recur (+ i 2) dl)
+           (let [p (nth c (nth wire-edges i)) q (nth c (nth wire-edges (inc i)))]
+             (recur (+ i 2)
+                    (seg-clip dl ox oy w h (nth p 0) (nth p 1) (nth p 2) (nth p 3)
+                              (nth q 0) (nth q 1) (nth q 2) (nth q 3) colour :over))))
+         dl)))))
 
 (def ^:private grid-centre [127 127 127 255])   ; rlColor3f(0.5, ...): (unsigned char)(0.5*255)
 (def ^:private grid-rest [191 191 191 255])     ; rlColor3f(0.75, ...): (unsigned char)(0.75*255)

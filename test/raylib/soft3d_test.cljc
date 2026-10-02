@@ -182,8 +182,20 @@
   (let [vp (s3/view-proj (cam [0 0 10] [0 0 0] 90.0 :perspective) [100 100])]
     (testing "a cube behind the camera draws nothing"
       (is (empty? (s3/finish (s3/cube [] vp nil [0 0 20] 2.0 [255 0 0 255])))))
-    (testing "a cube round the camera keeps no face with a corner behind the near plane"
-      (let [ts (tris (s3/finish (s3/cube [] vp nil [0 0 9] 3.0 [255 0 0 255])))]
+    (testing "a cube round the camera draws nothing: its one whole face, -z, faces away"
+      (is (empty? (s3/finish (s3/cube [] vp nil [0 0 9] 3.0 [255 0 0 255])))))
+    (testing "a face with a corner behind the near plane goes, its front-facing neighbour stays"
+      ;; From (3 0 3) looking along (1 0 -1.5), the +z face's far edge x = -1
+      ;; is 0.55 behind the camera while the +x face is wholly in front, so
+      ;; only +x's two triangles survive, shaded 0.85.
+      (let [vp (s3/view-proj {:position [3 0 3]
+                              :target [4 0 1.5]
+                              :up [0 1 0]
+                              :fovy 90.0
+                              :projection :perspective} [100 100])
+            ts (tris (s3/finish (s3/cube [] vp nil [0 0 0] 2.0 [200 100 50 255])))]
+        (is (= 2 (count ts)))
+        (is (= #{[170 85 42 255]} (set (map colour-of ts))))
         (is (every? neg? (map cross ts)))
         (is (every? (fn [it] (every? (fn [v] (< (Math/abs (double v)) 1e6)) (subvec it 1 7))) ts))))
     (testing "a line through the near plane is clipped to it, at view depth 0.05"
@@ -230,6 +242,46 @@
                   (filter (fn [it] (= 127 (nth it 5))) ls)))))
     (testing "DrawGrid's vertex order: (i*s, 0, -h*s)->(i*s, 0, h*s), then (-h*s, 0, i*s)->(h*s, 0, i*s)"
       (is (= [[0 0 0 100] [0 0 100 0] [10 0 10 100] [0 10 100 10]] (take 4 ends))))))
+
+(deftest a-flat-cube-is-drawcube
+  ;; rmodels.c DrawCube: one rlColor4ub(color.r, color.g, color.b, color.a) for
+  ;; every face, no shading, alpha kept
+  (doseq [[position up] [[[0 0 10] [0 1 0]] [[0 0 -10] [0 1 0]] [[-10 0 0] [0 1 0]]
+                         [[10 0 0] [0 1 0]] [[0 10 0] [0 0 -1]] [[0 -10 0] [0 0 1]]
+                         [[6 6 6] [0 1 0]] [[-6 -6 -6] [0 1 0]]]]
+    (let [vp (s3/view-proj {:position position
+                            :target [0 0 0]
+                            :up up
+                            :fovy 45.0
+                            :projection :perspective} [390 600])
+          flat (tris (s3/finish (s3/cube [] vp nil [0 0 0] 2.0 [200 100 50 128] {:shade :flat})))
+          shaded (tris (s3/finish (s3/cube [] vp nil [0 0 0] 2.0 [200 100 50 128])))]
+      (testing (str position)
+        (is (= (count shaded) (count flat)))
+        (is (= #{[200 100 50 128]} (set (map colour-of flat))))
+        (is (every? neg? (map cross flat)))))))
+
+(defn- all-wire-ends
+  "Rounded screen ends of the DrawCubeWires edges of a 2-cube at the origin."
+  [vp opts]
+  (mapv (fn [it] (mapv (fn [v] (Math/round (double v))) (subvec it 1 5)))
+        (lines-of (s3/finish (s3/cube-wires [] vp nil [0 0 0] 2.0 [0 0 0 255] opts)))))
+
+(deftest wires-hide-their-back-edges-on-request
+  (doseq [projection [:perspective :orthographic]]
+    (let [vp (s3/view-proj (cam [6 6 6] [0 0 0] 45.0 projection) [390 600])
+          whole (all-wire-ends vp {})
+          shown (all-wire-ends vp {:hide-back? true})]
+      (testing (str projection " from a corner, the 3 edges meeting the far corner (-1 -1 -1) go")
+        (is (= 12 (count whole)))
+        ;; DrawCubeWires order: 0-1 is edge 4, 2-0 edge 7, 4-0 edge 10
+        (is (= (vec (keep-indexed (fn [i e] (when-not (#{4 7 10} i) e)) whole)) shown)))))
+  (testing "head on, only the front square stays"
+    (let [vp (s3/view-proj (cam [0 0 10] [0 0 0] 45.0 :perspective) [390 600])]
+      (is (= (subvec (all-wire-ends vp {}) 0 4) (all-wire-ends vp {:hide-back? true})))))
+  (testing "the default keeps all twelve, as DrawCubeWires alone"
+    (let [vp (s3/view-proj (cam [6 6 6] [0 0 0] 45.0 :perspective) [390 600])]
+      (is (= 12 (count (lines-of (s3/cube-wires [] vp nil [0 0 0] 2.0 [0 0 0 255]))))))))
 
 (deftest cube-wires-matches-drawcubewires
   ;; Through top-down, the twelve edges of a 2 x 4 x 6 box at (1 0 0): x 0..2,
