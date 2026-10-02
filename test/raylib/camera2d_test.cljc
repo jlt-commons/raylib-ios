@@ -134,8 +134,10 @@
         (is (< (abs (- 2.0 (:ratio s))) 1e-9))
         (is (< (abs (- (:ratio s) (:ratio swapped))) 1e-9))))
     (testing "three or more points record nothing and step nothing"
-      (is (= {:pinch nil :step nil} (frame nil [a b c])))
-      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) [a b c]))))
+      (is (= {:pinch nil
+              :step nil} (frame nil [a b c])))
+      (is (= {:pinch nil
+              :step nil} (frame (cam/pinch a b) [a b c]))))
     (testing "a reorder of three points moves nothing"
       (is (every? nil? (steps [a b c] [c a b] [b c a] [c b a]))))
     (testing "one of three lifting moves nothing"
@@ -146,5 +148,7 @@
     (testing "two, three, two moves nothing"
       (is (every? nil? (steps [a b] [a b c] [a b]))))
     (testing "fewer than two points end the pinch"
-      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) [a])))
-      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) []))))))
+      (is (= {:pinch nil
+              :step nil} (frame (cam/pinch a b) [a])))
+      (is (= {:pinch nil
+              :step nil} (frame (cam/pinch a b) []))))))
