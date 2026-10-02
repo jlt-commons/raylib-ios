@@ -114,6 +114,7 @@
                      raylib.camera2d-test
                      raylib.scenes.camera2d-test
                      raylib.scenes.camerazoom-test
+                     raylib.scenes.platformer-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
