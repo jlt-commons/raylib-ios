@@ -14,8 +14,11 @@
 
   The original's keys, and what stands in for each:
   - D and A add and subtract 0.18 on x a frame, S and W add and subtract 0.18 on
-    z. Each key is its own axis, so a diagonal moves 0.18 on both, as the
-    original's does. Nothing is held to the grid: the player can leave it.
+    z. The original's keys are each their own axis, so its diagonal moves 0.18
+    on both, which is about 1.41 times as fast. The stick keeps one speed
+    instead, as nudge, splitscreen and freecam do: a diagonal scales both axes
+    by 1 / sqrt 2 (`diagonal`), and that is the one deliberate difference.
+    Nothing is held to the grid: the player can leave it.
   - A relative thumb-stick replaces the four keys. The press point is its
     centre, and a finger that lands in the 3D area starts it. An axis is on
     when the finger is further than `gesture/slop` from the centre along it:
@@ -46,6 +49,10 @@
 
 (def speed "World units a frame for each key. The original's SPEED." 0.18)
 (def player-size "The player cube's side. The original's PS." 2.0)
+(def diagonal
+  "What a diagonal's two axes are scaled by, 1 / sqrt 2, so that it moves at
+  `speed` in all, as `raylib.scenes.nudge`, splitscreen and freecam do."
+  (/ 1.0 (Math/sqrt 2.0)))
 
 (def boxes
   "The original's static obstacles: a centre `:x` `:z` on the ground and a side
@@ -188,7 +195,7 @@
 (defn advance
   "One frame, as the original's loop body: `px` gains `speed` for D and loses it
   for A, `pz` gains it for S and loses it for W, the keys being the stick's
-  (`stick-keys`). A release frame with fewer than two points lifts everything,
+  (`stick-keys`), and both axes scaled by `diagonal` when both are on. A release frame with fewer than two points lifts everything,
   and its position is never read. A rotation of the phone drops the stick,
   whose pixels are the old screen's."
   [state input]
@@ -209,15 +216,18 @@
                                  :press? (= :press phase)
                                  :free? free-point?
                                  :start? #(gesture/in-rect? (:viewport dims) %)})
-        down (stick-keys stick metrics)]
+        down (stick-keys stick metrics)
+        kx (+ (if (:d down) 1.0 0.0) (if (:a down) -1.0 0.0))
+        kz (+ (if (:s down) 1.0 0.0) (if (:w down) -1.0 0.0))
+        k (if (and (not (zero? kx)) (not (zero? kz))) diagonal 1.0)]
     (assoc state
            :screen screen
            :n (count points)
            :pts points
            :ids ids
            :stick stick
-           :px (+ (:px state) (* speed (+ (if (:d down) 1.0 0.0) (if (:a down) -1.0 0.0))))
-           :pz (+ (:pz state) (* speed (+ (if (:s down) 1.0 0.0) (if (:w down) -1.0 0.0)))))))
+           :px (+ (:px state) (* speed k kx))
+           :pz (+ (:pz state) (* speed k kz)))))
 
 (defn- init [{:keys [metrics]}]
   [{:px 0.0

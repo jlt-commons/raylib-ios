@@ -50,8 +50,8 @@
 ;; --- the stick -----------------------------------------------------------------
 
 ;; The original adds SPEED 0.18 to px for D and subtracts it for A, and adds it
-;; to pz for S and subtracts it for W, each key on its own, so a diagonal moves
-;; 0.18 on both axes.
+;; to pz for S and subtracts it for W, each key on its own. Here the stick's two
+;; axes are normalised, so a diagonal also moves 0.18 in all.
 (deftest the-stick-moves-the-player-at-the-originals-speed
   (testing "the player starts at the origin, as the original's (0, 0)"
     (is (= [0.0 0.0] (pos start))))
@@ -63,8 +63,12 @@
     (is (= [-0.18 0.0] (pos (pushed start -100.0 0.0)))))
   (testing "right is D: x + 0.18"
     (is (= [0.18 0.0] (pos (pushed start 100.0 0.0)))))
-  (testing "a diagonal moves both axes at 0.18, as two keys do"
-    (is (= [0.18 -0.18] (pos (pushed start 100.0 -100.0)))))
+  (testing "a diagonal moves at 0.18 too, not 0.18 on both axes (nudge, splitscreen and freecam)"
+    (let [[x z] (pos (pushed start 100.0 -100.0))
+          each (/ 0.18 (Math/sqrt 2.0))]
+      (is (near? each x))
+      (is (near? (- each) z))
+      (is (near? 0.18 (Math/sqrt (+ (* x x) (* z z)))))))
   (testing "the press itself moves nothing"
     (is (= [0.0 0.0] (pos (step start :press [stick-pt])))))
   (testing "inside the dead zone an axis stays put"
