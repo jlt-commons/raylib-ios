@@ -50,6 +50,7 @@
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.fontsizes :as fsizes]
             [raylib.scenes.formattext :as ftext]
+            [raylib.scenes.fpcamera :as fpcamera]
             [raylib.scenes.freecam :as freecam]
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gestures :as gestures]
@@ -146,7 +147,8 @@
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
-             (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)])
+             (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
+             (fpcamera/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -181,7 +183,7 @@
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
-             :wavecubes :solarsystem :pointcloud]}
+             :wavecubes :solarsystem :pointcloud :fpcamera]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3430,3 +3432,24 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (pointcloud/scene-list state dims))))
     (draw-caption! (:caption dims) pointcloud/caption-colour)))
+
+(def ^:private fpcamera-cache
+  "The last `[screen dims]` for `:fpcamera`. Its camera moves, so only the
+  layout and the text size are kept."
+  (atom nil))
+
+(defn- fpcamera-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @fpcamera-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (fpcamera/dimensions m host-measure)]
+        (reset! fpcamera-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :fpcamera [_ state {:keys [m safe]}]
+  (clear-to! fpcamera/sky-colour)
+  (let [dims (fpcamera-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (fpcamera/scene-list state dims))))
+    (draw-caption! (:caption dims) fpcamera/caption-colour)))
