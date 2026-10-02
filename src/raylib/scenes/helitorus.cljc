@@ -533,9 +533,10 @@
         pressed? (fn [id] (and (contains? held id) (not (contains? (:held state) id))))
         pts (field-points dims input)
         dt (max 0.0 (double (or (:delta-seconds input) 0.0)))
-        now (when (= 2 (count pts)) (cam/pinch (first pts) (second pts)))
-        zoom (if (and now (:pinch state))
-               (clamp-zoom (* (:zoom state) (:ratio (cam/pinch-step (:pinch state) now))))
+        {now :pinch
+         step :step} (cam/pinch-frame (:pinch state) pts)
+        zoom (if step
+               (clamp-zoom (* (:zoom state) (:ratio step)))
                (:zoom state))
         s (if (= 1 (count pts))
             (drag state (:drag state) (first pts) (:scale dims))

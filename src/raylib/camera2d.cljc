@@ -75,3 +75,22 @@
               1.0)
      :twist twist
      :mid (:mid cur)}))
+
+(defn pinch-frame
+  "The one rule every pinching scene follows. `prev` is the `:pinch` the scene
+  stored last frame (nil when there was none) and `points` the touch points now.
+  Returns `{:pinch now :step step}`: `:pinch` is `pinch` of the two points when
+  there are exactly two, else nil, and `:step` is `pinch-step` from `prev` to it
+  when both exist, else nil. The scene stores `:pinch` and applies `:step`.
+
+  So a pinch acts only while the finger count stays at two. Any change of count
+  (a third finger landing, one of three lifting, a platform reorder of three
+  points) leaves `:pinch` nil or freshly recorded, never a step, so the view
+  moves only when two fingers that were already down move. Two fingers are
+  order-free (`pinch`), but three or more are not, because the platform lists
+  them in no promised order and there is no telling which two were the pair."
+  [prev points]
+  (let [pts (vec points)
+        now (when (= 2 (count pts)) (pinch (nth pts 0) (nth pts 1)))]
+    {:pinch now
+     :step (when (and now prev) (pinch-step prev now))}))

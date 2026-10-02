@@ -251,6 +251,16 @@
       (let [b (button-centre geo :windings-plus)
             s (-> start (step [(at c -50.0 0.0) b]) (step [(at c -90.0 0.0) b]))]
         (is (= (:zoom start) (:zoom s)))))
+    (testing "the scene uses the shared rule: two, three, two moves nothing"
+      (let [pinched (step before (pair c 100.0))
+            third (at c 0.0 300.0)
+            back (-> pinched
+                     (step [(at c -100.0 0.0) (at c 100.0 0.0) third])
+                     (step (pair c 100.0)))]
+        (is (= (:zoom pinched) (:zoom back)))
+        (is (= (:zoom pinched)
+               (:zoom (step back [(at c 100.0 0.0) third (at c -100.0 0.0)])))
+            "and a reorder of three moves nothing")))
     (testing "three field fingers pause the pinch"
       (let [three (step before [(at c -100.0 0.0) (at c 100.0 0.0) (at c 0.0 300.0)])]
         (is (= (:zoom before) (:zoom three)))

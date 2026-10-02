@@ -158,23 +158,36 @@
                       (step :down [[650.0 1000.0]]))]
         (is (not= (:target (cam-of pinched)) (:target (cam-of again))))))))
 
-(deftest a-third-finger-cannot-swap-the-pair
-  (let [before (-> start (step :press [a b]) (step :down [a b]))
+(deftest the-pinch-follows-the-shared-rule-for-the-finger-count
+  ;; `raylib.camera2d/pinch-frame`: a pinch acts only while the count stays at
+  ;; two, and a change of count only records. Fingers are held still in each.
+  (let [pinched (-> start (step :press [a b]) (step :down [a b])
+                    (step :down [[350.0 1200.0] [550.0 1200.0]]))
         c-left [100.0 1200.0]
         c-between [450.0 1500.0]]
-    (doseq [c [c-left c-between [1000.0 1900.0]]
-            order [[a b c] [c a b] [b c a]]]
-      (let [after (step before :down order)]
-        (is (near? 1.0 (zoom-of after)) (str c order))
-        (is (= (cam-of before) (cam-of after)) (str c order))))
-    (testing "the pair keeps following its own fingers"
-      (let [after (step before :down [c-left [350.0 1200.0] [550.0 1200.0]])]
-        (is (near? 2.0 (zoom-of after)))))
-    (testing "three fingers on the first frame pick the two leftmost, always"
-      (let [one (step start :press [[300.0 1000.0] [100.0 1000.0] [200.0 1000.0]])
-            two (step start :press [[200.0 1000.0] [300.0 1000.0] [100.0 1000.0]])]
-        (is (= (:pair one) (:pair two)))
-        (is (= (set [[100.0 1000.0] [200.0 1000.0]]) (set (:pair one))))))))
+    (is (not= (cam-of start) (cam-of pinched)))
+    (testing "a reorder of three points moves nothing"
+      (doseq [c [c-left c-between [1000.0 1900.0]]
+              order [[a b c] [c a b] [b c a]]]
+        (is (= (cam-of pinched) (cam-of (step pinched :down order))) (str c order))))
+    (testing "one of three lifting moves nothing, even when a different pair is left"
+      (let [three (step pinched :down [a b c-left])]
+        (doseq [left [[b c-left] [a c-left] [a b]]]
+          (let [two (step three :down left)]
+            (is (= (cam-of pinched) (cam-of two)) (str left))
+            ;; a steady pair re-pins the camera on its midpoint, which changes
+            ;; the offset and target but not where the world is on screen
+            (is (near-pt? (cam/world->screen (cam-of pinched) [10.0 20.0])
+                          (cam/world->screen (cam-of (step two :down left)) [10.0 20.0]))
+                (str left))
+            (is (near? (zoom-of pinched) (zoom-of (step two :down left))) (str left))))))
+    (testing "two, three, two moves nothing"
+      (let [back (-> pinched (step :down [a b c-left]) (step :down [a b]))]
+        (is (= (cam-of pinched) (cam-of back)))))
+    (testing "the pair then steps from where it was recorded"
+      (let [two (-> pinched (step :down [a b c-left]) (step :down [a b]))
+            grown (step two :down [[350.0 1200.0] [550.0 1200.0]])]
+        (is (not= (cam-of two) (cam-of grown)))))))
 
 (deftest a-rotation-of-the-phone-drops-the-drag-and-the-pinch
   (let [held (-> start (step :press [[600.0 1000.0]]) (step :down [[640.0 1000.0]]))

@@ -28,7 +28,9 @@
 
   A pinch and the stick never share a finger. A second finger landing during a
   drag ends the stick at once, so the player stops, and while two fingers are
-  down only the pinch acts. When one lifts, the finger left starts no new stick
+  down only the pinch acts, and only while exactly two are
+  down (`camera2d/pinch-frame`), so a third finger or a reorder of three moves
+  nothing. When one lifts, the finger left starts no new stick
   (a stick begins only at a press), so the player stays put until a fresh touch,
   and the next pair of fingers starts a new pinch from its first frame with no
   jump. A tap that ends a pinch is never read as a press on reset.
@@ -171,10 +173,11 @@
         nil))))
 
 (defn advance
-  "One frame. Calls `gesture/track` once. Two or more touch points make a
-  pinch from the first two: the zoom is multiplied by `:ratio` and held to the
-  clamp, the rotation grows by `:twist`, and the stick is dropped. The first
-  frame of a pinch only records it, so nothing jumps. Otherwise the stick moves
+  "One frame. Calls `gesture/track` once. Two or more touch points drop the
+  stick. Exactly two, after exactly two the frame before (`cam/pinch-frame`),
+  pinch: the zoom is multiplied by `:ratio` and held to the clamp and the
+  rotation grows by `:twist`. Any change of finger count only records, so a
+  third finger, a lifted one or a reordered three moves nothing. Otherwise the stick moves
   the player `player-speed` world units. A tap on reset restores zoom and
   rotation unless it ended a pinch. A rotation of the phone drops the stick and
   the pinch, whose pixels are the old screen's. The release position is never
@@ -186,8 +189,8 @@
         state (if (not= screen (:screen state)) (dissoc state :stick :pinch) state)
         points (vec (:touch-points input))
         pinching? (>= (count points) 2)
-        now (when pinching? (cam/pinch (nth points 0) (nth points 1)))
-        step (when (and now (:pinch state)) (cam/pinch-step (:pinch state) now))
+        {now :pinch
+         step :step} (cam/pinch-frame (:pinch state) points)
         [g event] (gesture/track (:gesture state) input)
         reset? (and (= :tap (:type event))
                     (not pinching?)

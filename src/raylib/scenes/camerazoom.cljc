@@ -29,12 +29,12 @@
     The twist of the fingers is ignored.
 
   A pinch and a pan never share a finger. A second finger landing ends the pan
-  that frame, and with two or more fingers down only the pinch acts. With three
-  or more the pair is the two fingers nearest the previous pair, and on the
-  first frame of a pinch the two leftmost (then topmost), so a third finger
-  cannot swap the pair. When one finger lifts, the one left pans nothing until a
-  fresh press, and the next pair of fingers starts a pinch from its first frame
-  with no jump. A touch that begins under Back pans nothing.
+  that frame, and with two or more fingers down only the pinch acts. A pinch
+  acts only while the finger count stays at two (`raylib.camera2d/pinch-frame`):
+  a third finger landing, one of three lifting or a platform reorder of three
+  points only records the new fingers and moves nothing. When one finger lifts,
+  the one left pans nothing until a fresh press, and the next pair of fingers
+  starts a pinch from its first frame with no jump. A touch that begins under Back pans nothing.
 
   The crosshair sits at the last touch, or the pinch's midpoint. The camera
   starts with the world origin at the field's centre, where the original starts
@@ -124,31 +124,6 @@
 
 (defn- clamp-zoom [z] (max zoom-min (min zoom-max z)))
 
-(defn- dist2 [[ax ay] [bx by]]
-  (let [dx (- ax bx)
-        dy (- ay by)]
-    (+ (* dx dx) (* dy dy))))
-
-(defn- nearest
-  "The index in `points` of the point nearest `p`."
-  [points p]
-  (apply min-key #(dist2 (nth points %) p) (range (count points))))
-
-(defn- select-pair
-  "The two touch `points` that make the pinch. Two points are the pair. With
-  more, and a `prev` pair, each of the previous two takes the nearest unclaimed
-  point, so a newcomer cannot swap the pair. With no `prev` it is the two lowest
-  by x then y, whatever the order the platform lists them in."
-  [points prev]
-  (let [pts (vec points)]
-    (cond
-      (= 2 (count pts)) pts
-      (nil? prev) (vec (take 2 (sort-by (juxt first second) pts)))
-      :else (let [i (nearest pts (first prev))
-                  rest-pts (vec (concat (subvec pts 0 i) (subvec pts (inc i))))
-                  j (nearest rest-pts (second prev))]
-              [(nth pts i) (nth rest-pts j)]))))
-
 (defn- pinch-camera
   "`camera` after the pinch moved from `prev` to `now` (both from
   `raylib.camera2d/pinch`): the world point under the previous midpoint is
@@ -170,9 +145,10 @@
     (assoc camera :target [(- gx (/ (- tx fx) z)) (- gy (/ (- ty fy) z))])))
 
 (defn advance
-  "One frame. Two or more touch points make a pinch of the pair `select-pair`
-  picks: the camera is pinned and zoomed by `pinch-camera` and the pan is
-  dropped. The first frame of a pinch only records it, so nothing jumps. With
+  "One frame. Two or more touch points drop the pan. Exactly two, after exactly
+  two the frame before (`cam/pinch-frame`), pinch: the camera is pinned and
+  zoomed by `pinch-camera`. Any change of finger count only records, so a third
+  finger, a lifted one or a reordered three moves nothing. With
   fewer than two, a press that is not under Back anchors a pan, a `:down` with
   an anchor pans by the finger's movement since the last frame, and anything
   else, a lifted finger included, ends it. A rotation of the phone drops the pan
@@ -183,19 +159,19 @@
         screen (:screen metrics)
         state (if (not= screen (:screen state))
                 (-> state
-                    (dissoc :drag :pinch :pair)
+                    (dissoc :drag :pinch)
                     (assoc-in [:camera :offset] (:offset (geometry metrics))))
                 state)
         points (vec (:touch-points input))
         pinching? (>= (count points) 2)
         {:keys [phase position]} (:pointer input)
-        pair (when pinching? (select-pair points (:pair state)))
-        now (when pair (cam/pinch (first pair) (second pair)))
+        {now :pinch
+         step :step} (cam/pinch-frame (:pinch state) points)
         camera (:camera state)
         anchor (get-in state [:drag :last])
         panning? (and (not pinching?) (= :down phase) anchor position)
         camera (cond
-                 (and now (:pinch state)) (pinch-camera camera (:pinch state) now)
+                 step (pinch-camera camera (:pinch state) now)
                  panning? (pan-camera camera anchor position)
                  :else camera)
         drag (case phase
@@ -214,7 +190,6 @@
            :screen screen
            :camera camera
            :pinch now
-           :pair pair
            :drag drag
            :cross cross)))
 
@@ -227,8 +202,7 @@
       :cross offset
       :screen (:screen metrics)
       :drag nil
-      :pinch nil
-      :pair nil}
+      :pinch nil}
      [[:scene/init :camerazoom]]]))
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])

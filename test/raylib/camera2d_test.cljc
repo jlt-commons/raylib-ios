@@ -109,3 +109,42 @@
     (is (= 1.0 (:ratio (cam/pinch-step apart same))) "current distance 0")
     (is (= 1.0 (:ratio (cam/pinch-step same apart))) "previous distance 0")
     (is (= 1.0 (:ratio (cam/pinch-step same same))) "both 0")))
+
+(deftest a-pinch-acts-only-while-the-finger-count-stays-at-two
+  (let [a [400.0 1200.0]
+        b [500.0 1200.0]
+        c [900.0 1500.0]
+        frame (fn [prev pts] (cam/pinch-frame prev pts))
+        steps (fn [& frames]
+                ;; the step of each frame, the pinch carried frame to frame
+                (loop [prev nil
+                       [pts & more] frames
+                       out []]
+                  (if (nil? pts)
+                    out
+                    (let [{:keys [pinch step]} (frame prev pts)]
+                      (recur pinch more (conj out step))))))]
+    (testing "the first frame of two fingers only records"
+      (let [f (frame nil [a b])]
+        (is (some? (:pinch f)))
+        (is (nil? (:step f)))))
+    (testing "two fingers on two frames step, and the step is order-free"
+      (let [s (second (steps [a b] [[350.0 1200.0] [550.0 1200.0]]))
+            swapped (second (steps [a b] [[550.0 1200.0] [350.0 1200.0]]))]
+        (is (< (abs (- 2.0 (:ratio s))) 1e-9))
+        (is (< (abs (- (:ratio s) (:ratio swapped))) 1e-9))))
+    (testing "three or more points record nothing and step nothing"
+      (is (= {:pinch nil :step nil} (frame nil [a b c])))
+      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) [a b c]))))
+    (testing "a reorder of three points moves nothing"
+      (is (every? nil? (steps [a b c] [c a b] [b c a] [c b a]))))
+    (testing "one of three lifting moves nothing"
+      (let [[three lifted steady] (steps [a b c] [b c] [b c])]
+        (is (nil? three))
+        (is (nil? lifted) "the frame it lifts only records the pair that is left")
+        (is (= 1.0 (:ratio steady)) "and a steady pair after that steps by nothing")))
+    (testing "two, three, two moves nothing"
+      (is (every? nil? (steps [a b] [a b c] [a b]))))
+    (testing "fewer than two points end the pinch"
+      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) [a])))
+      (is (= {:pinch nil :step nil} (frame (cam/pinch a b) []))))))

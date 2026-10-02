@@ -183,6 +183,31 @@
             second-pair (-> one-left (step :down [a b]))]
         (is (near? (:zoom walking) (:zoom second-pair)))))))
 
+(deftest the-pinch-follows-the-shared-rule-for-the-finger-count
+  ;; `raylib.camera2d/pinch-frame`: a pinch acts only while the count stays at
+  ;; two, and a change of count only records.
+  (let [a [400.0 1200.0]
+        b [500.0 1200.0]
+        c [900.0 1500.0]
+        view (juxt :zoom :rot)
+        pinched (-> start (step :press [a b]) (step :down [a b])
+                    (step :down [[350.0 1200.0] [550.0 1200.0]]))
+        held (view pinched)]
+    (is (not= (view start) held))
+    (testing "a reorder of three points moves nothing"
+      (let [three (step pinched :down [a b c])]
+        (is (= held (view three)))
+        (is (= held (view (step three :down [c a b]))))
+        (is (= held (view (step three :down [b c a]))))))
+    (testing "one of three lifting moves nothing"
+      (let [three (step pinched :down [a b c])
+            two (step three :down [b c])]
+        (is (= held (view two)))
+        (is (= held (view (step two :down [b c]))))))
+    (testing "two, three, two moves nothing"
+      (let [back (-> pinched (step :down [a b c]) (step :down [a b]))]
+        (is (= held (view back)))))))
+
 (deftest a-rotation-of-the-phone-drops-the-stick-and-the-pinch
   (let [held (-> start (step :press [below-back]) (step :down [[900.0 1200.0]]))
         land {:screen [2334 1206]}
@@ -253,5 +278,6 @@
       (is (every? number? [(:px s) (:zoom s) (:rot s)]) (str screen))
       (is (every? number? (concat (:offset c) (:target c) [(:rotation c) (:zoom c)])))
       (is (pos? (:zoom c)))
-      (is (= c (update c :zoom identity)))
+      (is (= (:zoom c) (* (:base-zoom dims) (:zoom s))) "the camera's zoom is the base zoom times the user's")
+      (is (= (:offset dims) (:offset c)))
       (is (some? (cam/world->screen c [(:px s) 200.0]))))))
