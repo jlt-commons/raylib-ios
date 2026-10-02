@@ -23,8 +23,9 @@
     A, right is D, up the glass is W and down is S. Each axis is its own dead
     zone and runs at its own rate, so a diagonal turns both, as two keys
     pressed together do. Only a press, or a further finger landing while others
-    are down, starts a stick, so a finger that was already down when the scene
-    opened, or one that began under Back or on a button, never does. A finger
+    are down, starts a stick, and then only at the new finger, so a finger that
+    was already down when the scene opened, or one that began under Back or on a
+    button, never does, even when another finger lands. A finger
     that slides from the stick onto a button ends the stick.
   - Two held buttons replace Q and E. They are read from `:touch-points`, so a
     thumb on the stick and a thumb on a button act together. \"roll left\" is
@@ -51,7 +52,8 @@
 
   The state holds `:yaw`, `:pitch` and `:roll` in degrees, `:stick` (the
   centre and the finger, or nil), `:held` (the set of button ids held, for the
-  draw), `:n` (the finger count last frame) and `:screen`. Colours are `[r g b a]` vectors."
+  draw), `:n` (the finger count last frame), `:pts` (the touch points of
+  that frame, for telling a new finger from one already down) and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
             [raylib.soft3d :as s3]))
 
@@ -205,11 +207,18 @@
 
 (def plane
   "The original's `draw-plane!`: fuselage, nose, wings, tailplane and fin, each
-  `[centre size colour]`, in its order."
+  `[centre size colour]`, in its order. The wing (7 wide) and the tailplane
+  (2.6 wide) are each two outer panels instead of one box, from 0.01 inside the
+  fuselage's side (x = +-0.54) to the original's tips (3.5 and 1.3). The
+  inboard part lay inside the fuselage and was never visible. `raylib.soft3d`
+  sorts whole faces by mean depth, which cannot order a box that passes through
+  another, and the split leaves boxes that only touch."
   [[[0.0 0.0 0.0] [1.1 0.7 4.4] [200 205 215 255]]
    [[0.0 0.0 -2.6] [0.7 0.5 1.2] [160 165 180 255]]
-   [[0.0 0.0 0.2] [7.0 0.22 1.3] [0 121 241 255]]
-   [[0.0 0.0 1.9] [2.6 0.18 0.7] [0 82 172 255]]
+   [[2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255]]
+   [[-2.02 0.0 0.2] [2.96 0.22 1.3] [0 121 241 255]]
+   [[0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255]]
+   [[-0.92 0.0 1.9] [0.76 0.18 0.7] [0 82 172 255]]
    [[0.0 0.7 2.0] [0.16 1.3 0.7] [230 41 55 255]]])
 
 (defn plane-transform
@@ -303,19 +312,23 @@
   "The stick after this frame. A held stick follows the free finger nearest to
   where it was and ends when there is none. Without one, a press starts it, or
   a finger landing while others are already down, at the first finger in the 3D
-  area. Nothing else does, so a finger that was down already never becomes one
-  by moving."
-  [state dims points press?]
+  area that is further than `gesture/slop` from every finger of the frame
+  before (`:pts`), so it is the new one. Nothing else does: a finger that was
+  down already is never adopted when another lands, and never becomes one by
+  moving."
+  [state dims metrics points press?]
   (let [n (count points)
         prev-n (:n state 0)
         stick (:stick state)
-        free (filterv #(free-point? dims %) points)]
+        slop2 (let [sl (gesture/slop metrics)] (* sl sl))
+        free (filterv #(free-point? dims %) points)
+        fresh? (fn [p] (every? #(> (d2 p %) slop2) (:pts state)))]
     (cond
       (zero? n) nil
       stick (when (seq free)
               (assoc stick :at (apply min-key #(d2 % (:at stick)) free)))
       (or press? (and (pos? prev-n) (> n prev-n)))
-      (when-let [p (first (filter #(gesture/in-rect? (:viewport dims) %) free))]
+      (when-let [p (first (filter #(and (gesture/in-rect? (:viewport dims) %) (fresh? %)) free))]
         {:centre p
          :at p})
       :else nil)))
@@ -347,18 +360,19 @@
         dims (geometry metrics)
         screen (:screen metrics)
         state (if (not= screen (:screen state))
-                (assoc (dissoc state :stick) :n 0)
+                (assoc (dissoc state :stick) :n 0 :pts [])
                 state)
         phase (get-in input [:pointer :phase])
         raw (vec (:touch-points input))
         points (if (and (= :release phase) (< (count raw) 2)) [] raw)
-        stick (next-stick state dims points (= :press phase))
+        stick (next-stick state dims metrics points (= :press phase))
         down (stick-keys stick metrics)
         held (held-buttons dims points)
         {:keys [yaw pitch roll]} state]
     (assoc state
            :screen screen
            :n (count points)
+           :pts points
            :stick stick
            :held held
            :yaw (cond (:a down) (min angle-limit (+ yaw yaw-rate))
@@ -378,6 +392,7 @@
     :stick nil
     :held #{}
     :n 0
+    :pts []
     :screen (:screen metrics)}
    [[:scene/init :yawpitchroll]]])
 (defn- update-scene [state input] [(advance state input) []])

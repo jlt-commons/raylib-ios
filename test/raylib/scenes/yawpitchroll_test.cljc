@@ -362,8 +362,8 @@
         (is (>= (:fovy cam) 45.0)))
       (testing "the grid of 12 is 13 lines each way"
         (is (= 26 (count lines))))
-      (testing "five boxes show three faces each from the front right"
-        (is (= 30 (count tris))))
+      (testing "seven boxes show three faces each from the front right (the wing and the tailplane are two panels each)"
+        (is (= 42 (count tris))))
       (testing "the plane is wholly inside the 3D area"
         (doseq [t tris
                 [x y] [[(nth t 1) (nth t 2)] [(nth t 3) (nth t 4)] [(nth t 5) (nth t 6)]]]
@@ -387,3 +387,72 @@
     (is (some? (:stick held)))
     (is (nil? (:stick turned)))
     (is (< (:yaw turned) (:yaw held)) "the held finger turns nothing, the axis eases")))
+
+;; --- the painter, at the level first frame -------------------------------------------
+
+(defn- in-tri?
+  "Whether `[px py]` is inside the `:tri` item `t`, edges included."
+  [t [px py]]
+  (let [[x1 y1 x2 y2 x3 y3] (map double (subvec t 1 7))
+        side (fn [ax ay bx by] (- (* (- bx ax) (- py ay)) (* (- by ay) (- px ax))))
+        a (side x1 y1 x2 y2) b (side x2 y2 x3 y3) c (side x3 y3 x1 y1)]
+    (or (and (>= a 0) (>= b 0) (>= c 0)) (and (<= a 0) (<= b 0) (<= c 0)))))
+
+(defn- shaded
+  "Every colour `cube` can give a face of base colour `[r g b _]`."
+  [[r g b]]
+  (set (for [f [1.0 0.5 0.7 0.85 0.4]] [(int (* f r)) (int (* f g)) (int (* f b)) 255])))
+
+;; The original's five boxes, centre / size / colour, written out here so the
+;; test does not depend on how the scene splits them.
+(def original-boxes
+  [[[0.0 0.0 0.0] [1.1 0.7 4.4] [200 205 215 255]]
+   [[0.0 0.0 -2.6] [0.7 0.5 1.2] [160 165 180 255]]
+   [[0.0 0.0 0.2] [7.0 0.22 1.3] [0 121 241 255]]
+   [[0.0 0.0 1.9] [2.6 0.18 0.7] [0 82 172 255]]
+   [[0.0 0.7 2.0] [0.16 1.3 0.7] [230 41 55 255]]])
+
+(deftest the-fuselage-top-paints-over-the-wing-and-tailplane
+  ;; Ground truth is a depth buffer, as raylib draws it: for sample points on
+  ;; the fuselage's top face, the ray through the pixel finds the nearest of the
+  ;; original's boxes, and the face painted last at that pixel has to be that
+  ;; box's.
+  (let [dims (sc/dimensions m measure)
+        vp (s3/view-proj (sc/camera dims) (:viewport dims))
+        dl (sc/scene-list (sc/grid-list (sc/camera dims) dims) start dims)
+        tris (filterv #(= :tri (nth % 0)) dl)
+        owner (fn [colour] (first (keep-indexed (fn [i [_ _ c]] (when (contains? (shaded c) colour) i))
+                                                original-boxes)))
+        nearest (fn [p]
+                  (let [ray (s3/screen->ray vp p)]
+                    (->> original-boxes
+                         (keep-indexed (fn [i [[cx cy cz] [sx sy sz] _]]
+                                         (let [hit (s3/ray-box ray [(- cx (/ sx 2)) (- cy (/ sy 2)) (- cz (/ sz 2))]
+                                                               [(+ cx (/ sx 2)) (+ cy (/ sy 2)) (+ cz (/ sz 2))])]
+                                           (when (:hit? hit) [(:distance hit) i]))))
+                         sort first second)))
+        painted (fn [p] (some (fn [t] (when (in-tri? t p) (owner (subvec t 7 11)))) (rseq tris)))
+        ;; points on the fuselage top, clear of the fin that stands through it
+        points (for [x (range -0.45 0.5 0.15) z (range -2.1 1.5 0.2)]
+                 (s3/world->screen vp [x 0.35 z]))
+        wrong (remove (fn [p] (= (nearest p) (painted p))) points)]
+    (is (< 30 (count points)))
+    (is (some #(= 0 (nearest %)) points) "the fuselage top is the nearest box at some samples")
+    (is (some #(= 4 (nearest %)) points) "and the fin stands in front at others")
+    (is (empty? wrong) "every sample shows the nearest box")))
+
+(deftest a-second-finger-never-adopts-the-first
+  (let [resting (step start :down [stick-pt])
+        landed (step resting :down [stick-pt (button-point :roll-left)])
+        moved (step landed :down [(at stick-pt -200.0 -200.0) (button-point :roll-left)])]
+    (is (nil? (:stick resting)))
+    (testing "a finger that was down already, with a second landing on a button"
+      (is (nil? (:stick landed)))
+      (is (nil? (:stick moved)))
+      (is (= [0.0 0.0] [(:yaw moved) (:pitch moved)]))
+      (is (= 2.6 (:roll moved)) "the button still rolls"))
+    (testing "a second finger that lands in the 3D area on its own does start one"
+      (let [c (step resting :down [stick-pt (at stick-pt 0.0 300.0)])
+            d (step c :down [stick-pt (at stick-pt -200.0 300.0)])]
+        (is (= (at stick-pt 0.0 300.0) (get-in c [:stick :centre])))
+        (is (= 1.1 (:yaw d)))))))
