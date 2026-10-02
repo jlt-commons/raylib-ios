@@ -51,6 +51,7 @@
             [raylib.scenes.fontsizes :as fsizes]
             [raylib.scenes.formattext :as ftext]
             [raylib.scenes.fpcamera :as fpcamera]
+            [raylib.scenes.fpmaze :as fpmaze]
             [raylib.scenes.freecam :as freecam]
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gestures :as gestures]
@@ -148,7 +149,7 @@
              (rotcube/scene) (c3d/scene) (ortho/scene)
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
-             (fpcamera/scene)])
+             (fpcamera/scene) (fpmaze/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -183,7 +184,7 @@
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
-             :wavecubes :solarsystem :pointcloud :fpcamera]}
+             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3453,3 +3454,39 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (fpcamera/scene-list state dims))))
     (draw-caption! (:caption dims) fpcamera/caption-colour)))
+
+(def ^:private fpmaze-cache
+  "The last `[screen dims static]` for `:fpmaze`: the layout and the minimap's
+  panel and walls, which depend on the screen alone. The player's circle and
+  line are built each frame."
+  (atom nil))
+
+(defn- fpmaze-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims static] @fpmaze-cache]
+    (if (= screen cached-screen)
+      [dims static]
+      (let [dims (fpmaze/dimensions m host-measure)
+            static (fpmaze/minimap-static dims)]
+        (reset! fpmaze-cache [screen dims static])
+        [dims static]))))
+
+(defn- draw-minimap-item! [item thick]
+  (case (first item)
+    :rect (let [[_ x y w h c] item]
+            (rl/draw-rectangle (int x) (int y) (int w) (int h) (color c)))
+    :circle (let [[_ x y r c] item]
+              (rl/draw-circle (int x) (int y) (double r) (color c)))
+    :line (let [[_ x1 y1 x2 y2 c] item]
+            (rl/draw-line-ex x1 y1 x2 y2 thick (color c)))))
+
+(defmethod draw-scene! :fpmaze [_ state {:keys [m safe]}]
+  (clear-to! fpmaze/background-colour)
+  (let [[dims static] (fpmaze-layout m)
+        thick (max 2.0 (/ (:cell-px dims) 9.0))]
+    (draw-in-field! safe (:viewport dims)
+                    (fn []
+                      (rl/draw-3d! (fpmaze/scene-list state dims))
+                      (doseq [item static] (draw-minimap-item! item thick))
+                      (doseq [item (fpmaze/minimap-player state dims)] (draw-minimap-item! item thick))))
+    (draw-caption! (:caption dims) fpmaze/caption-colour)))
