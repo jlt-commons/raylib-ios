@@ -103,11 +103,6 @@ scenes. These remain rewrite-ready:
   device, so their fps cells are empty. On the laptop Split Screen and Bouncing
   Spheres sit at the 0.45 ms budget, and a First-Person Maze corridor can run
   over it, so walk a long one.
-- **Lift the copied finger helpers into `raylib.stick`.** `follow-both` is
-  byte-identical in Free Camera, First-Person Camera and First-Person Maze, and
-  the fresh-finger `begin` is the same in the last two. A shared `follow-pair`
-  and `begin-owners` would remove the copies before a fourth port makes another.
-  This is next.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -119,6 +114,9 @@ scenes. These remain rewrite-ready:
 
 ## Done
 
+- 2026-10-02: the finger helpers copied into Free Camera, First-Person Camera and
+  First-Person Maze moved into `raylib.stick` as `follow-pair` and
+  `begin-owners`, with no change in behaviour.
 - 2026-10-02: batch 11 closed, with four Toys scenes, `fpcamera`, `fpmaze`,
   `split3d` and `spheres`, which make a hundred and seven scenes and give Toys
   eighty-three. `raylib.soft3d/cube` now uses the fast box emitter lifted from
