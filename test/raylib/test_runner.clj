@@ -112,6 +112,7 @@
                      raylib.scroll-test
                      raylib.gesture-test
                      raylib.camera2d-test
+                     raylib.scenes.camera2d-test
                      raylib.easings-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test

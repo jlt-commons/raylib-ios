@@ -29,6 +29,7 @@
             [raylib.scenes.bounce :as bounce]
             [raylib.scenes.breakout :as brk]
             [raylib.scenes.bullets :as bull]
+            [raylib.scenes.camera2d :as c2d]
             [raylib.scenes.clipbox :as clipbox]
             [raylib.scenes.clock :as clock]
             [raylib.scenes.clockgrid :as cgrid]
@@ -123,7 +124,7 @@
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
              (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
              (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
-             (strings/scene)])
+             (strings/scene) (c2d/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -156,7 +157,7 @@
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo :strings]}
+             :hello :nudge :wheelbox :undoredo :strings :camera2d]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -2684,3 +2685,35 @@
                          (pack (if armed? strings/armed-colour strings/button-colour)))
       (rl/draw-text ls (strings/centred-x rect ls lsz measure) (int (:y label)) lsz
                     (pack (if armed? strings/armed-label-colour strings/button-label-colour))))))
+
+(defmethod draw-scene! :camera2d [_ state {:keys [m safe]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack c2d/background-colour))
+        dims (c2d/dimensions m host-measure)
+        camera (c2d/camera state dims)
+        [fx fy fw fh] (:field dims)
+        text (fn [{:keys [s x y size]} colour] (rl/draw-text s (int x) (int y) size (pack colour)))]
+    ;; BeginScissorMode takes screen pixels, not scene pixels, so the field is
+    ;; moved by the offset the gallery translates this scene by (the safe
+    ;; region's corner). Scissor does not nest: it replaces the gallery's own, so
+    ;; the safe region's is put back afterwards for the screen-space drawing.
+    (rl/begin-scissor-mode (int (+ (:x safe) fx)) (int (+ (:y safe) fy)) (int fw) (int fh))
+    (try
+      (rl/with-camera-2d
+        camera
+        (fn []
+          (rl/draw-rectangle -600 c2d/ground-y 2400 200 (pack c2d/ground-colour))
+          (doseq [{:keys [x w h color]} c2d/buildings]
+            (rl/draw-rectangle x (- c2d/ground-y h) w h (pack color)))
+          (rl/draw-rectangle (int (- (:px state) 15)) (- c2d/ground-y 60) 30 60
+                             (pack c2d/player-colour))))
+      (finally
+        (rl/end-scissor-mode)
+        (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe))))
+    (let [cx (int (first (:offset dims)))]
+      (rl/draw-line cx (int fy) cx (int (+ fy fh)) (pack c2d/centre-line-colour)))
+    (text (:hint dims) c2d/hint-colour)
+    (let [[x y w h] (:reset dims)
+          label (:reset-label dims)]
+      (rl/draw-rectangle (int x) (int y) (int w) (int h) (pack c2d/button-colour))
+      (text label c2d/button-label-colour))))
