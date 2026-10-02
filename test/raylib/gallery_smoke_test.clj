@@ -39,6 +39,8 @@
              ;; Deliberately not the scenes' own estimate, so a scene that prefers
              ;; the host's measure over its default runs that path here.
              :measure (fn [s sz] (* 0.5 sz (count s)))
+             ;; A tap, so the gestures scene logs something over the script.
+             :raylib-gesture (if (= phase :release) 1 0)
              :delta-seconds (/ 1.0 60))))
 
 (defn- frame-input

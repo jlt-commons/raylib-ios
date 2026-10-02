@@ -133,6 +133,7 @@
 (ffi/defcfn get-touch-point-id    "GetTouchPointId"    [:int] :int)
 (ffi/defcfn get-touch-x           "GetTouchX"          [] :int)
 (ffi/defcfn get-touch-y           "GetTouchY"          [] :int)
+(ffi/defcfn get-gesture-detected  "GetGestureDetected"  [] :int)  ; raylib's own recogniser: a Gesture code, 0 at rest
 (ffi/defcfn get-touch-position    "GetTouchPosition"   [:int] [:by-value [:struct [[:x :float] [:y :float]]]])
 (def ^:private vec2-l (ffi/layout [:struct [[:x :float] [:y :float]]]))
 (defn touch-position

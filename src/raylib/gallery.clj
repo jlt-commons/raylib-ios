@@ -49,6 +49,7 @@
             [raylib.scenes.fontsizes :as fsizes]
             [raylib.scenes.formattext :as ftext]
             [raylib.scenes.game2048 :as g2048]
+            [raylib.scenes.gestures :as gestures]
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.hello :as hello]
             [raylib.scenes.hilbert :as hil]
@@ -127,7 +128,8 @@
              (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
              (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
              (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
-             (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)])
+             (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
+             (gestures/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -160,7 +162,7 @@
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen]}
+             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -931,7 +933,9 @@
         input  (assoc input
                       :delta-seconds (rl/get-frame-time)
                       :back? (= hit :back)
-                      :measure host-measure)
+                      :measure host-measure
+                      ;; raylib's own recogniser's code, 0 at rest, for :gestures.
+                      :raylib-gesture (rl/get-gesture-detected))
         scene-input (-> input (assoc :metrics scene-m) (into-safe-region safe))
         gstate (-> (guard-scene gstate (or (:active-scene-id gstate) hit)
                                 (fn []
@@ -2884,3 +2888,54 @@
           (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe)))))
     (let [[dx dy dw dh] (:divider dims)]
       (rl/draw-rectangle (int dx) (int dy) (int dw) (int dh) (pack split/divider-colour)))))
+
+(def ^:private gestures-dims-cache
+  "The last `[screen dims]` for `:gestures`. Its text sizes need a measure, which
+  depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- gestures-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @gestures-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (gestures/dimensions m host-measure)]
+        (reset! gestures-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :gestures [_ state {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack gestures/background-colour))
+        dims (gestures-dims m)
+        {:keys [rect size row-h rows-y text-x text-dy header-y]} (:log dims)
+        [lx ly lw lh] rect
+        [ax ay aw ah] (:area dims)
+        entries (:log state)
+        newest (dec (count entries))]
+    (rl/draw-rectangle (int ax) (int ay) (int aw) (int ah) (pack gestures/area-colour))
+    (let [{:keys [s x y size]} (:title dims)]
+      (rl/draw-text s (int x) (int y) (int size) (pack gestures/area-text-colour)))
+    (let [{:keys [s x y size]} (:hint-line dims)]
+      (rl/draw-text s (int x) (int y) (int size) (pack gestures/hint-colour)))
+    ;; The log, newest at the bottom of the entries, alternating rows.
+    (doseq [[i entry] (map-indexed vector entries)
+            :let [ry (+ rows-y (* i row-h))]]
+      (when (odd? i)
+        (rl/draw-rectangle (int lx) (int ry) (int lw) (int row-h) (pack gestures/row-colour)))
+      (rl/draw-text entry (int text-x) (int (+ ry text-dy)) (int size)
+                    (pack (if (= i newest) gestures/newest-colour gestures/log-text-colour))))
+    (rl/draw-text gestures/header-text (int text-x) (int header-y) (int size)
+                  (pack gestures/header-colour))
+    ;; The outline is four lines: there is no rectangle-lines call bound.
+    (let [c (pack gestures/header-colour)
+          x2 (int (+ lx lw))
+          y2 (int (+ ly lh))]
+      (rl/draw-line (int lx) (int ly) x2 (int ly) c)
+      (rl/draw-line x2 (int ly) x2 y2 c)
+      (rl/draw-line x2 y2 (int lx) y2 c)
+      (rl/draw-line (int lx) y2 (int lx) (int ly) c))
+    ;; Where the finger last was, while raylib reports any gesture.
+    (when (and (:at state) (not= 0 (:gesture state)))
+      (let [[x y] (:at state)]
+        (rl/draw-circle (int x) (int y) (double (:circle-radius dims))
+                        (pack gestures/circle-colour))))))
