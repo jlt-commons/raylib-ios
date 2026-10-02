@@ -80,6 +80,7 @@
             [raylib.scenes.picking :as picking]
             [raylib.scenes.piechart :as pie]
             [raylib.scenes.platformer :as platformer]
+            [raylib.scenes.pointcloud :as pointcloud]
             [raylib.scenes.pong :as pong]
             [raylib.scenes.randomvalues :as rv]
             [raylib.scenes.rectbounds :as rbounds]
@@ -93,6 +94,7 @@
             [raylib.scenes.sequence :as seqn]
             [raylib.scenes.shapes :as shp]
             [raylib.scenes.snake :as snk]
+            [raylib.scenes.solarsystem :as solarsystem]
             [raylib.scenes.spincubes :as spincubes]
             [raylib.scenes.spirograph :as spiro]
             [raylib.scenes.splines :as spl]
@@ -110,6 +112,7 @@
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
+            [raylib.scenes.wavecubes :as wavecubes]
             [raylib.scenes.wheelbox :as wbox]
             [raylib.scenes.wireframes :as wireframes]
             [raylib.scenes.worldscreen :as worldscreen]
@@ -143,7 +146,7 @@
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
-             (picking/scene)])
+             (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -177,7 +180,8 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
+             :wavecubes :solarsystem :pointcloud]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3363,3 +3367,66 @@
     (draw-caption! (:caption dims) (:hint picking/colours))
     (doseq [[{:keys [s colour]} slot] (map vector (picking/readout state) (:readout-slots dims))]
       (draw-caption! (assoc slot :s s) colour))))
+
+(def ^:private wavecubes-cache
+  "The last `[screen dims]` for `:wavecubes`. Its camera orbits, but the layout
+  and the text size depend on the screen alone."
+  (atom nil))
+
+(defn- wavecubes-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @wavecubes-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (wavecubes/dimensions m host-measure)]
+        (reset! wavecubes-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :wavecubes [_ state {:keys [m safe]}]
+  (clear-to! wavecubes/background-colour)
+  (let [dims (wavecubes-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (wavecubes/scene-list state dims))))
+    (draw-caption! (:caption dims) wavecubes/caption-colour)))
+
+(def ^:private solarsystem-cache
+  "The last `[screen dims]` for `:solarsystem`. The camera never moves, so the
+  layout and the text size depend on the screen alone."
+  (atom nil))
+
+(defn- solarsystem-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @solarsystem-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (solarsystem/dimensions m host-measure)]
+        (reset! solarsystem-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :solarsystem [_ state {:keys [m safe]}]
+  (clear-to! solarsystem/background-colour)
+  (let [dims (solarsystem-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (solarsystem/scene-list state dims))))
+    (draw-caption! (:caption dims) solarsystem/caption-colour)))
+
+(def ^:private pointcloud-cache
+  "The last `[screen dims]` for `:pointcloud`. The camera never moves, so the
+  layout and the text size depend on the screen alone."
+  (atom nil))
+
+(defn- pointcloud-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @pointcloud-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (pointcloud/dimensions m host-measure)]
+        (reset! pointcloud-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :pointcloud [_ state {:keys [m safe]}]
+  (clear-to! pointcloud/background-colour)
+  (let [dims (pointcloud-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (pointcloud/scene-list state dims))))
+    (draw-caption! (:caption dims) pointcloud/caption-colour)))
