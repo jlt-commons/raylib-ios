@@ -44,6 +44,11 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **The ten 3D scenes measured on an iPhone 17 Pro.** All run at 58 or 59 fps,
+  Wireframe Shapes included, so every one of the hundred scenes has a measured
+  rate again. A tap on 3D Picking's box hit it on the phone, and the box turned
+  red with the ray drawn outside it.
+
 - **Helitorus starts at a detail of 64 rings.** At its original 260 the phone
   ran 19 fps, with 29.5 ms of compute and 19.5 ms of draw in a release build.
 - **Helitorus no longer toggles culling.** rlgl draws at the batch flush and not

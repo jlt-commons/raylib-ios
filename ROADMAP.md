@@ -71,11 +71,6 @@ scenes. These remain rewrite-ready:
   means a fix to the stick lands once. `raylib.stick` now exists and `freecam`,
   `yawpitchroll` and `boxcollide` use it, so this is a matter of moving
   `survivors` and `nudge` onto it, or onto the part of it that fits.
-- **Time the ten 3D scenes on the phone.** None of `rotcube`, `camera3d`,
-  `ortho`, `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
-  `boxcollide` and `picking` has run on a device. The per-frame estimate puts
-  Wireframe Shapes heaviest, at about 7.6 ms. Fill the fps cells in the catalog
-  and take a look at each on the phone.
 - **Fix the painter's grid-first order.** `raylib.soft3d` paints the grid under
   every face, so grid lines that cross a cube's lower half are hidden where a
   depth buffer would show them. A below-grid, above-grid order would fix it.
@@ -115,6 +110,8 @@ scenes. These remain rewrite-ready:
 
 ## Done
 
+- 2026-10-02: the ten 3D scenes measured on an iPhone 17 Pro, all at 58 or 59 fps,
+  and 3D Picking's tap-to-pick confirmed on the phone.
 - 2026-10-02: ten raylib-jlt 3D examples, `rotcube`, `camera3d`, `ortho`,
   `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
   `boxcollide` and `picking`, which make a hundred scenes and give Toys
