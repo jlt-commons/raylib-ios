@@ -5,25 +5,18 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 86 of
-them are in the gallery as of 2026-10-01, which leaves 101. That counts
-examples and not scenes: the gallery has 81 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 92 of
+them are in the gallery as of 2026-10-02, which leaves 95. That counts
+examples and not scenes: the gallery has 87 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 81 + 2 + 3 = 86. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 87 + 2 + 3 = 92. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
 
 **Ready to port, no new bindings (0).** The list is empty after batch 7.
 
-**A few new scalar bindings (6).**
-
-- `rlRotatef` and `rlScalef`, standing in for `BeginMode2D`'s by-value
-  Camera2D: `camera2d`, `camera_2d_mouse_zoom`, `camera_2d_platformer`,
-  `camera_2d_split_screen`. Pinch and pan suit these well.
-- `SetGesturesEnabled` and `GetGestureDetected`: `input_gestures`. Whether
-  raylib's gestures fire under the SDL iOS host is unverified.
-- `helitorus`, possibly needing `rlDisableBackfaceCulling`.
+**A few new scalar bindings (0).** The group is empty after batch 8.
 
 **Blocked for now (95).** These need something the project doesn't bind or the
 phone doesn't have: shaders (20), textures, images and render textures (34), 3D
@@ -38,7 +31,7 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
 - **Split the drawing out of `raylib.gallery`.** It is 2686 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace.
-- **Rebalance the categories.** Toys holds 60 of the 84 scenes, and Games has 11, so a scroll
+- **Rebalance the categories.** Toys holds 66 of the 90 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -84,10 +77,28 @@ the way `tesseract` does, and `screen_buffer`, `mouse_painting` and
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
+- **Time five scenes and the fixed Helitorus.** 2D Camera, 2D Camera Zoom, 2D
+  Platformer and Input Gestures have no fps in the catalog yet. Helitorus ran at
+  59 to 60 fps at its start detail of 64, but on a draw path that was then
+  fixed, so its cell is empty too.
+- **Try the cameras with a real finger.** The camera pinch and twist in 2D
+  Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
+  been driven by a hand on the phone.
+- **See DRAG and DOUBLETAP in Input Gestures.** A real finger logged TAP, HOLD,
+  SWIPE RIGHT and SWIPE DOWN, so raylib's recogniser does fire under the SDL
+  host. DRAG and DOUBLETAP have not shown up yet, and pinch can't, because SDL
+  feeds raylib one finger at a time.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
 
+- 2026-10-02: six scenes, `camera2d`, `camera_2d_mouse_zoom`,
+  `camera_2d_platformer`, `camera_2d_split_screen`, `input_gestures` and
+  `helitorus`, which make ninety scenes and give Toys sixty-six. They add
+  `raylib.camera2d`, `raylib.host/with-camera-2d` and the `:raylib-gesture`
+  input key, and empty the scalar-binding group. 2D Split Screen holds 58 fps
+  on an iPhone 17 Pro. Helitorus starts at a detail of 64 because 260 ran at 19
+  fps, and it no longer toggles culling, since rlgl draws at the batch flush.
 - 2026-10-01: every scene measured on an iPhone 17 Pro, all 84 at 52 to 60 fps,
   so the catalog has no blank fps cell. Batch 7 has stills, and the device pass
   fixed four things the phone showed.

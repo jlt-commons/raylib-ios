@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples, and 86 of them are in the gallery. Those count
+examples, and 92 of them are in the gallery. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
@@ -96,6 +96,14 @@ scene that keeps text widths in its state, as `strings` does, reads it in `init`
 and `update`, with a fallback so tests can run without the FFI. A scene that
 lays text out only in `dimensions`, as `rectbounds` does, still gets `measure`
 from its draw method.
+
+An example that sets a `Camera2D` draws inside `raylib.host/with-camera-2d`,
+which pushes `rlTranslatef`, `rlRotatef` and `rlScalef` on top of the gallery's
+own translate, because `BeginMode2D` would load the identity matrix and drop it.
+The pure part is `raylib.camera2d`, which also holds the pinch rule shared by
+the three scenes that zoom. An example that reads gestures finds raylib's own
+code in the scene input as `:raylib-gesture`. On the phone that code fires for
+one finger only, so pinch cannot appear.
 
 <img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
 <img src="../images/spirograph.gif" width="220" alt="Spirograph">

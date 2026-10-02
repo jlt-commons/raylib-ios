@@ -132,6 +132,13 @@ correct order already existed in `draw-line-ex` and should have been copied
 rather than rederived. Winding is not something to work out again each time you
 write it.
 
+Helitorus hit a second form of this. It first toggled culling around its
+triangles, and the toggle did nothing, because rlgl draws at the batch flush and
+not at `rlEnd`. By the time the flush ran, the state set around the immediate-mode
+calls was back to what it had been. Nothing in the project binds culling now.
+Helitorus now emits the front winding rlgl keeps, checking each triangle by its
+own sign, and so draws at every detail.
+
 ## Cost
 
 Cheaper than it looks. The colour wheel is 540 vertices a frame and holds 59 fps;

@@ -56,6 +56,16 @@ text out only in `dimensions` still gets `measure` from its draw method, as
 cache key has to hold every input to the computation, which here means the text,
 the box size, the font size and the wrap mode.
 
+**Camera examples.** A 2D camera example draws inside
+`raylib.host/with-camera-2d`, which pushes `rlTranslatef`, `rlRotatef` and
+`rlScalef` on top of the gallery's own translate in place of `BeginMode2D`,
+because `BeginMode2D` loads the identity matrix and would throw that translate
+away. The camera math itself stays pure, in `raylib.camera2d`.
+
+**Gestures.** A scene that wants raylib's own recogniser reads `:raylib-gesture`
+from its input, which is the code from `GetGestureDetected`, as `gestures` does.
+It only ever reports one finger, so pinch never appears there.
+
 **2. A test** at `test/raylib/scenes/<name>_test.cljc`.
 
 Prefer properties over golden values: that a rotation preserves length, that

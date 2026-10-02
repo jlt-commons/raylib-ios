@@ -2,6 +2,45 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-10-02
+
+### Added
+
+- **Six scenes, ninety in all.** Toys now holds sixty-six. 2D Camera moves a box
+  through a skyline with a relative thumb-stick on x, pinches to zoom and twists
+  to rotate. 2D Camera Zoom pans under one finger and pinches in log space about
+  its midpoint. 2D Platformer has five labelled buttons along the bottom and
+  steps through the original's five camera modes. 2D Split Screen gives each half
+  a thumb-stick and draws the halves with a scissor and a camera in place of
+  render textures. Input Gestures logs the codes from raylib's own recogniser.
+  Helitorus sweeps a tube round a torus by hand, turns on a one-finger drag and
+  zooms on a pinch.
+- **A 2D camera from scalar calls.** `raylib.camera2d` holds the camera math and
+  one pinch rule shared by 2D Camera, 2D Camera Zoom and Helitorus.
+  `raylib.host/with-camera-2d` pushes `rlTranslatef`, `rlRotatef` and `rlScalef`
+  on top of the gallery's own translate, because `BeginMode2D` loads the identity
+  matrix and would drop it.
+- **`:raylib-gesture` in the frame input.** It is the code from
+  `GetGestureDetected`, read once a frame by `raylib.gallery`.
+
+### Changed
+
+- **Helitorus starts at a detail of 64 rings.** At its original 260 the phone
+  ran 19 fps, with 29.5 ms of compute and 19.5 ms of draw in a release build.
+- **Helitorus no longer toggles culling.** rlgl draws at the batch flush and not
+  at `rlEnd`, so a toggle around immediate-mode calls had already been put back
+  by the time the triangles drew. The scene now emits the front winding, and the
+  culling binding is gone.
+- **2D Split Screen measured at 58 fps** on an iPhone 17 Pro, with 440 labels a
+  frame. The other four new scenes and the fixed Helitorus are not timed yet, so
+  the docs now say the first eighty-four were measured at 52 to 60 fps.
+
+### Found
+
+- **raylib's gesture recogniser fires under the SDL host.** A real finger logged
+  TAP, HOLD, SWIPE RIGHT and SWIPE DOWN. DRAG and DOUBLETAP were not seen, and
+  pinch can't fire, because SDL feeds raylib one finger at a time.
+
 ## 2026-10-01
 
 ### Added
