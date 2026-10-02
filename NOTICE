@@ -60,6 +60,54 @@ plainly marked as such" asks.
     Copyright (c) 2026 Burin Choomnuan
     zlib License
 
+## Ported from babashka/ffi, and altered
+
+`src/raylib/scenes/helitorus.cljc` is a port of raylib-jlt's `helitorus`, which
+is itself a port of a program from the babashka/ffi examples directory, not of
+one of raylib's own examples. It is an altered version of both.
+
+    https://github.com/babashka/ffi
+    Copyright (c) 2026 Michiel Borkent (@borkdude)
+    MIT License
+
+    helitorus  <- examples/helitorus.clj  (1034e56, 2026-08-28)
+
+The geometry, the painter's ordering, the backface test, the lighting and the
+palette came from that original and are substantially unchanged. What the
+ports changed is how the program reaches raylib and its input: babashka.ffi
+calls became this project's wrapper, the buffers gained jolt type hints, the
+loop is inverted so the host owns it, and the mouse and keys became touch. The
+palette, hsl(337..349, 100..78%, 17..72%), is the quickest way to check the
+claim, since it is the original's.
+
+Michiel Borkent's own header for helitorus credits it one step further back, to
+a Scittle demo drawing the same figure to a 2D canvas. That attribution is
+repeated here rather than independently verified.
+
+babashka/ffi's licence notice, as shipped in its LICENSE file:
+
+    MIT License
+
+    Copyright (c) 2026 Michiel Borkent
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
 ## Linked
 
 Both are compiled into the app as static archives.

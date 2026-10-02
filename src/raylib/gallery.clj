@@ -51,6 +51,7 @@
             [raylib.scenes.game2048 :as g2048]
             [raylib.scenes.gestures :as gestures]
             [raylib.scenes.gradient :as grad]
+            [raylib.scenes.helitorus :as helitorus]
             [raylib.scenes.hello :as hello]
             [raylib.scenes.hilbert :as hil]
             [raylib.scenes.huewheel :as hue]
@@ -129,7 +130,7 @@
              (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
              (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
-             (gestures/scene)])
+             (gestures/scene) (helitorus/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -162,7 +163,7 @@
              :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures]}
+             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -2939,3 +2940,140 @@
       (let [[x y] (:at state)]
         (rl/draw-circle (int x) (int y) (double (:circle-radius dims))
                         (pack gestures/circle-colour))))))
+
+;; --- helitorus --------------------------------------------------------------
+;; The pure scene owns the figure and `compute!`; the arrays it writes and the
+;; timings belong here, because they exist only to be submitted and shown.
+
+(def ^:private helitorus-bufs
+  "The arrays `helitorus/compute!` writes and the draw reads, allocated once."
+  (helitorus/make-buffers))
+
+(def ^:private helitorus-hud
+  "The HUD's counters. `:frames`, `:compute-ns` and `:draw-ns` sum what has been
+  drawn since `:since` (a `System/nanoTime`), and every 0.4 s they are averaged
+  into `:fps`, `:compute-ms` and `:draw-ms`, which are what the HUD shows. The
+  draw times its own two halves with `System/nanoTime`, which jolt has."
+  (atom {:frames 0
+         :since (System/nanoTime)
+         :compute-ns 0
+         :draw-ns 0
+         :fps 0.0
+         :compute-ms 0.0
+         :draw-ms 0.0}))
+
+(def ^:private helitorus-dims-cache
+  "The last `[screen dims]` for `:helitorus`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- helitorus-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @helitorus-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (helitorus/dimensions m host-measure)]
+        (reset! helitorus-dims-cache [screen dims])
+        dims))))
+
+(defn- helitorus-ring!
+  "One ring of the tube as flat-shaded quads, two rlgl triangles each. A quad is
+  skipped when the 2D cross product of its first two edges is negative, which is
+  the back of the tube."
+  [^double/1 sx ^double/1 sy ^int/1 shade ^int/1 pr ^int/1 pg ^int/1 pb i nu]
+  (let [nv helitorus/nv
+        i2 (let [x (inc i)] (if (= x nu) 0 x))
+        b1 (* i nv)
+        b2 (* i2 nv)]
+    (loop [j 0]
+      (when (< j nv)
+        (let [j2 (let [x (inc j)] (if (= x nv) 0 x))
+              a (+ b1 j) b (+ b1 j2)
+              c (+ b2 j2) d (+ b2 j)
+              xa (aget sx a) ya (aget sy a)
+              xb (aget sx b) yb (aget sy b)
+              xc (aget sx c) yc (aget sy c)]
+          (when (pos? (- (* (- xb xa) (- yc ya))
+                         (* (- yb ya) (- xc xa))))
+            (let [s (aget shade a)]
+              (rl/rl-color-4ub (aget pr s) (aget pg s) (aget pb s) 255))
+            (rl/rl-vertex-2f xa ya)
+            (rl/rl-vertex-2f xb yb)
+            (rl/rl-vertex-2f xc yc)
+            (rl/rl-vertex-2f xa ya)
+            (rl/rl-vertex-2f xc yc)
+            (rl/rl-vertex-2f (aget sx d) (aget sy d))))
+        (recur (inc j))))))
+
+(defn- helitorus-surface!
+  "Every ring, far to near. One rlBegin/rlEnd batch per ring: rlgl cannot flush
+  inside an open batch, and the whole surface at once overflows its vertex
+  buffer."
+  [bufs nu]
+  (let [^double/1 sx (:sx bufs)
+        ^double/1 sy (:sy bufs)
+        ^int/1 shade (:shade bufs)
+        ^int/1 order (:order bufs)]
+    (loop [oi 0]
+      (when (< oi nu)
+        (rl/rl-begin rl/RL-TRIANGLES)
+        (helitorus-ring! sx sy shade helitorus/palette-r helitorus/palette-g helitorus/palette-b
+                         (aget order oi) nu)
+        (rl/rl-end)
+        (recur (inc oi))))))
+
+(defn- helitorus-hud-tick!
+  "Add this frame's two timings to the HUD counters, and every 0.4 s average
+  them into `:fps`, `:compute-ms` and `:draw-ms` and start again."
+  [compute-ns draw-ns]
+  (swap! helitorus-hud
+         (fn [{:keys [frames since]
+               :as h}]
+           (let [now (System/nanoTime)
+                 frames (inc frames)
+                 h (-> h
+                       (assoc :frames frames)
+                       (update :compute-ns + compute-ns)
+                       (update :draw-ns + draw-ns))
+                 span (- now since)]
+             (if (< span 400000000)
+               h
+               (assoc h
+                      :frames 0
+                      :since now
+                      :compute-ns 0
+                      :draw-ns 0
+                      :fps (/ (* 1e9 frames) span)
+                      :compute-ms (/ (:compute-ns h) (* 1e6 frames))
+                      :draw-ms (/ (:draw-ns h) (* 1e6 frames))))))))
+
+(defmethod draw-scene! :helitorus [_ state {:keys [m]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        _ (rl/clear-background (pack helitorus/background-colour))
+        dims (helitorus-dims m)
+        bufs helitorus-bufs
+        nu (:nu state)
+        c0 (System/nanoTime)
+        _ (helitorus/compute! bufs (helitorus/params state dims))
+        c1 (System/nanoTime)]
+    ;; The scene tests visibility itself, so raylib's cull is off for the
+    ;; surface and back on afterwards on every path.
+    (rl/rl-disable-backface-culling)
+    (try
+      (helitorus-surface! bufs nu)
+      (finally (rl/rl-enable-backface-culling)))
+    (helitorus-hud-tick! (- c1 c0) (- (System/nanoTime) c1))
+    (let [{:keys [fps compute-ms draw-ms]} @helitorus-hud
+          [hud status hint] (:lines dims)
+          text (fn [{:keys [s x y size]} colour]
+                 (rl/draw-text s (int x) (int y) (int size) (pack colour)))]
+      (text (assoc hud :s (helitorus/hud-line fps compute-ms draw-ms)) helitorus/hud-colour)
+      (text (assoc status :s (helitorus/status-line state)) helitorus/hud-colour)
+      (text hint helitorus/hint-colour))
+    (doseq [{:keys [id rect label label-x label-y label-size]} (:buttons dims)
+            :let [[bx by bw bh] rect]]
+      (rl/draw-rectangle (int bx) (int by) (int bw) (int bh)
+                         (pack (if (contains? (:held state) id)
+                                 helitorus/button-held-colour
+                                 helitorus/button-colour)))
+      (rl/draw-text label label-x label-y label-size (pack helitorus/button-label-colour)))))
