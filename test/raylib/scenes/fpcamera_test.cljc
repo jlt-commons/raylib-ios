@@ -37,7 +37,6 @@
 (defn- eye [state] (:position (cam state)))
 (defn- view [state] (mapv - (:target (cam state)) (:position (cam state))))
 (defn- len [v] (Math/sqrt (reduce + (map * v v))))
-(defn- unit [v] (mapv #(/ % (len v)) v))
 (defn- at-px [[x y] dx dy] [(+ x dx) (+ y dy)])
 
 ;; The original (camera_3d_first_person.clj): eye y 2, SPEED 0.25 a frame, SENS
@@ -130,10 +129,10 @@
   (testing "inside the dead zone nothing moves"
     (is (= (eye start) (eye (walked start (* 0.5 slop) 0.0)))))
   (testing "walking follows the yaw: after a quarter turn up the glass is +z"
-    (let [turned (assoc-in start [:camera :target] [0.0 2.0 1.0])]
+    (let [turned (assoc start :yaw (/ Math/PI 2.0))]
       (is (vnear? [0.0 2.0 speed] (eye (walked turned 0.0 -200.0))))))
   (testing "walking stays on the ground when the view is tipped up"
-    (let [tipped (assoc-in start [:camera :target] [1.0 3.0 0.0])
+    (let [tipped (assoc start :pitch 0.7)
           e (eye (walked tipped 0.0 -200.0))]
       (is (vnear? [speed 2.0 0.0] e)))))
 
@@ -157,12 +156,19 @@
             v (view l)]
         (is (neg? (nth v 2)))
         (is (pos? (nth v 1)))))
-    (testing "looking up stops short of the sky, without a somersault"
-      (let [up (reduce (fn [s k] (step s :down [(at-px look-pt 0.0 (* -300.0 (inc k)))]))
-                       (step start :press [look-pt]) (range 6))
-            v (unit (view up))]
-        (is (< 0.999 (nth v 1) 1.0))
-        (is (pos? (first v)) "still facing the way it faced")))))
+    (testing "one look step changes yaw by SENS * dx and pitch by -SENS * dy, as the original's yaw/pitch lines"
+      (is (near? yaw (:yaw dragged)))
+      (is (near? pitch (:pitch dragged)))
+      (is (near? 0.0 (:yaw start)))
+      (is (near? 0.0 (:pitch start))))
+    (testing "the pitch is held to +-1.4 radians, the original's (max -1.4) (min 1.4)"
+      (let [drag (fn [s k] (step s :down [(at-px look-pt 0.0 k)]))
+            up (reduce drag (step start :press [look-pt]) (map #(* -300.0 (inc %)) (range 6)))
+            down (reduce drag (step start :press [look-pt]) (map #(* 300.0 (inc %)) (range 6)))]
+        (is (near? 1.4 (:pitch up)))
+        (is (near? -1.4 (:pitch down)))
+        (is (vnear? [(Math/cos 1.4) (Math/sin 1.4) 0.0] (view up)))
+        (is (vnear? [(Math/cos 1.4) (- (Math/sin 1.4)) 0.0] (view down)))))))
 
 (deftest a-resting-finger-never-steers
   (doseq [[label ids] [["with ids" [[4] [4 5] [5] [5]]] ["without ids" [nil nil nil nil]]]

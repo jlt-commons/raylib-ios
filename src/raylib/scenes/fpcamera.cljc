@@ -13,20 +13,13 @@
   counts, ranges, colours and camera are the original's. The projection is in
   software, by `raylib.soft3d`.
 
-  The original does not call `UpdateCamera`. It keeps a yaw and a pitch, and
-  hands raylib a camera whose target is the eye plus the look direction. That
-  is raylib's `CAMERA_FIRST_PERSON`, rebuilt here in pure Clojure over a map
-  `{:position :target :up :fovy :projection}` from rcamera.h. The functions
-  mirrored are `GetCameraForward`, `GetCameraUp` and `GetCameraRight`,
-  `CameraYaw` and `CameraPitch` (both with the flags CAMERA_FIRST_PERSON sets:
-  `rotateAroundTarget` false, `lockView` true, `rotateUp` false), and
-  `CameraMoveForward` and `CameraMoveRight` (with `moveInWorldPlane` true).
-  All but the two moves are `raylib.scenes.freecam`'s, which already mirrors
-  them cited at their definitions, along with raymath.h's
-  `Vector3RotateByAxisAngle`, `Vector3Angle` and `Vector3Normalize`. The two
-  moves are redone here because freecam's have `moveInWorldPlane` false: with
-  the up vector (0, 1, 0), which never changes, the vector is flattened to
-  y = 0 and normalised before it is scaled.
+  The original does not call `UpdateCamera`, and neither does this. It keeps
+  a yaw and a pitch and hands raylib a camera whose target is the eye plus the
+  look direction (camera_3d_first_person.clj lines 40-53): forward
+  on the ground is `(cos yaw, sin yaw)`, right is `(-sin yaw, cos yaw)`, and
+  the target is `(px + cos pitch * cos yaw, 2 + sin pitch, pz + cos pitch * sin
+  yaw)`. Those formulas are written out here over a camera map `{:position
+  :target :up :fovy :projection}`. Nothing of rcamera.h is mirrored.
 
   The original's keys and mouse, and what stands in for each:
   - W, A, S and D move 0.25 on the ground a frame (`SPEED`), forward and right.
@@ -36,10 +29,11 @@
     direction a unit vector, so one speed everywhere. The original's keys add,
     which makes a diagonal 1.41 times faster, and that is the one deliberate
     difference. Nothing reads a frame time, like the original: the speed is
-    per update, and walking does not leave the ground when the view is tipped.
+    per update, and walking does not leave the ground when the view is tipped,
+    because forward is the ground vector `(cos yaw, sin yaw)` whatever the pitch.
   - The mouse position delta looks, 0.004 radians a pixel (`SENS`), yaw then
-    pitch. A drag that starts in the upper two thirds of the field replaces it,
-    times `800 / field width` so that a drag across the glass turns as far as
+    pitch (lines 40-41, the pitch held to +-1.4 radians, `pitch-limit`). A drag that
+    starts in the upper two thirds of the field replaces it, times `800 / field width` so that a drag across the glass turns as far as
     one across the original's 800 pixel window.
   - Both work at once, each by its own finger.
 
@@ -49,13 +43,6 @@
   ends when that finger lifts, so a finger that rests, or that began under
   Back, is never adopted in its place. A rotation of the phone drops both. A
   tap moves nothing.
-
-  Two differences in the look, from CAMERA_FIRST_PERSON being what it is. The
-  original clamps its pitch to +-1.4 radians. `CameraPitch` with `lockView`
-  holds the view 0.001 radians short of straight up or down instead (about
-  1.570 radians), so a drag can tip the view further than the original lets
-  it. And a pitched view keeps its eye at height 2, as the original does,
-  because `moveInWorldPlane` flattens the walk.
 
   Dropped: `fps!`, the on-screen frame counter, as earlier scenes drop it, and
   the mouse itself, which a phone has no cursor for. The original's key text
@@ -74,7 +61,8 @@
   degree fovy is kept while the field is at least as wide as 800x450, and
   widened by `raylib.soft3d/fit-camera` in a narrower one.
 
-  The state holds the `:camera`, the finger tracking (`:look` and `:stick`, each
+  The state holds `:px`, `:pz`, `:yaw` and `:pitch` (numbers), the `:camera`
+  built from them, the finger tracking (`:look` and `:stick`, each
   with its finger's id), `:n` (the finger count last frame), `:pts` and `:ids`
   (that frame's touch points and ids) and `:screen`. Colours are `[r g b a]`
   vectors."
@@ -84,6 +72,7 @@
 
 (def speed "The original's SPEED: ground units an update for the stick. " 0.25)
 (def sensitivity "The original's SENS: radians a pixel of look, in an 800 pixel window." 0.004)
+(def pitch-limit "The original's pitch clamp, radians (line 41: `(max -1.4) (min 1.4)`)." 1.4)
 (def eye-height "The original's EYE-Y." 2.0)
 (def original-width "The original's window width, in pixels." 800.0)
 (def original-aspect "The original's 800x450 window, w/h." (/ 800.0 450.0))
@@ -94,15 +83,22 @@
 (def caption-colour "DARKGRAY, as raylib defines it." [80 80 80 255])
 (def caption-text "drag low to walk, high to look")
 
-(def initial-camera
-  "The original's camera at yaw 0, pitch 0: the eye 2 up at the origin, its
-  target one unit along +x (forward is (cos yaw, sin yaw) on the ground), up
-  (0, 1, 0), fovy 60."
-  {:position [0.0 eye-height 0.0]
-   :target [1.0 eye-height 0.0]
-   :up [0.0 1.0 0.0]
-   :fovy 60.0
-   :projection :perspective})
+(defn camera-of
+  "The camera for a walker at `px`, `pz` looking along `yaw` and `pitch`, as the
+  original builds it each frame (lines 50-53): the eye 2 up, the target the eye
+  plus `(cos pitch * cos yaw, sin pitch, cos pitch * sin yaw)`, up (0, 1, 0),
+  fovy 60, perspective."
+  [px pz yaw pitch]
+  (let [cp (Math/cos pitch)]
+    {:position [px eye-height pz]
+     :target [(+ px (* cp (Math/cos yaw)))
+              (+ eye-height (Math/sin pitch))
+              (+ pz (* cp (Math/sin yaw)))]
+     :up [0.0 1.0 0.0]
+     :fovy 60.0
+     :projection :perspective}))
+
+(def initial-camera "The original's camera at yaw 0, pitch 0, from the origin." (camera-of 0.0 0.0 0.0 0.0))
 
 ;; --- the yard -----------------------------------------------------------------
 
@@ -183,37 +179,6 @@
              (s3/grid [] vp 40 1.0)
              columns))))
 
-;; --- rcamera.h: the two moves with moveInWorldPlane true ------------------------
-
-(defn- flat-unit
-  "The vector with y set to 0 and normalised: rcamera.h's `moveInWorldPlane`
-  branch for an up vector along y (the `else` of its `up.z`/`up.x` tests)."
-  [[x _ z]]
-  (let [l (Math/sqrt (+ (* x x) (* z z)))]
-    (if (zero? l) [0.0 0.0 0.0] [(/ x l) 0.0 (/ z l)])))
-
-(defn- shift
-  [c [dx dy dz]]
-  (let [[px py pz] (:position c)
-        [tx ty tz] (:target c)]
-    (assoc c
-           :position [(+ px dx) (+ py dy) (+ pz dz)]
-           :target [(+ tx dx) (+ ty dy) (+ tz dz)])))
-
-(defn move-forward
-  "rcamera.h CameraMoveForward with `moveInWorldPlane` true: position and target
-  both move `distance` along the forward vector flattened onto the ground."
-  [c distance]
-  (let [[x y z] (flat-unit (free/camera-forward c))]
-    (shift c [(* x distance) (* y distance) (* z distance)])))
-
-(defn move-right
-  "rcamera.h CameraMoveRight with `moveInWorldPlane` true: position and target
-  both move `distance` along the right vector flattened onto the ground."
-  [c distance]
-  (let [[x y z] (flat-unit (free/camera-right c))]
-    (shift c [(* x distance) (* y distance) (* z distance)])))
-
 ;; --- fingers --------------------------------------------------------------------
 
 (defn- d2 [[ax ay] [bx by]]
@@ -257,25 +222,30 @@
           fresh))
 
 (defn- look-by
-  "The mouse look: yaw by `dx` pixels then pitch by `dy`, each 0.004 radians
-  (`sensitivity`) times `800 / field width`. A drag right turns right and a drag
-  up looks up, as the original's `yaw + SENS * dx` and `pitch - SENS * dy`;
-  `CameraYaw` turns the other way round the up axis, so the angle is negated."
-  [c dims [dx dy]]
+  "The original's mouse look (lines 40-41) for a drag of `dx`, `dy` pixels:
+  `yaw + SENS * dx` and `(max -1.4) (min 1.4)` of `pitch - SENS * dy`, each
+  pixel scaled by `800 / field width`."
+  [{:keys [yaw pitch]
+    :as state} dims [dx dy]]
   (let [k (* sensitivity (/ original-width (nth (:viewport dims) 2)))]
-    (cond-> c
-      (not (zero? dx)) (free/camera-yaw (* -1.0 dx k))
-      (not (zero? dy)) (free/camera-pitch (* -1.0 dy k)))))
+    (assoc state
+           :yaw (+ yaw (* k dx))
+           :pitch (-> (- pitch (* k dy)) (max (- pitch-limit)) (min pitch-limit)))))
 
 (defn- walk
-  "The original's WASD as `UpdateCamera` does it: forward, then right, `speed`
-  along the stick's unit direction (`raylib.scenes.freecam/stick-dir`)."
-  [c stick metrics]
+  "The original's WASD (lines 42-49) along the stick's unit direction
+  (`raylib.scenes.freecam/stick-dir`, which is the same vector arithmetic): `f`
+  forward (up the glass) and `r` right, `dx = f * cos yaw + r * -sin yaw` and
+  `dz = f * sin yaw + r * cos yaw`, scaled by `speed`."
+  [{:keys [px pz yaw]
+    :as state} stick metrics]
   (if-let [[ux uy] (free/stick-dir stick metrics)]
-    (-> c
-        (move-forward (* -1.0 uy speed))
-        (move-right (* ux speed)))
-    c))
+    (let [f (- uy) r ux
+          fwx (Math/cos yaw) fwz (Math/sin yaw)]
+      (assoc state
+             :px (+ px (* speed (+ (* f fwx) (* r (- fwz)))))
+             :pz (+ pz (* speed (+ (* f fwz) (* r fwx))))))
+    state))
 
 (defn advance
   "One frame. Fingers are sorted into a look and a stick by `raylib.stick`, then
@@ -306,9 +276,9 @@
         delta (when (and look (:look state))
                 [(- (double (first (:at look))) (double (first (:at (:look state)))))
                  (- (double (second (:at look))) (double (second (:at (:look state)))))])
-        c (cond-> (:camera state)
-            delta (look-by dims delta)
-            stick' (walk stick' metrics))]
+        moved (cond-> state
+                delta (look-by dims delta)
+                stick' (walk stick' metrics))]
     (assoc state
            :screen screen
            :n (count points)
@@ -316,10 +286,18 @@
            :ids ids
            :look look'
            :stick stick'
-           :camera c)))
+           :px (:px moved)
+           :pz (:pz moved)
+           :yaw (:yaw moved)
+           :pitch (:pitch moved)
+           :camera (camera-of (:px moved) (:pz moved) (:yaw moved) (:pitch moved)))))
 
 (defn- init [{:keys [metrics]}]
-  [{:camera initial-camera
+  [{:px 0.0
+    :pz 0.0
+    :yaw 0.0
+    :pitch 0.0
+    :camera initial-camera
     :screen (:screen metrics)
     :n 0
     :pts []
