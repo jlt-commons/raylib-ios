@@ -35,8 +35,9 @@
   built in 0.89 ms a frame under jolt on the laptop and the phone's budget is
   0.45 (a build is about 33 times slower there). 6 by 8 builds in about 0.39 ms
   with about 240 triangles facing the camera. The sphere count, the radii and
-  the physics are the original's. The grid goes in first, then the balls in groups, far to near by the distance
-  of each group's mean centre from the eye. A ball whose sphere touches no other
+  the physics are the original's. The grid goes in first, then the balls in
+  groups, far to near by the distance of each group's mean centre from the eye.
+  A ball whose sphere touches no other
   (centres nearer than the sum of the radii, taken transitively) is a group of
   one and goes in whole, and `raylib.soft3d/finish` is not called for it (sorting
   every triangle cost more than the phone's budget). The triangles of a group of
@@ -46,7 +47,9 @@
   Whole-ball order paints a small ball over a big one it is half inside, wrongly,
   so those triangles are depth sorted. What stays is the depth sort's own limit:
   a triangle is ordered by its mean depth, so a residue at the lens where two
-  balls cross can remain. The grid is drawn first, so a line under a ball is
+  balls cross can remain. A lone ball whose depth falls between the members of a
+  group can also paint over the nearer member (5 of 12,000 simulated poses).
+  The grid is drawn first, so a line under a ball is
   lost, as it is meant to be. Every ball stays in the box, which the camera
   sees, so none is culled, though one at the near floor corner reaches past the
   field's edge and is clipped by the draw method's scissor.

@@ -23,8 +23,11 @@
   aspect, so a tall phone field still shows the original's width.
 
   Building a frame: start from `[]`, thread it through the builders (`cube`,
-  `cube-wires`, `grid`, `lines`, `sphere`, `plane`), then `finish` it into the draw list. Every
-  builder projects as it goes, so a back face, or a face behind the near plane,
+  `cube-wires`, `grid`, `lines`, `sphere`, `plane`), then `finish` it into the
+  draw list. `finish` is the general order, a sort of every triangle far to near.
+  A scene may paint in an order it can show is right for its own geometry and
+  skip it, as Waving Cubes, Point Cloud, 3D Split Screen and Bouncing Spheres
+  do. Every builder projects as it goes, so a back face, or a face behind the near plane,
   never becomes an item, and a line behind it is clipped to it instead.
 
   The draw list is a vector of flat items:
@@ -427,9 +430,10 @@
   undone without `invert`, and with no `xf` it is `view-proj`'s `:eye`. A face
   is a candidate when that point lies on its outer side, by more than a margin
   of 1e-9 of the point's size, so an edge-on face is left to the screen-sign
-  test. A mirroring `xf` flips the point's sign and the verdicts with it. Only the corners of candidate faces are projected, each once, into one
-  scratch array, by the same sums `project` makes, so every item is the one
-  projecting all eight corners and testing all six faces would give."
+  test. A mirroring `xf` flips the point's sign and the verdicts with it. Only
+  the corners of candidate faces are projected, each once, into one scratch
+  array, by the same sums `project` makes, so every item is the one projecting
+  all eight corners and testing all six faces would give."
   ([dl vp xf pos size colour] (cube dl vp xf pos size colour {}))
   ([dl vp xf [cx cy cz] size [cr cg cb ca] {:keys [shade]}]
    (let [[m d] (frame vp xf)

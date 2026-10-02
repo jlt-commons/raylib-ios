@@ -229,7 +229,8 @@
 
 (def walls
   "Every wall as `{:x :z :cell :colour}`, the cube's centre on the ground plane,
-  its index `cx + cy * 16` and its checker tint (lines 64-73), in the original's row-then-column order."
+  its index `cx + cy * 16` and its checker tint (lines 64-73), in the
+  original's row-then-column order."
   (vec (for [cy (range rows)
              cx (range cols)
              :when (wall? cx cy)]

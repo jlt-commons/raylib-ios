@@ -6,6 +6,16 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Four more 3D scenes, a hundred and seven in all.** Toys now holds
+  eighty-three. First-Person Camera and First-Person Maze walk with a thumb-stick
+  and look with a drag, the maze drawing only the walls a ray can reach. 3D Split
+  Screen gives each half its own camera and stick, and Bouncing Spheres
+  re-deals every ball on a tap. The four have not run on the phone, so their fps
+  cells are empty. `dna_helix` is deferred, because a faithful port built in
+  12.7 ms on the laptop, about 28 times the phone's budget.
+- **`soft3d/cube` is faster.** It takes the box emitter lifted from Waving Cubes,
+  which finds the faces toward the eye from the eye's place in the box's own
+  space. Its output matches the old body item for item.
 - **Three more 3D scenes, a hundred and three in all.** Toys now holds
   seventy-nine. Waving Cubes draws 81 of the original's 196 columns, Solar
   System nests a Sun, an Earth and a Moon, and Point Cloud draws 400 of the

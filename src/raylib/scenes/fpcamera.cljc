@@ -33,8 +33,9 @@
     because forward is the ground vector `(cos yaw, sin yaw)` whatever the pitch.
   - The mouse position delta looks, 0.004 radians a pixel (`SENS`), yaw then
     pitch (lines 40-41, the pitch held to +-1.4 radians, `pitch-limit`). A drag that
-    starts in the upper two thirds of the field replaces it, times `800 / field width` so that a drag across the glass turns as far as
-    one across the original's 800 pixel window.
+    starts in the upper two thirds of the field replaces it, times
+    `800 / field width` so that a drag across the glass turns as far as one
+    across the original's 800 pixel window.
   - Both work at once, each by its own finger.
 
   `raylib.stick` decides whose finger it is. A stick or a look begins only on

@@ -62,9 +62,10 @@
     its view, by a circle round each tree) are not built, which leaves the
     picture unchanged.
 
-  Dropped: the key text, whose words become \"drag up or down to move\". The
-  state holds `:z1` and `:x2` (numbers), the sticks, the finger count, points
-  and ids of the frame before, and `:screen`. Colours are `[r g b a]` vectors."
+  Dropped: the key text, whose words become \"PLAYER1: drag to move\" and
+  \"PLAYER2: drag to move\". The state holds `:z1` and `:x2` (numbers), the
+  sticks, the finger count, points and ids of the frame before, and `:screen`.
+  Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
             [raylib.soft3d :as s3]
             [raylib.stick :as stick]))
