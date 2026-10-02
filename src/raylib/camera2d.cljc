@@ -29,7 +29,7 @@
 
 (defn screen->world
   "The world point under screen position `[x y]`, the inverse of
-  `world->screen`."
+  `world->screen`. The camera's zoom must be positive (it is divided by)."
   [{[ox oy] :offset
     [tx ty] :target
     :keys [rotation zoom]} [x y]]
@@ -63,12 +63,15 @@
 (defn pinch-step
   "What happened between pinch `prev` and pinch `cur` (both from `pinch`):
   `{:ratio r :twist deg :mid m}`. `:ratio` is the change of distance (1.0 when
-  `prev` had none to scale from), `:twist` the change of angle in degrees
-  wrapped into (-90, 90], and `:mid` is `cur`'s midpoint."
+  either distance is 0, so coincident fingers never collapse a zoom), `:twist`
+  the change of angle in degrees wrapped into (-90, 90], and `:mid` is `cur`'s
+  midpoint."
   [prev cur]
   (let [d (- (:angle cur) (:angle prev))
         t (- d (* 180.0 (Math/floor (/ (+ d 90.0) 180.0))))
         twist (if (= t -90.0) 90.0 t)]
-    {:ratio (if (pos? (:dist prev)) (/ (:dist cur) (:dist prev)) 1.0)
+    {:ratio (if (and (pos? (:dist prev)) (pos? (:dist cur)))
+              (/ (:dist cur) (:dist prev))
+              1.0)
      :twist twist
      :mid (:mid cur)}))

@@ -102,3 +102,10 @@
     ;; zooming after the pin leaves the pinned point where it was
     (let [c' (assoc (cam/pin c [500.0 700.0]) :zoom 7.0)]
       (is (near? [500.0 700.0] (cam/world->screen c' (:target c')))))))
+
+(deftest a-zero-distance-pinch-keeps-the-ratio-at-one
+  (let [apart (cam/pinch [0.0 0.0] [100.0 0.0])
+        same  (cam/pinch [50.0 50.0] [50.0 50.0])]
+    (is (= 1.0 (:ratio (cam/pinch-step apart same))) "current distance 0")
+    (is (= 1.0 (:ratio (cam/pinch-step same apart))) "previous distance 0")
+    (is (= 1.0 (:ratio (cam/pinch-step same same))) "both 0")))
