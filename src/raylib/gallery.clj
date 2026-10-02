@@ -112,6 +112,7 @@
             [raylib.scenes.wireframes :as wireframes]
             [raylib.scenes.worldscreen :as worldscreen]
             [raylib.scenes.writing :as writ]
+            [raylib.scenes.yawpitchroll :as ypr]
             [raylib.scroll :as scroll]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
@@ -139,7 +140,7 @@
              (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
              (gestures/scene) (helitorus/scene)
              (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene)])
+             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -173,7 +174,7 @@
              :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
              :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam]}
+             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3264,3 +3265,52 @@
       (draw-caption! line (if (zero? k) freecam/hud-title-colour freecam/hud-text-colour)))
     (rl/draw-rectangle (int rx) (int ry) (int rw) (int rh) (pack freecam/button-colour))
     (draw-caption! (:reset-label dims) freecam/button-label-colour)))
+
+(def ^:private ypr-cache
+  "The last `[screen dims grid]` for `:yawpitchroll`. The camera never moves, so
+  the layout, the text sizes and the grid depend on the screen alone."
+  (atom nil))
+
+(defn- ypr-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims grid] @ypr-cache]
+    (if (= screen cached-screen)
+      [dims grid]
+      (let [dims (ypr/dimensions m host-measure)
+            grid (ypr/grid-list (ypr/camera dims) dims)]
+        (reset! ypr-cache [screen dims grid])
+        [dims grid]))))
+
+(defmethod draw-scene! :yawpitchroll [_ state {:keys [m safe]}]
+  (clear-to! ypr/background-colour)
+  (let [[dims grid] (ypr-layout m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        [px py pw ph] (:panel dims)
+        track (pack ypr/track-colour)
+        fill (pack ypr/fill-colour)
+        tick (pack ypr/tick-colour)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (ypr/scene-list grid state dims))))
+    (draw-caption! (:title dims) ypr/title-colour)
+    (rl/draw-rectangle (int px) (int py) (int pw) (int ph) (pack ypr/panel-colour))
+    (draw-caption! (:hint dims) ypr/hint-colour)
+    (doseq [[i {:keys [label value-x value-y value-size]
+                [tx ty tw th] :track
+                [kx ky kw kh] :tick}] (map-indexed vector (:gauges dims))
+            :let [v (nth [(:yaw state) (:pitch state) (:roll state)] i)
+                  [fx fy fw fh] (ypr/gauge-fill dims i v)]]
+      (draw-caption! label ypr/label-colour)
+      (rl/draw-rectangle (int tx) (int ty) (int tw) (int th) track)
+      (rl/draw-rectangle (int fx) (int fy) (int fw) (int fh) fill)
+      (rl/draw-rectangle (int kx) (int ky) (int kw) (int kh) tick)
+      (draw-caption! {:s (ypr/value-text v)
+                      :x value-x
+                      :y value-y
+                      :size value-size}
+                     ypr/value-colour))
+    (let [held (:held state)]
+      (doseq [{:keys [id label rect]} (:buttons dims)
+              :let [[bx by bw bh] rect]]
+        (rl/draw-rectangle (int bx) (int by) (int bw) (int bh)
+                           (pack (if (contains? held id) ypr/button-held-colour ypr/button-colour)))
+        (draw-caption! label ypr/button-label-colour)))))
