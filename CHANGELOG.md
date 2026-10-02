@@ -55,6 +55,10 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Waving Cubes and Point Cloud measured after their cut.** On an iPhone 17 Pro
+  they now run at 59 and 60 fps, against 15 and 9 for their first versions, so
+  every one of the hundred and three scenes has a measured rate.
+
 - **The ten 3D scenes measured on an iPhone 17 Pro.** All run at 58 or 59 fps,
   Wireframe Shapes included, so every one of the hundred scenes has a measured
   rate again. A tap on 3D Picking's box hit it on the phone, and the box turned

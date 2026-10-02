@@ -103,10 +103,6 @@ scenes. These remain rewrite-ready:
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
-- **Time Waving Cubes and Point Cloud on the phone after their cut.** They drop
-  from 196 columns to 81 and from 1500 points to 400, and the new versions have
-  not run on a device, so their fps cells are empty. Solar System measured 58 in
-  its first version and is unchanged.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
