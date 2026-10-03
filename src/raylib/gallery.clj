@@ -128,6 +128,7 @@
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
+            [raylib.scenes.voxel :as voxel]
             [raylib.scenes.vpscaling :as vpscaling]
             [raylib.scenes.wavecubes :as wavecubes]
             [raylib.scenes.wheelbox :as wbox]
@@ -168,7 +169,8 @@
              (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
              (blendmodes/scene) (blendparticles/scene)
-             (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)])
+             (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
+             (voxel/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -205,7 +207,7 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes]}
+             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4096,6 +4098,37 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! dl)))
     (draw-caption! (:caption dims) geoshapes/caption-colour)))
+
+(def ^:private voxel-cache
+  "The last `[screen dims]` for `:voxel`. Its camera moves with the player, so
+  only the layout and the text sizes are kept."
+  (atom nil))
+
+(defn- voxel-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @voxel-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (voxel/dimensions m host-measure)]
+        (reset! voxel-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :voxel [_ state {:keys [m safe]}]
+  (let [pack (fn [[r g b a]] (rl/rgba r g b a))
+        colours voxel/colours
+        dims (voxel-dims m)
+        [bx by bw bh] (:button dims)
+        [cx cy] (:crosshair dims)]
+    (clear-to! (:background colours))
+    (draw-in-field! safe (:viewport dims)
+                    (fn []
+                      (rl/draw-3d! (voxel/scene-list state dims))
+                      ;; the original's crosshair: a RED dot of radius 4 on the ray
+                      (rl/draw-circle (int cx) (int cy) 4.0 (pack (:crosshair colours)))))
+    (draw-caption! (assoc (:caption dims) :s (voxel/voxel-text (count (:world state))))
+                   (:caption colours))
+    (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack (:button colours)))
+    (draw-caption! (get (:labels dims) (:mode state)) (:button-label colours))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
