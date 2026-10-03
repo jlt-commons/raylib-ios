@@ -14,6 +14,8 @@
             [poc.raylib.diagnostics :as diag]
             [poc.raylib.gallery :as gallery]
             [raylib.gallery :as rg]
+            [raylib.host :as host]
+            [raylib.scenes.doom :as doom]
             [raylib.scenes.split3d :as split3d]
             [raylib.scroll :as scroll]))
 
@@ -193,3 +195,53 @@
             dims2 (split3d/dimensions m2 (fn [s size] (* 0.6 size (count s))))
             st2 (assoc st :screen (:screen m2))]
         (is (= (lst st2 dims2 0) (split3d/scene-list st2 dims2 0)))))))
+
+(deftest doom-draw-method-runs-over-stubbed-raylib
+  ;; Scoped to doom: `run-frame` only calls a scene's pure :update and :draw, so
+  ;; nothing above runs `draw-scene!`. This runs it for 30 frames, a stick held,
+  ;; with the raylib calls it makes counted instead of made.
+  (let [m {:screen [1206 2334]}
+        counts (atom {:rect 0
+                      :text 0
+                      :circle 0
+                      :line 0
+                      :scissor-begin 0
+                      :scissor-end 0})
+        bump (fn [k] (fn [& _] (swap! counts update k inc)))
+        hold (fn [dy] {:metrics m
+                       :delta-seconds (/ 1.0 60)
+                       :pointer {:phase :down
+                                 :position [300.0 (+ 1900.0 dy)]}
+                       :touch-points [[300.0 (+ 1900.0 dy)]]
+                       :touches {:ids [4]}})
+        press (assoc-in (hold 0) [:pointer :phase] :press)
+        start (first ((:init (doom/scene)) {:metrics m}))
+        states (reductions (fn [st input] (first ((:update (doom/scene)) st input)))
+                           start (cons press (repeat 30 (hold -200.0))))
+        per-frame (atom [])]
+    (with-redefs [rg/host-measure (fn [s size] (* 0.6 size (count s)))
+                  host/draw-rectangle (bump :rect)
+                  host/draw-text (bump :text)
+                  host/draw-circle (bump :circle)
+                  host/draw-line-ex (bump :line)
+                  host/begin-scissor-mode (bump :scissor-begin)
+                  host/end-scissor-mode (bump :scissor-end)
+                  host/clear-background (fn [& _] nil)]
+      (doseq [st states]
+        (reset! counts (zipmap (keys @counts) (repeat 0)))
+        (rg/draw-scene! :doom st {:m m
+                                  :safe {:x 0
+                                         :y 0
+                                         :width 1206
+                                         :height 2334}})
+        (swap! per-frame conj @counts)))
+    (is (= 32 (count @per-frame)) "every frame completed")
+    (testing "plausible counts a frame: view rects plus 96 minimap cells and the bar, 7 texts, a crosshair and heading line, circles for imps, player, button and a held stick"
+      (doseq [c @per-frame]
+        (is (<= 120 (:rect c) 450))
+        (is (= 7 (:text c)) "five HUD texts, the FIRE label and the caption")
+        (is (= 5 (:line c)) "four crosshair lines and the heading line")
+        (is (<= 8 (:circle c) 10) "6 imps, the player and the button, and while held the ring and knob")
+        (is (= (:scissor-begin c) (inc (:scissor-end c))) "the field's scissor is closed and the safe region's put back")))
+    (testing "the held stick is drawn"
+      (is (= [8 10 10] [(:circle (first @per-frame)) (:circle (second @per-frame)) (:circle (last @per-frame))])))))

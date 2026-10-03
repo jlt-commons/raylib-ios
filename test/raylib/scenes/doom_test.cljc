@@ -388,6 +388,11 @@
 
 (deftest the-imps-walk-and-bite-as-the-original
   (let [dt (/ 1.0 60.0)]
+    (testing "the bite range is 0.9: an imp 0.85 away bites and stands, one 0.95 away walks"
+      (let [s (sc/advance-imps (with-imps (placed 2.5 7.5 0.0) [3.35 7.5] [3.45 7.5]) dt)]
+        (is (= 99 (:health s)))
+        (is (= 3.35 (:x (first (:imps s)))))
+        (is (< (:x (second (:imps s))) 3.45))))
     (testing "an imp walks straight at the player at 0.9 * dt"
       (let [s (sc/advance-imps (with-imps (placed 2.5 7.5 0.0) [6.5 7.5]) dt)
             {:keys [x y]} (first (:imps s))]
@@ -619,6 +624,28 @@
       (is (nil? (hud/died start dims)))
       (is (= "YOU DIED" (:s (hud/died (assoc start :health 0) dims)))))))
 
+(deftest merged-walls-are-the-per-column-picture-from-oblique-poses
+  ;; Adjacent columns of an oblique wall differ in shade, and across a corner in
+  ;; side or style, so a merge that ignores the colour paints one over the other.
+  (let [dims (sc/dimensions phone measure)
+        [_ _ vw _] (:view dims)]
+    (doseq [[x y a] [[1.5 3.5 (* 3 (/ Math/PI 8))] [12.5 8.5 (* 13 (/ Math/PI 8))]
+                     [5.5 11.5 1.0] [9.5 2.5 4.0] [14.5 14.5 3.9]]
+            :let [st (placed x y a)
+                  expected (into {} (mapcat (fn [[x0 x1 top bot colour]] (for [px (range x0 x1)] [px [top bot colour]]))
+                                            (picture-of st (:view dims))))
+                  walls (wall-rects st dims)
+                  got (into {} (mapcat (fn [[rx ry w h colour]] (for [px (range rx (+ rx w))] [px [ry (+ ry h) colour]])) walls))]]
+      (testing (str [x y a])
+        (is (= vw (count expected)))
+        (is (= vw (reduce + (map #(nth % 2) walls))))
+        (is (= (set (distinct (map #(nth % 2) (vals expected)))) (set (distinct (map #(nth % 2) (vals got))))))
+        (is (empty? (take 3 (remove (fn [[px e]] (= e (get got px))) expected))))))
+    (testing "and the poses do have neighbours of different shade, so the guard is exercised"
+      (let [st (placed 1.5 3.5 (* 3 (/ Math/PI 8)))
+            colours (map #(nth % 4) (picture-of st (:view dims)))]
+        (is (< 1 (count (distinct colours))))))))
+
 (deftest sprites-are-cut-into-twelve-strips-and-tested-against-the-walls
   (let [dims (sc/dimensions phone measure)
         imps-of (fn [s]
@@ -654,6 +681,15 @@
         (is (< (count (filter true? passes)) 12) "some strips are hidden")
         (is (pos? (count (filter true? passes))) "and some are not")
         (is (= expected-bodies (count bodies)))))
+    (testing "the depth test is strict: an imp at exactly its middle column's wall distance is hidden, a hair nearer shows"
+      (let [base (placed 2.5 8.5 0.0)
+            wall (:dist (o-cast-column (quot cols 2) cols base))
+            at (fn [d] (with-imps base [(+ 2.5 d) 8.5]))
+            shown (fn [d] (pos? (count (imps-of (at d)))))]
+        (is (near? 1.5 wall 1e-9))
+        (is (shown (- wall 0.01)) "just nearer than the wall")
+        (is (not (shown wall)) "level with it")
+        (is (not (shown (+ wall 0.01))) "beyond it")))
     (testing "an imp wholly behind a wall draws nothing"
       (is (empty? (imps-of (with-imps (placed 2.5 8.5 0.0) [9.5 8.5])))))
     (testing "an imp behind the player draws nothing, nor one nearer than 0.25"
