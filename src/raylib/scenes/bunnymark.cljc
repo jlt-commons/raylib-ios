@@ -47,7 +47,10 @@
 
   The state holds numbers only, in mutable arrays: `:xs :ys :vxs :vys` (doubles)
   and `:rs :gs :bs` (ints) with `:n` bunnies live, a capacity of `capacity`, the
-  LCG `:seed` and the `:gesture`. `advance` updates the arrays IN PLACE and
+  LCG `:seed`, the `:gesture` and the `:screen` it was laid out for. When the
+  phone turns, the field's height changes, so `advance` clamps every bunny's y
+  into the new field in place (the original's window never changes, so it has
+  no such rule). `advance` updates the arrays IN PLACE and
   returns the state with a new `:n`, so a hot loop over forty thousand bunnies
   allocates nothing per bunny; a state is not a value to keep across `advance`.
   `bunny` and `set-bunny!` are the allocating accessors for tests."
@@ -239,6 +242,20 @@
             (aset-double vys i (- vy))))
         (recur (inc i))))))
 
+#_{:clj-kondo/ignore [:unresolved-symbol]}
+(defn- clamp-to-field!
+  "Pull the first `n` bunnies' y into `[0, field-h - sprite]`, in place."
+  [state n field-h]
+  (let [#?@(:jolt [^double/1 ys (:ys state)]
+            :default [^"[D" ys (:ys state)])
+        hi (max 0.0 (- (double field-h) sprite))]
+    (loop [i 0]
+      (when (< i n)
+        (let [y (aget ys i)]
+          (when (or (< y 0.0) (> y hi))
+            (aset-double ys i (min hi (max 0.0 y)))))
+        (recur (inc i))))))
+
 (defn emit-bunnies!
   "Call `(draw-rect! x y side r g b)` for each live bunny, in pixels, in index
   order. `dims` is `geometry`'s or `dimensions`'. Nothing is allocated per bunny."
@@ -259,12 +276,19 @@
 (defn advance
   "One frame, the original's loop. A tap that began on the clear button empties
   the field; otherwise a finger down inside the field, over neither Back nor the
-  button and not begun on either, adds a batch when the count is under the cap. Then every bunny steps."
+  button and not begun on either, adds a batch when the count is under the cap. Then every bunny steps.
+
+  When the metrics report a different `:screen`, every live bunny's y is
+  clamped into the new field first (the field's height changes with the phone's
+  turn) and the gesture is reset, since its start was in the old screen's
+  pixels. The count and the benchmark carry on."
   [state {:keys [metrics pointer]
           :as input}]
   (let [{:keys [u top field-h w h]
          [bx by bw bh] :button} (geometry metrics)
-        [g event] (gesture/track (:gesture state) input)
+        turned? (not= (:screen state) (:screen metrics))
+        _ (when turned? (clamp-to-field! state (:n state) field-h))
+        [g event] (gesture/track (if turned? gesture/idle (:gesture state)) input)
         pos (:position pointer)
         field? (fn [[px py]] (and (>= px 0) (< px w) (>= py top) (< py h)))
         in-button? (and pos (gesture/in-rect? [bx by bw bh] pos))
@@ -284,7 +308,7 @@
                       (spawn! state n batch (/ (double (first pos)) u) (/ (- (double (second pos)) top) u) field-h)]
                 :else [n (:seed state)])]
     (step! state n field-h)
-    (assoc state :n n :seed s :gesture g)))
+    (assoc state :n n :seed s :gesture g :screen (:screen metrics))))
 
 (defn- init [{:keys [metrics]}]
   (let [{:keys [field-h]} (geometry metrics)
@@ -297,6 +321,7 @@
                :gs (int-array capacity)
                :bs (int-array capacity)
                :seed seed
+               :screen (:screen metrics)
                :gesture gesture/idle}
         s (spawn! state 0 start-count nil nil field-h)]
     [(assoc state :n start-count :seed s) [[:scene/init :bunnymark]]]))

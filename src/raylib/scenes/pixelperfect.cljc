@@ -53,7 +53,7 @@
   on an edge can go either way. The overscan blit stretched the texture by
   different factors across and down (5.0625 and 5.111 at R = 5); a camera has one
   zoom, so this takes the larger (the height's), and the world overruns the
-  window sideways by about 1.1 R, which the clip trims. That keeps the world
+  window sideways by about 1.56 R, which the clip trims. That keeps the world
   covering the whole clip, so no strip of the clear colour shows at the bottom,
   while the pixels are about 1 percent wider on the glass than the horizontal
   stretch would make them. With overscan the zoom is not a whole number, so the

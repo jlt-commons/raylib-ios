@@ -239,3 +239,26 @@
           (is (and (>= label-y by) (<= (+ label-y label-size) (+ by bh))))))
       (testing "the count line is the widest it ever gets"
         (is (<= (measure (sc/count-line 40060) (:size (first lines))) (- bx (:x (first lines)))))))))
+
+(deftest turning-the-phone-keeps-every-bunny-in-the-field
+  (let [land {:screen [2334 1206]}
+        {:keys [field-h]} (sc/geometry land)
+        s0 (loop [s (fresh) k 0] (if (< k 200) (recur (tick s) (inc k)) s))
+        step-in (fn [s m] (first ((:update (sc/scene)) s {:metrics m
+                                                          :pointer {:phase :idle
+                                                                    :position nil}})))
+        below-before (count (filter #(> (:y %) (- field-h 32)) (bunnies s0)))
+        s1 (step-in s0 land)]
+    (testing "the portrait field is taller, so some bunnies sit below the landscape one before the turn"
+      (is (pos? below-before)))
+    (testing "the first frame on the new screen puts every bunny inside it"
+      (is (= 200 (:n s1)))
+      (is (every? (fn [{:keys [y]}] (<= -64 y (+ field-h 32))) (bunnies s1))))
+    (testing "and they stay there for a long run"
+      (let [s2 (loop [s s1 k 0] (if (< k 2000) (recur (step-in s land) (inc k)) s))]
+        (is (every? (fn [{:keys [y]}] (<= -64 y (+ field-h 32))) (bunnies s2)))))
+    (testing "the gesture is reset, since its start was in the old screen's pixels"
+      (let [held (tick (fresh) :press below-bar)
+            turned (step-in held land)]
+        (is (not= (:gesture held) gesture/idle))
+        (is (nil? (:start (:gesture turned))))))))
