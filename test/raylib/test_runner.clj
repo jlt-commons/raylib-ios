@@ -145,6 +145,8 @@
                      raylib.scenes.fogofwar-test
                      raylib.scenes.blendmodes-test
                      raylib.scenes.blendparticles-test
+                     raylib.scenes.billboard-test
+                     raylib.scenes.dirbillboard-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

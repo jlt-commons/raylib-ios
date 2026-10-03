@@ -26,6 +26,7 @@
             [raylib.scenes.bars :as bars]
             [raylib.scenes.bezier :as bez]
             [raylib.scenes.bgscroll :as bgscroll]
+            [raylib.scenes.billboard :as billboard]
             [raylib.scenes.blendmodes :as blendmodes]
             [raylib.scenes.blendparticles :as blendparticles]
             [raylib.scenes.boids :as boids]
@@ -44,6 +45,7 @@
             [raylib.scenes.colorwheel :as wheel]
             [raylib.scenes.dashed :as dash]
             [raylib.scenes.deltatime :as dtime]
+            [raylib.scenes.dirbillboard :as dirbillboard]
             [raylib.scenes.easings :as ease]
             [raylib.scenes.easingsbox :as ebox]
             [raylib.scenes.easingstestbed :as etb]
@@ -163,7 +165,8 @@
              (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
              (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
-             (blendmodes/scene) (blendparticles/scene)])
+             (blendmodes/scene) (blendparticles/scene)
+             (billboard/scene) (dirbillboard/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -200,7 +203,7 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles]}
+             :blendmodes :blendparticles :billboard :dirbillboard]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4002,6 +4005,50 @@
     (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack blendparticles/button-colour))
     (rl/draw-text label (blendparticles/label-x dims label host-measure) (int label-y) (int label-size)
                   (pack (blendparticles/label-colour state)))))
+
+(def ^:private billboard-dims-cache
+  "The last `[screen dims]` for `:billboard`. The layout and the caption size
+  depend on the screen alone."
+  (atom nil))
+
+(defn- billboard-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @billboard-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (billboard/dimensions m host-measure)]
+        (reset! billboard-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :billboard [_ state {:keys [m safe]}]
+  (clear-to! billboard/background-colour)
+  (let [dims (billboard-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (billboard/scene-list state dims))))
+    (draw-caption! (:caption dims) billboard/caption-colour)))
+
+(def ^:private dirbillboard-dims-cache
+  "The last `[screen dims]` for `:dirbillboard`. The layout and the caption size
+  depend on the screen alone."
+  (atom nil))
+
+(defn- dirbillboard-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @dirbillboard-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (dirbillboard/dimensions m host-measure)]
+        (reset! dirbillboard-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :dirbillboard [_ state {:keys [m safe]}]
+  (clear-to! dirbillboard/background-colour)
+  (let [dims (dirbillboard-dims m)
+        {:keys [s x y size]} (dirbillboard/caption state dims)
+        [r g b a] dirbillboard/caption-colour]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (dirbillboard/scene-list state dims))))
+    (rl/draw-text s (int x) (int y) (int size) (rl/rgba r g b a))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

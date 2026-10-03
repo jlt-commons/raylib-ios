@@ -23,7 +23,7 @@
   aspect, so a tall phone field still shows the original's width.
 
   Building a frame: start from `[]`, thread it through the builders (`cube`,
-  `cube-wires`, `grid`, `lines`, `sphere`, `plane`), then `finish` it into the
+  `cube-wires`, `grid`, `lines`, `sphere`, `plane`, `billboard`), then `finish` it into the
   draw list. `finish` is the general order, a sort of every triangle far to near.
   A scene may paint in an order it can show is right for its own geometry and
   skip it, as Waving Cubes, Point Cloud, 3D Split Screen and Bouncing Spheres
@@ -735,6 +735,80 @@
             (tri p1 p2 p3 cr cg cb ca depth)
             (tri p1 p3 p4 cr cg cb ca depth)))
       dl)))
+
+(defn- rotate-about
+  "raymath.h Vector3RotateByAxisAngle: `v` turned `rad` radians about the unit
+  vector `k`, right-handed (Rodrigues)."
+  [v k rad]
+  (let [c (Math/cos rad) s (Math/sin rad) kv (dot3 k v)
+        kxv (cross3 k v)]
+    (mapv (fn [vi xi ki] (+ (* vi c) (* xi s) (* ki kv (- 1.0 c)))) v kxv k)))
+
+(defn billboard-corners
+  "`(billboard-corners camera [x y z] size opts)`: the four world corners of a
+  camera-facing quad, bottom-left, bottom-right, top-right, top-left, in
+  rmodels.c DrawBillboardPro's order (its points 0 to 3), as three-vectors of
+  doubles. `size` is a number or `[sx sy]`, both positive.
+
+  `right` is the first row of MatrixLookAt(camera.position, camera.target,
+  camera.up), which is where Pro reads m0, m4 and m8, scaled by `sx`. `up` is
+  the camera's own up, row two of the same matrix, scaled by `sy`, so the quad
+  squarely faces the camera. DrawBillboardRec passes the world up (0, 1, 0)
+  there instead, which stands the quad on its feet; `{:up [0 1 0]}` does that.
+
+  Options, all optional:
+  - `:up` the up vector, normalised or not, before it is scaled by `sy`;
+  - `:origin` `[ox oy]`, Pro's origin in world units from the quad's
+    bottom-left, along `right` and `up`; the default is half of `size`, which
+    DrawBillboardRec passes, so the position is the centre;
+  - `:rotation` degrees about the quad's own normal, `right` x `up`, which points
+    at the camera, turning about the origin as seen from it, as Pro does;
+  - `:part` `[fx0 fy0 fx1 fy1]`, a rectangle of the quad in fractions from its
+    bottom-left corner (the whole quad is `[0 0 1 1]`). It is the one thing here
+    that raylib has no equivalent for: raylib's `source` rectangle picks a part of
+    the TEXTURE for the whole quad, where this picks a part of the QUAD, so a
+    figure can be built of flat sub-quads that turn and move together."
+  [camera [px py pz] size {:keys [up origin rotation part]}]
+  (let [[sx sy] (if (number? size) [size size] size)
+        sx (double sx) sy (double sy)
+        v (look-at (:position camera) (:target camera) (:up camera))
+        right0 [(nth v 0) (nth v 1) (nth v 2)]
+        up0 (if up (mapv double up) [(nth v 4) (nth v 5) (nth v 6)])
+        scale (fn [[x y z] k] [(* x k) (* y k) (* z k)])
+        add (fn [a b] (mapv + a b))
+        right (scale right0 sx)
+        upv (scale up0 sy)
+        [ox oy] (or origin [(* 0.5 sx) (* 0.5 sy)])
+        origin3 (add (scale (normalize right) (double ox)) (scale (normalize upv) (double oy)))
+        turn (when (and rotation (not (zero? rotation)))
+               [(normalize (cross3 right upv)) (Math/toRadians (double rotation))])
+        [fx0 fy0 fx1 fy1] (or part [0.0 0.0 1.0 1.0])
+        at (fn [fx fy]
+             (let [p (mapv - (add (scale right (double fx)) (scale upv (double fy))) origin3)
+                   p (if turn (rotate-about p (nth turn 0) (nth turn 1)) p)]
+               (add p [(double px) (double py) (double pz)])))]
+    [(at fx0 fy0) (at fx1 fy0) (at fx1 fy1) (at fx0 fy1)]))
+
+(defn billboard
+  "`(billboard dl vp [x y z] size [r g b a])` or `(billboard ... opts)`: a flat
+  coloured quad that faces the camera, at the point, as the two triangles
+  rmodels.c DrawBillboardPro draws for a texture, here with one colour in place
+  of the texture. The corners, `size` and `opts` are `billboard-corners`'. The
+  triangles are the quad's corners 0 1 2 and 0 2 3, counter-clockwise from the
+  camera, so both keep rlgl's front winding and a quad that has turned edge on
+  draws nothing. A corner behind the near plane drops it whole. The colour is
+  flat, because an item carries one colour, so there is no vertex-coloured
+  variant; a gradient is more quads."
+  ([dl vp pos size colour] (billboard dl vp pos size colour nil))
+  ([dl vp pos size [r g b a] opts]
+   (let [[c0 c1 c2 c3] (billboard-corners (:camera vp) pos size (or opts {}))
+         p0 (project vp c0) p1 (project vp c1) p2 (project vp c2) p3 (project vp c3)]
+     (if (and p0 p1 p2 p3)
+       (let [depth (* 0.25 (+ (nth p0 2) (nth p1 2) (nth p2 2) (nth p3 2)))]
+         (-> dl
+             (tri p0 p1 p2 r g b a depth)
+             (tri p0 p2 p3 r g b a depth)))
+       dl))))
 
 ;; --- finishing --------------------------------------------------------------
 

@@ -614,3 +614,108 @@
             [pos size colour] equivalence-boxes]
       (is (= (reference-cube [] vp nil pos size colour) (s3/cube [] vp nil pos size colour))
           (str camera " " [pos size colour])))))
+
+;; --- billboard: rmodels.c DrawBillboardPro, corner by corner ----------------
+
+(defn- billboard-want
+  "The two items a billboard with world corners `pts` (bottom-left, bottom-right,
+  top-right, top-left, as DrawBillboardPro's points 0 to 3) must give, each
+  corner projected by `s3/project` and the quad's depth the mean of its four."
+  [vp pts [r g b a]]
+  (let [p (mapv #(s3/project vp %) pts)
+        depth (/ (reduce + (map #(nth % 2) p)) 4.0)
+        xy (fn [i] [(nth (p i) 0) (nth (p i) 1)])]
+    [(into [:tri] (concat (xy 0) (xy 1) (xy 2) [r g b a depth]))
+     (into [:tri] (concat (xy 0) (xy 2) (xy 3) [r g b a depth]))]))
+
+(defn- items-close? [want got]
+  (and (= (count want) (count got))
+       (every? true? (map (fn [w g] (and (= (first w) (first g)) (close? (rest w) (rest g) 1e-9))) want got))))
+
+(def ^:private bb-colour [10 20 30 40])
+
+(deftest billboard-corners-face-the-camera
+  (testing "looking down -z from (0, 0, 10): MatrixLookAt's right is +x and up +y, so a 2 by 4
+            billboard at (1, 2, 3) has the corners (0, 0, 3) (2, 0, 3) (2, 4, 3) (0, 4, 3)"
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])
+          corners (s3/billboard-corners camera [1.0 2.0 3.0] [2.0 4.0] {})]
+      (is (every? true? (map #(close? %1 %2) [[0 0 3] [2 0 3] [2 4 3] [0 4 3]] corners)))
+      (is (items-close? (billboard-want vp corners bb-colour)
+                        (s3/billboard [] vp [1.0 2.0 3.0] [2.0 4.0] bb-colour)))
+      (is (items-close? (billboard-want vp [[0 0 3] [2 0 3] [2 4 3] [0 4 3]] bb-colour)
+                        (s3/billboard [] vp [1.0 2.0 3.0] [2.0 4.0] bb-colour)))))
+  (testing "from (5, 0, 0) the right is -z: a square of 2 at the origin has the corners
+            (0, -1, 1) (0, -1, -1) (0, 1, -1) (0, 1, 1)"
+    (let [camera (cam [5.0 0.0 0.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])
+          want [[0 -1 1] [0 -1 -1] [0 1 -1] [0 1 1]]]
+      (is (every? true? (map #(close? %1 %2) want (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {}))))
+      (is (items-close? (billboard-want vp want bb-colour)
+                        (s3/billboard [] vp [0.0 0.0 0.0] 2.0 bb-colour)))))
+  (testing "from above, at (0, 6, 6), the camera's up leans back: corners (-1, -s, s) (1, -s, s)
+            (1, s, -s) (-1, s, -s) with s = sqrt(1/2); the world up [0 1 0] stands the quad
+            upright, as DrawBillboardRec's axis lock does"
+    (let [camera (cam [0.0 6.0 6.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])
+          s (Math/sqrt 0.5)
+          tilted [[-1 (- s) s] [1 (- s) s] [1 s (- s)] [-1 s (- s)]]
+          upright [[-1 -1 0] [1 -1 0] [1 1 0] [-1 1 0]]]
+      (is (every? true? (map #(close? %1 %2) tilted (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {}))))
+      (is (every? true? (map #(close? %1 %2) upright (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:up [0.0 1.0 0.0]}))))
+      (is (items-close? (billboard-want vp upright bb-colour)
+                        (s3/billboard [] vp [0.0 0.0 0.0] 2.0 bb-colour {:up [0.0 1.0 0.0]})))))
+  (testing "origin and rotation: with origin [0 0] the position is the bottom-left corner, and a
+            rotation of 90 degrees turns the quad counter-clockwise about it, as seen from the camera"
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)]
+      (is (every? true? (map #(close? %1 %2) [[0 0 0] [2 0 0] [2 2 0] [0 2 0]]
+                             (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:origin [0.0 0.0]}))))
+      (is (every? true? (map #(close? %1 %2) [[0 0 0] [0 2 0] [-2 2 0] [-2 0 0]]
+                             (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:origin [0.0 0.0]
+                                                                             :rotation 90.0}))))
+      (is (every? true? (map #(close? %1 %2) [[1 -1 0] [1 1 0] [-1 1 0] [-1 -1 0]]
+                             (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:rotation 90.0}))))))
+  (testing "a part is a sub-rectangle of the quad, in fractions from its bottom-left; it turns with the quad"
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)]
+      (is (every? true? (map #(close? %1 %2) [[-1 -1 0] [0 -1 0] [0 0 0] [-1 0 0]]
+                             (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:part [0.0 0.0 0.5 0.5]}))))
+      (is (every? true? (map #(close? %1 %2) [[1 -1 0] [1 0 0] [0 0 0] [0 -1 0]]
+                             (s3/billboard-corners camera [0.0 0.0 0.0] 2.0 {:part [0.0 0.0 0.5 0.5]
+                                                                             :rotation 90.0}))))))
+  (testing "the corners are coplanar and perpendicular to the view direction, on an orbit"
+    (doseq [deg (range 0 360 30)
+            :let [a (Math/toRadians deg)
+                  eye [(* 8.0 (Math/cos a)) 3.0 (* 8.0 (Math/sin a))]
+                  camera (cam eye [0.0 2.0 0.0] 45.0 :perspective)
+                  [p0 p1 p2 p3] (s3/billboard-corners camera [1.0 2.0 0.0] [2.0 3.0] {:rotation (* 1.0 deg)})
+                  sub (fn [u v] (mapv - u v))
+                  dot (fn [u v] (reduce + (map * u v)))
+                  look (mapv - eye [0.0 2.0 0.0])]]
+      (is (< (Math/abs (dot (sub p1 p0) look)) 1e-9) (str deg))
+      (is (< (Math/abs (dot (sub p3 p0) look)) 1e-9) (str deg))
+      (is (close? (sub p2 p3) (sub p1 p0)) "a parallelogram")))
+  (testing "every quad that is in front of the camera is two front-wound triangles, on an orbit"
+    (doseq [deg (range 0 360 15)
+            :let [a (Math/toRadians deg)
+                  camera (cam [(* 8.0 (Math/cos a)) 3.0 (* 8.0 (Math/sin a))] [0.0 2.0 0.0] 45.0 :perspective)
+                  vp (s3/view-proj camera [800 450])
+                  dl (s3/billboard [] vp [1.0 2.0 0.0] 2.0 bb-colour {:rotation (* 2.0 deg)})]]
+      (is (= 2 (count dl)) (str deg))
+      (is (every? #(neg? (cross %)) dl) (str deg))))
+  (testing "the item is [:tri x1 y1 x2 y2 x3 y3 r g b a depth]"
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])]
+      (is (= :mark (first (s3/billboard [:mark] vp [0.0 0.0 0.0] 2.0 bb-colour))) "appends to the list it is given"))
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])
+          dl (s3/billboard [] vp [0.0 0.0 0.0] 2.0 bb-colour)]
+      (is (= 12 (count (first dl))))
+      (is (= bb-colour (colour-of (first dl))))
+      (is (close? [10.0] [(nth (first dl) 11)] 1e-9) "the depth of a quad 10 in front is 10")
+      (is (= (subvec (first dl) 7) (subvec (second dl) 7)) "the two triangles share colour and depth")))
+  (testing "a corner behind the near plane drops the quad whole"
+    (let [camera (cam [0.0 0.0 10.0] [0.0 0.0 0.0] 45.0 :perspective)
+          vp (s3/view-proj camera [800 450])]
+      (is (= [] (s3/billboard [] vp [0.0 0.0 10.0] 2.0 bb-colour)) "centred on the eye")
+      (is (= [] (s3/billboard [] vp [0.0 0.0 12.0] 2.0 bb-colour)) "behind it")
+      (is (= 2 (count (s3/billboard [] vp [0.0 0.0 5.0] 2.0 bb-colour)))))))
