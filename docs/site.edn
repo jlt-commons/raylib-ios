@@ -13,7 +13,7 @@
  :base-path   "/raylib-ios"
 
  :title       "raylib-ios"
- :description "raylib 6.0 and SDL2 on an iPhone, driven from Clojure on Chez Scheme via Jolt. A hundred and twenty-two scenes, 120 of them measured at 52 to 60 fps, as threaded portable bytecode, with no JIT and nothing generated at run time."
+ :description "raylib 6.0 and SDL2 on an iPhone, driven from Clojure on Chez Scheme via Jolt. A hundred and twenty-two scenes, all measured at 52 to 60 fps (one dips to 31 in its heaviest view), as threaded portable bytecode, with no JIT and nothing generated at run time."
 
  ;; docs/images holds the GIFs and stills, referenced from the homepage and
  ;; the guides. Without this the pages render with every image broken, and the

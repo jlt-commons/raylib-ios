@@ -2,7 +2,7 @@
 
 raylib 6.0 and SDL2 rendering on a physical iPhone, driven from Clojure running
 on Chez Scheme via [Jolt](https://github.com/jolt-lang/jolt). A hundred and twenty-two scenes,
-120 of them measured at 52 to 60 fps, as threaded portable bytecode,
+all measured at 52 to 60 fps (one dips to 31 in its heaviest view), as threaded portable bytecode,
 with no JIT and nothing generated at run time.
 
 This is the orientation page. The two guides after it are the ones worth

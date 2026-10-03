@@ -122,14 +122,14 @@ remain rewrite-ready:
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
-- **Finish the device pass on batch 13.** Time Doom-like Raycaster, which has
-  4 percent headroom at 180 columns on the laptop, where 160 gives 11 percent.
-  Re-time 3D Split Screen after its speed-up, idle and with both thumbs moving;
-  it read 40 to 41 fps and then 45 to 47 before it. Time Basic Voxel with the
-  block hollowed and feel the tap hitch: the mesh rebuild is 5 to 7 ms on the
-  laptop, so an estimate of 150 to 230 ms on the phone at the rough 33x. Check the
-  four blend modes by eye under GLES2, since only their frame rates are
-  recorded, not the look.
+- **3D Split Screen from outside the grove.** It reads 58 fps idle and while a
+  player walks through the trees, but 31 while a player walks out of the grove
+  and looks back, with all 121 trees in view. The original doesn't clamp the
+  players. A lossless cut or a disclosed one is still to choose.
+- **Finish the device pass on batch 13.** Time Basic Voxel with the block
+  hollowed and feel the tap hitch: the mesh rebuild is 5 to 7 ms on the laptop,
+  so an estimate of 150 to 230 ms on the phone at the rough 33x. The four blend
+  modes were checked by eye on 2026-10-03 and look as each mode should.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -146,8 +146,8 @@ remain rewrite-ready:
   and `doom`, which make a hundred and twenty-two scenes and give Toys ninety-eight.
   They add `BeginBlendMode` and `EndBlendMode` and the soft3d `billboard`,
   `cylinder` and `capsule` builders, and 3D Split Screen got faster. A device pass
-  read 120 scenes at 52 to 60 fps. Doom-like Raycaster and 3D Split Screen await
-  a reading.
+  read every scene at 52 to 60 fps, Doom-like Raycaster at 58, except 3D Split
+  Screen from outside its grove (31).
 - 2026-10-02: batch 12 closed, with seven Toys scenes drawn without textures,
   `bunnymark`, `bgscroll`, `spritestack`, `pixelperfect`, `vpscaling`,
   `letterbox` and `fogofwar`, which make a hundred and fourteen scenes and give
