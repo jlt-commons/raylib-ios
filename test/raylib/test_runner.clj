@@ -139,6 +139,7 @@
                      raylib.scenes.bunnymark-test
                      raylib.scenes.bgscroll-test
                      raylib.scenes.spritestack-test
+                     raylib.scenes.pixelperfect-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

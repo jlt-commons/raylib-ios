@@ -83,6 +83,7 @@
             [raylib.scenes.penrose :as pen]
             [raylib.scenes.picking :as picking]
             [raylib.scenes.piechart :as pie]
+            [raylib.scenes.pixelperfect :as pixelperfect]
             [raylib.scenes.platformer :as platformer]
             [raylib.scenes.pointcloud :as pointcloud]
             [raylib.scenes.pong :as pong]
@@ -155,7 +156,7 @@
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
              (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
-             (bunnymark/scene) (bgscroll/scene) (spritestack/scene)])
+             (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -191,7 +192,7 @@
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
-             :bunnymark :bgscroll :spritestack]}
+             :bunnymark :bgscroll :spritestack :pixelperfect]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3627,6 +3628,72 @@
     (draw-caption! (assoc speed-l :s (spritestack/speed-line (:speed state)))
                    spritestack/text-colour)
     (draw-caption! note-l spritestack/note-colour)))
+
+(def ^:private pixelperfect-dims-cache
+  "The last `[screen dims]` for `:pixelperfect`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- pixelperfect-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @pixelperfect-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (pixelperfect/dimensions m host-measure)]
+        (reset! pixelperfect-dims-cache [screen dims])
+        dims))))
+
+(defn- pixelperfect-rect!
+  "One spinning rect, turned about its own corner `x`, `y` by `rotation` degrees
+  under an rlgl rotation. A rotation keeps the winding, so nothing is culled."
+  [{:keys [x y w h rotation color]}]
+  (let [[r g b a] color]
+    (rl/rl-push-matrix)
+    (try
+      (rl/rl-translatef (double x) (double y) 0.0)
+      (rl/rl-rotatef (double rotation) 0.0 0.0 1.0)
+      (rl/draw-rectangle 0 0 (int w) (int h) (rl/rgba r g b a))
+      (finally (rl/rl-pop-matrix)))))
+
+(defmethod draw-scene! :pixelperfect [_ state {:keys [m safe]}]
+  (clear-to! pixelperfect/background-colour)
+  (let [dims (pixelperfect-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        camera (pixelperfect/camera state dims)
+        [clip-x clip-y clip-w clip-h] (pixelperfect/clip state dims)
+        [world-x world-y] (:target camera)
+        [line-a line-b line-c line-d] (:lines dims)
+        text (fn [{:keys [s x y size]} colour]
+               (rl/draw-text s (int x) (int y) (int size) (pack colour)))
+        button (fn [rect label on?]
+                 (let [[x y w h] rect]
+                   (rl/draw-rectangle (int x) (int y) (int w) (int h)
+                                      (pack (if on? pixelperfect/button-on-colour pixelperfect/button-colour)))
+                   (text label pixelperfect/button-label-colour)))]
+    ;; BeginScissorMode takes screen pixels, so the clip is moved by the safe
+    ;; region's corner, and the safe region's own scissor is put back afterwards
+    ;; because scissor does not nest. This is the render texture's edge.
+    (rl/begin-scissor-mode (int (+ (:x safe) clip-x)) (int (+ (:y safe) clip-y))
+                           (int (Math/ceil clip-w)) (int (Math/ceil clip-h)))
+    (try
+      (rl/with-camera-2d
+        camera
+        (fn []
+          (rl/draw-rectangle (int world-x) (int world-y) pixelperfect/virtual-w pixelperfect/virtual-h
+                             (pack pixelperfect/world-colour))
+          (doseq [r (pixelperfect/rects state)]
+            (pixelperfect-rect! r))))
+      (finally
+        (rl/end-scissor-mode)
+        (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe))))
+    (text line-a pixelperfect/screen-colour)
+    (text line-b pixelperfect/world-text-colour)
+    (text (assoc line-c :s (pixelperfect/status-line (:smooth? state) (:overscan? state)))
+          pixelperfect/status-colour)
+    ;; Read every frame, which is the only way GetFPS gives a true number.
+    (text (assoc line-d :s (pixelperfect/fps-line (rl/get-fps))) pixelperfect/fps-colour)
+    (button (:smooth-button dims) (:smooth-label dims) (:smooth? state))
+    (button (:overscan-button dims) (:overscan-label dims) (:overscan? state))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
