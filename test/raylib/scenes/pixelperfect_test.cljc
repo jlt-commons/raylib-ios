@@ -267,3 +267,96 @@
         (let [[_ fy _ _] (:field dims)]
           (doseq [{:keys [y size]} (:lines dims)]
             (is (<= (+ y size) fy))))))))
+
+(def ^:private zoom-screens
+  "A phone (zoom 7) and the original's own zoom of 5."
+  [[1206 2334] [800 1600]])
+
+(defn- sweep [] (range 0.0 6.5 0.37))
+
+(deftest the-drawn-world-covers-the-clip
+  ;; The world is a 160 by 90 fill under the camera; its screen rectangle must
+  ;; contain the scissor, or the clear colour shows through (the original's
+  ;; stretched texture always covers its blit).
+  (doseq [screen zoom-screens
+          smooth? [true false]
+          overscan? [true false]
+          t (sweep)
+          :let [g (pp/geometry {:screen screen})
+                state (assoc (at-time t) :smooth? smooth? :overscan? overscan?)
+                c (pp/camera state g)
+                [tx ty] (:target c)
+                [x0 y0] (cam/world->screen c [tx ty])
+                [x1 y1] (cam/world->screen c [(+ tx 160.0) (+ ty 90.0)])
+                [cx cy cw ch] (pp/clip state g)]]
+    (testing (str screen " smooth " smooth? " overscan " overscan? " t " t)
+      (is (<= x0 (+ cx 1e-6)))
+      (is (<= y0 (+ cy 1e-6)))
+      (is (>= x1 (- (+ cx cw) 1e-6)))
+      (is (>= y1 (- (+ cy ch) 1e-6)) "the bottom is covered"))))
+
+(deftest the-clip-slides-with-the-remainder
+  (doseq [screen zoom-screens
+          t [0.7 1.0 2.5 4.0]
+          :let [g (pp/geometry {:screen screen})
+                r (double (:zoom g))
+                [wx wy ww wh] (:window g)
+                {:keys [fx fy]} (pp/world (at-time t))
+                on (at-time t)
+                [px py pw ph] (pp/picture on g)
+                [cx cy cw ch] (pp/clip on g)
+                [ox oy] (pp/clip (assoc on :smooth? false) g)]]
+    (testing (str screen " t " t)
+      (is (not (zero? fx)))
+      (is (near? (+ wx px (- (* fx r))) cx) "the picture's left edge is slid by minus the remainder")
+      (is (near? (+ wy py (- (* fy r))) cy))
+      (is (near? pw cw))
+      (is (near? ph ch))
+      (is (near? (+ wx px) ox) "and not slid with smoothing off")
+      (is (near? (+ wy py) oy))
+      (is (not (near? cx ox))))
+    (testing "overscan clips to the window, slid or not"
+      (let [over (assoc on :overscan? true)]
+        (is (every? true? (map near? (pp/clip over g) [wx wy ww wh])))))))
+
+(defn- cell-inside?
+  "The reference: is the centre of cell `i`, `j` inside rect `{:x :y :w :h
+  :rotation}` turned about `x`, `y`."
+  [{:keys [x y w h rotation]} i j]
+  (let [a (Math/toRadians rotation)
+        c (Math/cos a)
+        s (Math/sin a)
+        dx (- (+ i 0.5) x)
+        dy (- (+ j 0.5) y)
+        lx (+ (* dx c) (* dy s))
+        ly (- (* dy c) (* dx s))]
+    (and (<= 0.0 lx) (< lx w) (<= 0.0 ly) (< ly h))))
+
+(deftest rotated-rects-are-rasterised-to-virtual-pixels
+  (testing "turned by nothing, a rect is whole rows of whole cells"
+    (is (= (mapv (fn [j] [70 j 20]) (range 35 55))
+           (pp/runs {:x 70.0
+                     :y 35.0
+                     :w 20.0
+                     :h 20.0
+                     :rotation 0.0}))))
+  (testing "turned, the cells are exactly those whose centre is inside"
+    (doseq [rot [7.0 33.3 98.0 123.4 200.0 -17.0 301.7 -61.0]
+            rect (pp/rects {:rot rot})
+            :let [runs (pp/runs rect)
+                  cells (set (for [[i j n] runs
+                                   k (range n)]
+                               [(+ i k) j]))
+                  want (set (for [i (range 0 200)
+                                  j (range -60 200)
+                                  :when (cell-inside? rect i j)]
+                              [i j]))]]
+      (testing (str rot " " (:color rect))
+        (is (= want cells))
+        (is (= (count cells) (reduce + (map #(nth % 2) runs))) "no cell is drawn twice")
+        (is (every? #(and (integer? (first %)) (integer? (second %)) (pos? (nth % 2))) runs)))))
+  (testing "the area is about the rect's"
+    (doseq [rect (pp/rects {:rot 12.5})
+            :let [n (reduce + (map #(nth % 2) (pp/runs rect)))
+                  area (* (:w rect) (:h rect))]]
+      (is (< (abs (- n area)) (* 0.25 area))))))

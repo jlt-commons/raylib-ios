@@ -3647,16 +3647,15 @@
         dims))))
 
 (defn- pixelperfect-rect!
-  "One spinning rect, turned about its own corner `x`, `y` by `rotation` degrees
-  under an rlgl rotation. A rotation keeps the winding, so nothing is culled."
-  [{:keys [x y w h rotation color]}]
-  (let [[r g b a] color]
-    (rl/rl-push-matrix)
-    (try
-      (rl/rl-translatef (double x) (double y) 0.0)
-      (rl/rl-rotatef (double rotation) 0.0 0.0 1.0)
-      (rl/draw-rectangle 0 0 (int w) (int h) (rl/rgba r g b a))
-      (finally (rl/rl-pop-matrix)))))
+  "One spinning rect as the virtual pixels it covers (`pixelperfect/runs`): one
+  `draw-rectangle` a world pixel tall per row of cells, in world pixels, which
+  the camera scales to the zoom."
+  [{:keys [color]
+    :as rect}]
+  (let [[r g b a] color
+        c (rl/rgba r g b a)]
+    (doseq [[i j n] (pixelperfect/runs rect)]
+      (rl/draw-rectangle (int i) (int j) (int n) 1 c))))
 
 (defmethod draw-scene! :pixelperfect [_ state {:keys [m safe]}]
   (clear-to! pixelperfect/background-colour)
@@ -3676,8 +3675,11 @@
     ;; BeginScissorMode takes screen pixels, so the clip is moved by the safe
     ;; region's corner, and the safe region's own scissor is put back afterwards
     ;; because scissor does not nest. This is the render texture's edge.
-    (rl/begin-scissor-mode (int (+ (:x safe) clip-x)) (int (+ (:y safe) clip-y))
-                           (int (Math/ceil clip-w)) (int (Math/ceil clip-h)))
+    (let [x0 (Math/floor (+ (:x safe) clip-x))
+          y0 (Math/floor (+ (:y safe) clip-y))]
+      (rl/begin-scissor-mode (int x0) (int y0)
+                             (int (- (Math/ceil (+ (:x safe) clip-x clip-w)) x0))
+                             (int (- (Math/ceil (+ (:y safe) clip-y clip-h)) y0))))
     (try
       (rl/with-camera-2d
         camera

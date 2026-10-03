@@ -41,23 +41,28 @@
     camera (`camera`).
   - a scissor on the picture's rectangle (`clip`), because a texture clips what
     is drawn into it and a camera does not.
+  - each rotated rect rasterised to the 160 by 90 grid (`runs`): a world pixel
+    is covered when its centre is inside the rect, and a row of them is one
+    `draw-rectangle` a pixel tall, which the camera scales to `R` screen
+    pixels. So the slanted edges are chunky staircases, as in the nearest-
+    filtered texture, and \"World resolution: 160x90\" is something you can count.
 
-  Where this differs from the render-texture version, and it matters. The texture
-  rasterised the rects at 160 by 90, so their slanted edges were pixelated
-  staircases. Here a rotated rect is drawn at the screen's resolution (an rlgl
-  rotation, then `draw-rectangle`), so its edges are smooth; only POSITION is
-  pixel-perfect, which is what the camera does. The texture was also resampled
-  by the GPU, and here there is nothing to resample. The overscan blit stretched
-  the texture by different factors across and down (5.0625 and 5.111); a camera
-  has one zoom, so this takes the horizontal one and the picture runs 4 pixels
-  short of the stretched height at the bottom, where the window's clip hides it
-  and the extra pixels are there to be slid over anyway. The picture with
-  overscan off is 160 by 90 at `R - 1` instead of at 4/5 of `R`: the two are the
-  same at R = 5 (the original's), and `R - 1` stays a whole zoom at any R. The
-  remainder is multiplied by `R`, as the original multiplies by RATIO, whatever
-  the zoom the picture is drawn at, so with overscan on (5.0625 against 5) or
-  off (4 against 5) the slide is not exactly the world's remainder, just as in
-  the original.
+  Where this differs from the render-texture version. The GPU's rasteriser fills
+  a pixel by its centre as well, but it breaks ties on an edge by its own rule
+  and this breaks them by half-open intervals, so a cell whose centre is exactly
+  on an edge can go either way. The overscan blit stretched the texture by
+  different factors across and down (5.0625 and 5.111 at R = 5); a camera has one
+  zoom, so this takes the larger (the height's), and the world overruns the
+  window sideways by about 1.1 R, which the clip trims. That keeps the world
+  covering the whole clip, so no strip of the clear colour shows at the bottom,
+  while the pixels are about 1 percent wider on the glass than the horizontal
+  stretch would make them. With overscan the zoom is not a whole number, so the
+  virtual pixels are not all the same width on the glass, as in the original.
+  The picture with overscan off is 160 by 90 at `R - 1` instead of at 4/5 of `R`:
+  the two are the same at R = 5 (the original's), and `R - 1` stays a whole zoom
+  at any R. The remainder is multiplied by `R`, as the original multiplies by
+  RATIO, whatever the zoom the picture is drawn at, so with overscan on or off
+  the slide is not exactly the world's remainder, just as in the original.
 
   Controls. S becomes a \"smooth\" button and O an \"overscan\" button, side by
   side below Back. A tap flips the one it ends on (`raylib.gesture`, so a press
@@ -228,45 +233,89 @@
             ph (* pz virtual-h)]
         [(* 0.5 (- ww pw)) (* 0.5 (- wh ph)) pw ph]))))
 
+(defn- slide
+  "The screen-pixel shift `[sx sy]` of the picture: the remainder times the ratio
+  `R` with smoothing on, else zero. The original's second camera target."
+  [{:keys [smooth?]
+    :as state} {:keys [zoom]}]
+  (let [{:keys [fx fy]} (world state)
+        r (double zoom)]
+    (if smooth? [(* fx r) (* fy r)] [0.0 0.0])))
+
 (defn camera
   "The `raylib.camera2d` camera the world is drawn under. The target is the
-  integer part of the sway, and the zoom is the picture's width over 160. The
-  offset is the window's corner plus the picture's, and with smoothing on, minus
-  the remainder times the ratio `R` (the original's second camera, whose target
-  is `(cx - wx) * RATIO`)."
-  [{:keys [smooth?]
-    :as state} {:keys [zoom]
-                [x y] :window
-                :as dims}]
-  (let [{:keys [wx wy fx fy]} (world state)
-        [px py pw] (picture state dims)
-        r (double zoom)
-        sx (if smooth? (* fx r) 0.0)
-        sy (if smooth? (* fy r) 0.0)]
+  integer part of the sway. The zoom is the larger of the picture's width over
+  160 and its height over 90, so the 160 by 90 world always covers the whole
+  picture: they are equal without overscan, and with overscan the height decides
+  (the original stretched its texture by a different factor each way, a camera
+  has one zoom, and covering is the side to err on). The offset is the window's
+  corner plus the picture's, minus the slide (the original's second camera,
+  whose target is `(cx - wx) * RATIO`)."
+  [state dims]
+  (let [{:keys [wx wy]} (world state)
+        [x y] (:window dims)
+        [px py pw ph] (picture state dims)
+        [sx sy] (slide state dims)]
     {:offset [(- (+ x px) sx) (- (+ y py) sy)]
      :target [wx wy]
      :rotation 0.0
-     :zoom (/ pw virtual-w)}))
+     :zoom (max (/ pw virtual-w) (/ ph virtual-h))}))
 
 (defn clip
   "The scissor rectangle `[x y w h]` for the world, in scene pixels: the picture,
   slid by the same remainder as the camera, and cut to the window. A render
   texture clips to its own edges and a camera does not, so this stands in for
-  that, and the window's edge stands in for the screen's."
-  [{:keys [smooth?]
-    :as state} {:keys [zoom]
-                [x y w h] :window
-                :as dims}]
-  (let [{:keys [fx fy]} (world state)
+  that, and the window's edge stands in for the screen's. The world drawn by
+  `camera` covers it in every mode."
+  [state dims]
+  (let [[x y w h] (:window dims)
         [px py pw ph] (picture state dims)
-        r (double zoom)
-        sx (if smooth? (* fx r) 0.0)
-        sy (if smooth? (* fy r) 0.0)
+        [sx sy] (slide state dims)
         x0 (max x (- (+ x px) sx))
         y0 (max y (- (+ y py) sy))
         x1 (min (+ x w) (- (+ x px pw) sx))
         y1 (min (+ y h) (- (+ y py ph) sy))]
     [x0 y0 (max 0.0 (- x1 x0)) (max 0.0 (- y1 y0))]))
+
+(defn- interval
+  "The `[lo hi)` of `d` where `a * d + b` lies in `[0, size)`, nil when empty. A
+  flat `a` gives every `d` or none, as `[-1e9 1e9]` or nil."
+  [a b size]
+  (if (< (abs a) 1e-12)
+    (when (and (<= 0.0 b) (< b size)) [-1.0e9 1.0e9])
+    (let [u (/ (- b) a)
+          v (/ (- size b) a)]
+      (if (pos? a) [u v] [v u]))))
+
+(defn runs
+  "The virtual pixels a rotated rect covers, as row runs `[i j n]`: cells `i` to
+  `i + n - 1` of row `j`, in world pixels. A cell is covered when its centre is
+  inside the rect `{:x :y :w :h :rotation}`, turned clockwise about `x`, `y`,
+  which is how the render texture's rasteriser filled the original's rects. Each
+  row is solved from the two slabs of the rect (no cell is tested), so a rect
+  costs a few arithmetic steps a row, and merging a row into one run is what
+  keeps the draw to about 100 calls."
+  [{:keys [x y w h rotation]}]
+  (let [a (Math/toRadians (double rotation))
+        c (Math/cos a)
+        s (Math/sin a)
+        ys [y (+ y (* w s)) (+ y (* h c)) (+ y (* w s) (* h c))]
+        j0 (long (Math/floor (double (reduce min ys))))
+        j1 (long (Math/ceil (double (reduce max ys))))]
+    (loop [j j0
+           out (transient [])]
+      (if (>= j j1)
+        (persistent! out)
+        (let [dy (- (+ j 0.5) y)
+              along (interval c (* dy s) w)
+              across (interval (- s) (* dy c) h)
+              run (when (and along across)
+                    (let [lo (+ x (max (first along) (first across)))
+                          hi (+ x (min (second along) (second across)))
+                          i0 (long (Math/ceil (- lo 0.5)))
+                          i1 (long (Math/ceil (- hi 0.5)))]
+                      (when (> i1 i0) [i0 j (- i1 i0)])))]
+          (recur (inc j) (if run (conj! out run) out)))))))
 
 (defn advance
   "One frame. The spin and the clock add `:delta-seconds` (the original's
