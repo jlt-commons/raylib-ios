@@ -86,6 +86,14 @@
 
 (ffi/defcfn begin-scissor-mode  "BeginScissorMode"  [:int :int :int :int] :void)
 (ffi/defcfn end-scissor-mode    "EndScissorMode"    [] :void)
+
+;; Blend modes. BeginBlendMode takes raylib.h's BlendMode enum: 0 alpha (the
+;; default), 1 additive, 2 multiplied, 3 add-colors, 4 subtract-colors. It
+;; flushes the batch before it changes the blend function, and a scene that
+;; calls it must call EndBlendMode on every path, or every later draw keeps the
+;; mode. Both are scalar, so they need no by-value machinery.
+(ffi/defcfn begin-blend-mode    "BeginBlendMode"    [:int] :void)
+(ffi/defcfn end-blend-mode      "EndBlendMode"      [] :void)
 (def RL-TRIANGLES 0x0004)
 (def RL-LINES 0x0001)
 (def FLAG-WINDOW-HIGHDPI 0x2000)
