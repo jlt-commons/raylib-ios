@@ -61,6 +61,7 @@
             [raylib.scenes.fpmaze :as fpmaze]
             [raylib.scenes.freecam :as freecam]
             [raylib.scenes.game2048 :as g2048]
+            [raylib.scenes.geoshapes :as geoshapes]
             [raylib.scenes.gestures :as gestures]
             [raylib.scenes.gradient :as grad]
             [raylib.scenes.helitorus :as helitorus]
@@ -167,7 +168,7 @@
              (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
              (blendmodes/scene) (blendparticles/scene)
-             (billboard/scene) (dirbillboard/scene) (texcube/scene)])
+             (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -204,7 +205,7 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard :texcube]}
+             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4071,6 +4072,30 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (texcube/scene-list state dims))))
     (draw-caption! (:caption dims) texcube/caption-colour)))
+
+(def ^:private geoshapes-cache
+  "The last `[screen dims draw-list]` for `:geoshapes`. The camera never moves
+  and the scene reads nothing, so its draw list depends on the screen alone
+  (`dims` is a function of the screen). Rebuilding 2000 items every frame cost
+  several times the phone's budget, and drawing them is what is left."
+  (atom nil))
+
+(defn- geoshapes-frame [state m]
+  (let [screen (:screen m)
+        [cached-screen dims dl] @geoshapes-cache]
+    (if (= screen cached-screen)
+      [dims dl]
+      (let [dims (geoshapes/dimensions m host-measure)
+            dl (geoshapes/scene-list state dims)]
+        (reset! geoshapes-cache [screen dims dl])
+        [dims dl]))))
+
+(defmethod draw-scene! :geoshapes [_ state {:keys [m safe]}]
+  (clear-to! geoshapes/background-colour)
+  (let [[dims dl] (geoshapes-frame state m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! dl)))
+    (draw-caption! (:caption dims) geoshapes/caption-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

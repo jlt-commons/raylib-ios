@@ -810,6 +810,282 @@
              (tri p0 p2 p3 r g b a depth)))
        dl))))
 
+;; --- cylinders and capsules -------------------------------------------------
+
+(def ^:private deg2rad (/ Math/PI 180.0))
+
+(defn- tri3
+  "Append triangle p q s, three projected `[sx sy depth]` points (any nil means
+  a corner behind the near plane and drops it), at their mean depth, when it
+  faces the camera."
+  [dl p q s r g b a]
+  (if (and p q s)
+    (tri dl p q s r g b a (/ (+ (nth p 2) (nth q 2) (nth s 2)) 3.0))
+    dl))
+
+(defn- ring-trig
+  "`[sins coss]` of i * (360 / n) degrees for i from 0 to n, rmodels.c's
+  `sinf(DEG2RAD*i*angleStep)` and `cosf(...)`. Index n repeats index 0."
+  [n]
+  (let [step (/ 360.0 n)
+        angles (mapv (fn [i] (* deg2rad i step)) (range (inc n)))]
+    [(mapv (fn [a] (Math/sin a)) angles) (mapv (fn [a] (Math/cos a)) angles)]))
+
+(defn- cyl-ring
+  "`pt` of the n + 1 points (px + sin * rad, y, pz + cos * rad)."
+  [pt px y pz rad sins coss n]
+  (mapv (fn [i] (pt (+ px (* (nth sins i) rad)) y (+ pz (* (nth coss i) rad)))) (range (inc n))))
+
+(defn cylinder
+  "`(cylinder dl vp xf [x y z] radius-top radius-bottom height [r g b a])` or
+  `(cylinder ... {:slices 16})`: rmodels.c DrawCylinder, the bottom ring at the
+  point and the top `height` above it, under transform `xf` (nil for none).
+  `:slices` is the C's `sides`, below 3 taken as 3. Vertex k of a ring is
+  `(sin, cos)` of `k * 360 / sides` degrees times its radius, on x and z.
+
+  With a top radius above 0 it is the C's body (two triangles a side, bottom
+  left / bottom right / top right and top left / bottom left / top right),
+  then the top cap (the centre and ring k, k + 1), then the base; with 0 or
+  less it is the C's cone: the apex (0, height, 0) and bottom ring k, k + 1
+  instead of the body and cap. The base is the bottom centre, ring k + 1, ring
+  k, so it faces down. The colour is flat, alpha kept, as rlColor4ub.
+
+  Each triangle goes in only when it faces the camera, and one with a corner
+  behind the near plane is dropped whole, as `cube` does. There is no depth
+  buffer: `finish` orders the triangles."
+  ([dl vp xf pos r-top r-bottom height colour] (cylinder dl vp xf pos r-top r-bottom height colour {}))
+  ([dl vp xf [px py pz] r-top r-bottom height [cr cg cb ca] {:keys [slices]
+                                                             :or {slices 16}}]
+   (let [[m d] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         n (max 3 (long slices))
+         [sins coss] (ring-trig n)
+         px (double px) py (double py) pz (double pz)
+         rt (double r-top) rb (double r-bottom) top-y (+ py (double height))
+         pt (fn [x y z] (project* m d ox oy w h x y z))
+         bot (cyl-ring pt px py pz rb sins coss n)
+         c0 (pt px py pz)
+         c1 (pt px top-y pz)
+         each (fn [dl f] (loop [i 0 dl dl] (if (< i n) (recur (inc i) (f dl i)) dl)))]
+     (as-> dl dl
+       (if (> rt 0.0)
+         (let [top (cyl-ring pt px top-y pz rt sins coss n)]
+           (-> dl
+               (each (fn [dl i]
+                       (let [bl (nth bot i) br (nth bot (inc i))
+                             tl (nth top i) tr (nth top (inc i))]
+                         (-> dl
+                             (tri3 bl br tr cr cg cb ca)
+                             (tri3 tl bl tr cr cg cb ca)))))
+               (each (fn [dl i] (tri3 dl c1 (nth top i) (nth top (inc i)) cr cg cb ca)))))
+         (each dl (fn [dl i] (tri3 dl c1 (nth bot i) (nth bot (inc i)) cr cg cb ca))))
+       (each dl (fn [dl i] (tri3 dl c0 (nth bot (inc i)) (nth bot i) cr cg cb ca)))))))
+
+(defn- seg4
+  "Append the segment between clip-space points p and q (each `[x y z w]`),
+  clipped to the near plane, in the `:over` layer."
+  [dl ox oy w h p q colour]
+  (seg-clip dl ox oy w h (nth p 0) (nth p 1) (nth p 2) (nth p 3)
+            (nth q 0) (nth q 1) (nth q 2) (nth q 3) colour :over))
+
+(defn cylinder-wires
+  "`(cylinder-wires dl vp xf [x y z] radius-top radius-bottom height [r g b a])`
+  or with `{:slices 16}`: rmodels.c DrawCylinderWires. Four segments a side, in
+  the C's order: bottom ring k to k + 1, bottom k + 1 up to top k + 1, top ring
+  k + 1 to k, top k down to bottom k. A zero top radius keeps the C's
+  collapsed top edges. Each is clipped to the near plane and goes in the
+  `:over` layer, after every face, so back edges show through a solid one."
+  ([dl vp xf pos r-top r-bottom height colour] (cylinder-wires dl vp xf pos r-top r-bottom height colour {}))
+  ([dl vp xf [px py pz] r-top r-bottom height colour {:keys [slices]
+                                                      :or {slices 16}}]
+   (let [[m] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         n (max 3 (long slices))
+         [sins coss] (ring-trig n)
+         px (double px) py (double py) pz (double pz)
+         pt (fn [x y z] (clip4 m x y z))
+         bot (cyl-ring pt px py pz (double r-bottom) sins coss n)
+         top (cyl-ring pt px (+ py (double height)) pz (double r-top) sins coss n)]
+     (loop [i 0 dl dl]
+       (if (< i n)
+         (let [b0 (nth bot i) b1 (nth bot (inc i)) t0 (nth top i) t1 (nth top (inc i))]
+           (recur (inc i)
+                  (-> dl
+                      (seg4 ox oy w h b0 b1 colour)
+                      (seg4 ox oy w h b1 t1 colour)
+                      (seg4 ox oy w h t1 t0 colour)
+                      (seg4 ox oy w h t0 b0 colour))))
+         dl)))))
+
+(defn- perpendicular
+  "raymath.h Vector3Perpendicular: v crossed with the cardinal axis along its
+  smallest component (x on a tie, then y, then z only when strictly smaller)."
+  [[x y z :as v]]
+  (let [ax (abs (double x)) ay (abs (double y)) az (abs (double z))
+        [mn axis] (if (< ay ax) [ay [0.0 1.0 0.0]] [ax [1.0 0.0 0.0]])]
+    (cross3 v (if (< az mn) [0.0 0.0 1.0] axis))))
+
+(defn- capsule-basis
+  "`[b0 b1 b2 sphere?]` as rmodels.c DrawCapsule builds them: b0 the unit
+  direction (0 1 0 when the ends coincide, the C's sphere case), b1 the unit
+  perpendicular and b2 the unit b1 x direction."
+  [[sx sy sz] [ex ey ez]]
+  (let [dx (- (double ex) (double sx)) dy (- (double ey) (double sy)) dz (- (double ez) (double sz))
+        sphere? (and (zero? dx) (zero? dy) (zero? dz))
+        dir (if sphere? [0.0 1.0 0.0] [dx dy dz])
+        b1 (normalize (perpendicular dir))]
+    [(normalize dir) b1 (normalize (cross3 b1 dir)) sphere?]))
+
+(defn- cap-grid
+  "The (rings + 1) by (slices + 1) points `pt` of one hemisphere cap about
+  `centre`: row i, column j is c + r * (sin(ri) b0 + sin(sj) cos(ri) b1 + cos(sj) cos(ri) b2),
+  with ri = i * (pi/2) / rings and sj = j * 2pi / slices."
+  [pt [cx cy cz] [b0x b0y b0z] [b1x b1y b1z] [b2x b2y b2z] radius rings slices]
+  (let [sa (/ (* 2.0 Math/PI) slices)
+        ra (/ (* Math/PI 0.5) rings)
+        sj (mapv (fn [j] (Math/sin (* sa j))) (range (inc slices)))
+        cj (mapv (fn [j] (Math/cos (* sa j))) (range (inc slices)))]
+    (mapv (fn [i]
+            (let [sr (Math/sin (* ra i)) cr (Math/cos (* ra i))]
+              (mapv (fn [j]
+                      (let [rs (* (nth sj j) cr) rc (* (nth cj j) cr)]
+                        (pt (+ cx (* (+ (* sr b0x) (* rs b1x) (* rc b2x)) radius))
+                            (+ cy (* (+ (* sr b0y) (* rs b1y) (* rc b2y)) radius))
+                            (+ cz (* (+ (* sr b0z) (* rs b1z) (* rc b2z)) radius)))))
+                    (range (inc slices)))))
+          (range (inc rings)))))
+
+(defn- mid-ring
+  "The slices + 1 points `pt` of the capsule's middle ring about `centre`:
+  c + sin(sj) r b1 + cos(sj) r b2."
+  [pt [cx cy cz] [b1x b1y b1z] [b2x b2y b2z] radius slices]
+  (let [sa (/ (* 2.0 Math/PI) slices)]
+    (mapv (fn [j]
+            (let [rs (* (Math/sin (* sa j)) radius) rc (* (Math/cos (* sa j)) radius)]
+              (pt (+ cx (* rs b1x) (* rc b2x)) (+ cy (* rs b1y) (* rc b2y)) (+ cz (* rs b1z) (* rc b2z)))))
+          (range (inc slices)))))
+
+(defn- capsule-parts
+  "What both capsule builders walk: `[grid-end grid-start mid-start mid-end sphere?]`
+  for `pt`, the caps first (the end's, then the start's with b0 negated)."
+  [pt start end radius rings slices]
+  (let [[b0 b1 b2 sphere?] (capsule-basis start end)
+        radius (double radius)
+        start (mapv double start) end (mapv double end)]
+    [(cap-grid pt end b0 b1 b2 radius rings slices)
+     (cap-grid pt start (mapv - b0) b1 b2 radius rings slices)
+     (mid-ring pt start b1 b2 radius slices)
+     (mid-ring pt end b1 b2 radius slices)
+     sphere?]))
+
+(defn capsule
+  "`(capsule dl vp xf start end radius [r g b a])` or `(capsule ... {:slices 8
+  :rings 8})`: rmodels.c DrawCapsule, two hemispheres centred on `start` and
+  `end` and the tube between them, under transform `xf` (nil for none).
+  `:slices` below 3 is taken as 3.
+
+  The basis is the C's: b0 the unit direction, b1 the unit
+  Vector3Perpendicular and b2 the unit b1 x direction (start = end is the C's
+  sphere case, direction (0 1 0), with no tube). Each cap has `rings` rings
+  from its equator to its pole and `slices` slices, and a cell with corners w1
+  (ring i, slice j), w2 (ring i, slice j + 1), w3 (ring i + 1, slice j) and w4
+  is w1 w2 w3 and w2 w4 w3 on the end cap, w1 w3 w2 and w2 w3 w4 on the start
+  cap (its b0 is negated), so both face outward. The tube is w1 w2 w3 and w2
+  w4 w3 a slice, w1 w2 on `start` and w3 w4 on `end`. The colour is flat.
+
+  Each triangle goes in only when it faces the camera, and one with a corner
+  behind the near plane is dropped whole. `finish` orders the triangles."
+  ([dl vp xf start end radius colour] (capsule dl vp xf start end radius colour {}))
+  ([dl vp xf start end radius [cr cg cb ca] {:keys [slices rings]
+                                             :or {slices 8
+                                                  rings 8}}]
+   (let [[m d] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         slices (max 3 (long slices)) rings (long rings)
+         pt (fn [x y z] (project* m d ox oy w h x y z))
+         [g-end g-start m-start m-end sphere?] (capsule-parts pt start end radius rings slices)
+         cap (fn [dl grid end?]
+               (loop [i 0 dl dl]
+                 (if (< i rings)
+                   (let [lo (nth grid i) hi (nth grid (inc i))]
+                     (recur (inc i)
+                            (loop [j 0 dl dl]
+                              (if (< j slices)
+                                (let [w1 (nth lo j) w2 (nth lo (inc j)) w3 (nth hi j) w4 (nth hi (inc j))]
+                                  (recur (inc j)
+                                         (if end?
+                                           (-> dl
+                                               (tri3 w1 w2 w3 cr cg cb ca)
+                                               (tri3 w2 w4 w3 cr cg cb ca))
+                                           (-> dl
+                                               (tri3 w1 w3 w2 cr cg cb ca)
+                                               (tri3 w2 w3 w4 cr cg cb ca)))))
+                                dl))))
+                   dl)))
+         dl (-> dl (cap g-end true) (cap g-start false))]
+     (if sphere?
+       dl
+       (loop [j 0 dl dl]
+         (if (< j slices)
+           (let [w1 (nth m-start j) w2 (nth m-start (inc j)) w3 (nth m-end j) w4 (nth m-end (inc j))]
+             (recur (inc j)
+                    (-> dl
+                        (tri3 w1 w2 w3 cr cg cb ca)
+                        (tri3 w2 w4 w3 cr cg cb ca))))
+           dl))))))
+
+(defn capsule-wires
+  "`(capsule-wires dl vp xf start end radius [r g b a])` or with `{:slices 8
+  :rings 8}`: rmodels.c DrawCapsuleWires, on the same grid as `capsule`. A cap
+  cell is five segments, w1 w2, w2 w3, w1 w3, w2 w4 and w3 w4, caps first (end,
+  then start), then the tube's three a slice: w1 w3, w2 w4 and w2 w3. Each is
+  clipped to the near plane and goes in the `:over` layer, so back edges show
+  through a solid one."
+  ([dl vp xf start end radius colour] (capsule-wires dl vp xf start end radius colour {}))
+  ([dl vp xf start end radius colour {:keys [slices rings]
+                                      :or {slices 8
+                                           rings 8}}]
+   (let [[m] (frame vp xf)
+         {ox :x
+          oy :y
+          w :w
+          h :h} vp
+         slices (max 3 (long slices)) rings (long rings)
+         pt (fn [x y z] (clip4 m x y z))
+         [g-end g-start m-start m-end sphere?] (capsule-parts pt start end radius rings slices)
+         s (fn [dl p q] (seg4 dl ox oy w h p q colour))
+         cap (fn [dl grid]
+               (loop [i 0 dl dl]
+                 (if (< i rings)
+                   (let [lo (nth grid i) hi (nth grid (inc i))]
+                     (recur (inc i)
+                            (loop [j 0 dl dl]
+                              (if (< j slices)
+                                (let [w1 (nth lo j) w2 (nth lo (inc j)) w3 (nth hi j) w4 (nth hi (inc j))]
+                                  (recur (inc j)
+                                         (-> dl
+                                             (s w1 w2) (s w2 w3) (s w1 w3) (s w2 w4) (s w3 w4))))
+                                dl))))
+                   dl)))
+         dl (-> dl (cap g-end) (cap g-start))]
+     (if sphere?
+       dl
+       (loop [j 0 dl dl]
+         (if (< j slices)
+           (let [w1 (nth m-start j) w2 (nth m-start (inc j)) w3 (nth m-end j) w4 (nth m-end (inc j))]
+             (recur (inc j)
+                    (-> dl (s w1 w3) (s w2 w4) (s w2 w3))))
+           dl))))))
+
 ;; --- finishing --------------------------------------------------------------
 
 (defn finish

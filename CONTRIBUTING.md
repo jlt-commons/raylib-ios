@@ -66,7 +66,7 @@ away. The camera math itself stays pure, in `raylib.camera2d`.
 binds no 3D mode. The pure part is `raylib.soft3d`: `field` lays out the caption
 and the 3D view under Back, `fit-camera` widens the original's fovy for a
 portrait field, the builders (`cube`, `cube-wires`, `grid`, `lines`, `sphere`,
-`plane`) project as they go, and `finish` sorts the result far to near. The draw method hands that
+`plane`, `cylinder`, `cylinder-wires`, `capsule`, `capsule-wires`) project as they go, and `finish` sorts the result far to near. The draw method hands that
 list to `raylib.host/draw-3d!`, scissored to the field. Nothing behind the near
 plane is drawn and every triangle keeps rlgl's front winding. A scene that draws
 many small boxes may bypass `finish` with its own paint order, as `wavecubes` and

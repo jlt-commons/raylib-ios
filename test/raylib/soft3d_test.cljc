@@ -719,3 +719,282 @@
       (is (= [] (s3/billboard [] vp [0.0 0.0 10.0] 2.0 bb-colour)) "centred on the eye")
       (is (= [] (s3/billboard [] vp [0.0 0.0 12.0] 2.0 bb-colour)) "behind it")
       (is (= 2 (count (s3/billboard [] vp [0.0 0.0 5.0] 2.0 bb-colour)))))))
+
+;; --- cylinders and capsules: rmodels.c DrawCylinder, DrawCylinderWires,
+;; DrawCapsule and DrawCapsuleWires ---------------------------------------------
+
+(def ^:private geo-vp
+  (s3/view-proj (cam [6.0 5.0 8.0] [0.0 0.0 0.0] 45.0 :perspective) [0.0 0.0 400.0 300.0]))
+
+(def ^:private geo-colour [102 191 255 255])
+(def ^:private geo-pos [0.5 0.0 -1.0])
+
+(defn- xy-of [p] (subvec (vec (s3/project geo-vp p)) 0 2))
+
+(defn- shift [[dx dy dz] [x y z]] [(+ x dx) (+ y dy) (+ z dz)])
+
+(defn- front-xy
+  "The projected [x1 y1 x2 y2 x3 y3] of each world triangle that is wound front
+  on the y-down screen, in order: what a builder may emit."
+  [world-tris]
+  (vec (keep (fn [[p q s]]
+               (let [xy (into (into (xy-of p) (xy-of q)) (xy-of s))]
+                 (when (neg? (cross (into [:tri] xy))) xy)))
+             world-tris)))
+
+(defn- same-tris? [dl expected]
+  (and (= (count dl) (count expected))
+       (every? true? (map (fn [it xy] (close? (subvec it 1 7) xy 1e-6)) dl expected))))
+
+;; Hand-computed from rmodels.c DrawCylinder for sides = 4 (angleStep 90, so
+;; (sin, cos) of i * 90 degrees are (0, 1) (1, 0) (0, -1) (-1, 0) (0, 1)),
+;; radiusTop 1, radiusBottom 2, height 3, before the translate by the position.
+(def ^:private cyl-b "Bottom ring, radius 2, y 0." [[0.0 0.0 2.0] [2.0 0.0 0.0] [0.0 0.0 -2.0] [-2.0 0.0 0.0] [0.0 0.0 2.0]])
+(def ^:private cyl-t "Top ring, radius 1, y 3." [[0.0 3.0 1.0] [1.0 3.0 0.0] [0.0 3.0 -1.0] [-1.0 3.0 0.0] [0.0 3.0 1.0]])
+(def ^:private cyl-c0 [0.0 0.0 0.0])
+(def ^:private cyl-c1 [0.0 3.0 0.0])
+
+(defn- cyl-world
+  "DrawCylinder's triangles in its order (body, cap, base), as the C writes them."
+  [b t apex c0 top?]
+  (let [at (fn [v i] (shift geo-pos (nth v i)))
+        c0 (shift geo-pos c0) apex (shift geo-pos apex)]
+    (vec (concat
+          (if top?
+            (concat (mapcat (fn [i] [[(at b i) (at b (inc i)) (at t (inc i))]
+                                     [(at t i) (at b i) (at t (inc i))]])
+                            (range 4))
+                    (map (fn [i] [apex (at t i) (at t (inc i))]) (range 4)))
+            (map (fn [i] [apex (at b i) (at b (inc i))]) (range 4)))
+          (map (fn [i] [c0 (at b (inc i)) (at b i)]) (range 4))))))
+
+(deftest cylinder-matches-drawcylinder
+  (testing "a truncated cone: 6 body, 3 cap and 3 base triangles a side, in the C's order and vertices"
+    (let [world (cyl-world cyl-b cyl-t cyl-c1 cyl-c0 true)
+          dl (s3/cylinder [] geo-vp nil geo-pos 1.0 2.0 3.0 geo-colour {:slices 4})]
+      (is (= 16 (count world)) "4 sides x (2 body + 1 cap + 1 base)")
+      (is (same-tris? dl (front-xy world)))
+      (is (pos? (count dl)))
+      (is (< (count dl) 16) "some are back faces and are left out")
+      (is (every? #(neg? (cross %)) dl) "every item is front wound")
+      (is (every? #(= geo-colour (colour-of %)) dl) "one flat colour, alpha kept")))
+  (testing "radiusTop 0 is DrawCylinder's cone branch: the apex fan instead of the body and cap"
+    (let [world (cyl-world cyl-b cyl-t cyl-c1 cyl-c0 false)
+          dl (s3/cylinder [] geo-vp nil geo-pos 0.0 2.0 3.0 geo-colour {:slices 4})]
+      (is (= 8 (count world)))
+      (is (same-tris? dl (front-xy world)))
+      (is (pos? (count dl)))))
+  (testing "the base faces down: seen from below only the base and the body show"
+    (let [vp (s3/view-proj (cam [6.0 -5.0 8.0] [0.0 0.0 0.0] 45.0 :perspective) [0.0 0.0 400.0 300.0])
+          dl (s3/cylinder [] vp nil geo-pos 1.0 2.0 3.0 geo-colour {:slices 4})]
+      (is (pos? (count dl)))
+      (is (every? #(neg? (cross %)) dl))))
+  (testing "every C triangle winds outward in the world (counter-clockwise from outside)"
+    (let [sub (fn [a b] (mapv - a b))
+          crs (fn [[ax ay az] [bx by bz]] [(- (* ay bz) (* az by)) (- (* az bx) (* ax bz)) (- (* ax by) (* ay bx))])
+          dot (fn [a b] (reduce + (map * a b)))
+          cyl (cyl-world cyl-b cyl-t cyl-c1 cyl-c0 true)
+          normals (map (fn [[p q s]] (crs (sub q p) (sub s p))) cyl)]
+      (doseq [[n [p q s]] (map vector (take 8 normals) (take 8 cyl))
+              :let [mid (mapv #(/ % 3.0) (map + p q s))
+                    radial [(- (nth mid 0) (nth geo-pos 0)) 0.0 (- (nth mid 2) (nth geo-pos 2))]]]
+        (is (pos? (dot n radial)) "body normals point away from the axis"))
+      (doseq [n (take 4 (drop 8 normals))] (is (pos? (nth n 1)) "the cap faces up"))
+      (doseq [n (drop 12 normals)] (is (neg? (nth n 1)) "the base faces down"))))
+  (testing "sides below 3 become 3, and the transform is applied after the position"
+    (let [three (s3/cylinder [] geo-vp nil geo-pos 1.0 2.0 3.0 geo-colour {:slices 3})]
+      (is (= three (s3/cylinder [] geo-vp nil geo-pos 1.0 2.0 3.0 geo-colour {:slices 1})))
+      (is (same-tris? (s3/cylinder [] geo-vp (s3/translate 0.5 0.0 -1.0) [0.0 0.0 0.0] 1.0 2.0 3.0 geo-colour {:slices 4})
+                      (mapv #(subvec % 1 7) (s3/cylinder [] geo-vp nil geo-pos 1.0 2.0 3.0 geo-colour {:slices 4})))
+          "a translate transform at the origin is the position")))
+  (testing "a cylinder behind the camera makes nothing, and appends to the list it is given"
+    (let [vp (s3/view-proj (cam [0.0 0.0 10.0] [0.0 0.0 20.0] 45.0 :perspective) [0.0 0.0 400.0 300.0])]
+      (is (= [] (s3/cylinder [] vp nil [0.0 0.0 0.0] 1.0 2.0 3.0 geo-colour {:slices 4})))
+      (is (= [:mark] (s3/cylinder [:mark] vp nil [0.0 0.0 0.0] 1.0 2.0 3.0 geo-colour {:slices 4}))))))
+
+;; capsule oracle ------------------------------------------------------------
+
+;; Hand-computed for a capsule from (0.5 0 -1) to (0.5 2 -1), radius 1, slices 4,
+;; rings 2. direction (0 2 0): b0 = (0 1 0). Vector3Perpendicular: |x| = 0 is the
+;; least and nothing is smaller, so the axis is (1 0 0) and perp = direction x
+;; (1 0 0) = (0 0 -2), b1 = (0 0 -1). b2 = normalize(b1 x direction) =
+;; normalize((2 0 0)) = (1 0 0). baseSliceAngle = pi/2, baseRingAngle = pi/4.
+;; A cap vertex (cap centre c, ring i, slice j) is
+;; c + r * (sin(ri) b0 + sin(sj) cos(ri) b1 + cos(sj) cos(ri) b2)
+;;   = (cx + r cos(sj) cos(ri), cy + sgn r sin(ri), cz - r sin(sj) cos(ri)).
+(def ^:private cap-start [0.5 0.0 -1.0])
+(def ^:private cap-end [0.5 2.0 -1.0])
+
+(defn- cap-vertex [c i j]
+  (let [centre (if (zero? c) cap-end cap-start)
+        sgn (if (zero? c) 1.0 -1.0)
+        ri (* i Math/PI 0.25) sj (* j Math/PI 0.5)]
+    [(+ (nth centre 0) (* (Math/cos sj) (Math/cos ri)))
+     (+ (nth centre 1) (* sgn (Math/sin ri)))
+     (- (nth centre 2) (* (Math/sin sj) (Math/cos ri)))]))
+
+(defn- mid-vertex [end? j]
+  (let [centre (if end? cap-end cap-start) sj (* j Math/PI 0.5)]
+    [(+ (nth centre 0) (Math/cos sj)) (nth centre 1) (- (nth centre 2) (Math/sin sj))]))
+
+(defn- cap-world
+  "DrawCapsule's triangles for the axis case, in the C's order: cap 0 (end), cap 1
+  (start), then the middle."
+  []
+  (vec (concat
+        (for [c [0 1] i (range 2) j (range 4)
+              tri (let [w1 (cap-vertex c i j) w2 (cap-vertex c i (inc j))
+                        w3 (cap-vertex c (inc i) j) w4 (cap-vertex c (inc i) (inc j))]
+                    (if (zero? c) [[w1 w2 w3] [w2 w4 w3]] [[w1 w3 w2] [w2 w3 w4]]))]
+          tri)
+        (for [j (range 4)
+              tri (let [w1 (mid-vertex false j) w2 (mid-vertex false (inc j))
+                        w3 (mid-vertex true j) w4 (mid-vertex true (inc j))]
+                    [[w1 w2 w3] [w2 w4 w3]])]
+          tri))))
+
+;; the general C, transcribed, for a tilted capsule
+(defn- v- [a b] (mapv - a b))
+(defn- v+ [a b] (mapv + a b))
+(defn- v* [a k] (mapv #(* % k) a))
+(defn- vdot [a b] (reduce + (map * a b)))
+(defn- vcross [[ax ay az] [bx by bz]] [(- (* ay bz) (* az by)) (- (* az bx) (* ax bz)) (- (* ax by) (* ay bx))])
+(defn- vnorm [a] (v* a (/ 1.0 (Math/sqrt (vdot a a)))))
+(defn- perp [[x y z :as v]]
+  (let [[mn axis] (if (< (abs y) (abs x)) [(abs y) [0.0 1.0 0.0]] [(abs x) [1.0 0.0 0.0]])
+        axis (if (< (abs z) mn) [0.0 0.0 1.0] axis)]
+    (vcross v axis)))
+
+(defn- capsule-oracle
+  "DrawCapsule's triangles, [tris axis-points-of-each], from the C for any start/end."
+  [start end radius slices rings]
+  (let [dir (v- end start)
+        b0 (vnorm dir) b1 (vnorm (perp dir)) b2 (vnorm (vcross b1 dir))
+        sa (/ (* 2.0 Math/PI) slices) ra (/ (* Math/PI 0.5) rings)
+        vert (fn [centre b0 i j]
+               (let [rs (* (Math/sin (* sa j)) (Math/cos (* ra i)))
+                     rc (* (Math/cos (* sa j)) (Math/cos (* ra i)))]
+                 (v+ centre (v* (v+ (v+ (v* b0 (Math/sin (* ra i))) (v* b1 rs)) (v* b2 rc)) radius))))
+        mid (fn [centre j] (v+ centre (v* (v+ (v* b1 (Math/sin (* sa j))) (v* b2 (Math/cos (* sa j)))) radius)))]
+    (vec (concat
+          (for [[c centre nb0] [[0 end b0] [1 start (v* b0 -1.0)]]
+                i (range rings) j (range slices)
+                tri (let [w1 (vert centre nb0 i j) w2 (vert centre nb0 i (inc j))
+                          w3 (vert centre nb0 (inc i) j) w4 (vert centre nb0 (inc i) (inc j))]
+                      (if (zero? c) [[w1 w2 w3] [w2 w4 w3]] [[w1 w3 w2] [w2 w3 w4]]))]
+            tri)
+          (for [j (range slices)
+                tri (let [w1 (mid start j) w2 (mid start (inc j)) w3 (mid end j) w4 (mid end (inc j))]
+                      [[w1 w2 w3] [w2 w4 w3]])]
+            tri)))))
+
+(deftest capsule-matches-drawcapsule
+  (testing "the hand-computed axis case: the oracle agrees with the C's first cap triangle by hand"
+    (let [[p q s] (first (cap-world))]
+      ;; c 0, i 0, j 0: w1 = (1.5 2 -1), w2 = (0.5 2 -2); w3 = (0.5 + sqrt2/2, 2 + sqrt2/2, -1)
+      (is (close? p [1.5 2.0 -1.0]))
+      (is (close? q [0.5 2.0 -2.0]))
+      (is (close? s [(+ 0.5 (/ (Math/sqrt 2.0) 2.0)) (+ 2.0 (/ (Math/sqrt 2.0) 2.0)) -1.0]))))
+  (testing "slices 4, rings 2: 32 cap triangles and 8 middle, every one in the C's order and vertices"
+    (let [world (cap-world)
+          dl (s3/capsule [] geo-vp nil cap-start cap-end 1.0 geo-colour {:slices 4
+                                                                         :rings 2})]
+      (is (= 40 (count world)) "2 caps x 2 rings x 4 slices x 2 + 4 x 2")
+      (is (same-tris? dl (front-xy world)))
+      (is (pos? (count dl)))
+      (is (< (count dl) 40))
+      (is (every? #(neg? (cross %)) dl))
+      (is (every? #(= geo-colour (colour-of %)) dl))))
+  (testing "the tilted capsule of the original, 8 slices, 8 rings: the general C"
+    (let [start [-3.0 1.5 -4.0] end [-4.0 -1.0 -4.0]
+          vp (s3/view-proj (cam [0.0 10.0 10.0] [0.0 0.0 0.0] 45.0 :perspective) [0.0 0.0 400.0 300.0])
+          world (capsule-oracle start end 1.2 8 8)
+          xy (fn [p] (subvec (vec (s3/project vp p)) 0 2))
+          expect (vec (keep (fn [[p q s]]
+                              (let [v (into (into (xy p) (xy q)) (xy s))]
+                                (when (neg? (cross (into [:tri] v))) v)))
+                            world))
+          dl (s3/capsule [] vp nil start end 1.2 geo-colour {:slices 8
+                                                             :rings 8})]
+      (is (= 272 (count world)) "2 x 8 x 8 x 2 + 8 x 2")
+      (is (same-tris? dl expect))
+      (is (< 60 (count dl) 272))))
+  (testing "every C triangle winds outward in the world, caps and middle"
+    (let [start [-3.0 1.5 -4.0] end [-4.0 -1.0 -4.0]
+          axis (v- end start) len2 (vdot axis axis)]
+      (doseq [[p q s] (capsule-oracle start end 1.2 8 8)
+              :let [n (vcross (v- q p) (v- s p))
+                    mid (v* (v+ (v+ p q) s) (/ 1.0 3.0))
+                    t (max 0.0 (min 1.0 (/ (vdot (v- mid start) axis) len2)))
+                    out (v- mid (v+ start (v* axis t)))]]
+        (when (> (vdot n n) 1e-12)   ; a pole cell has a zero-area triangle
+          (is (pos? (vdot n out)))))))
+  (testing "start = end is DrawCapsule's sphere case: direction (0 1 0), two caps and no middle"
+    (let [dl (s3/capsule [] geo-vp nil [0.5 1.0 -1.0] [0.5 1.0 -1.0] 1.0 geo-colour {:slices 8
+                                                                                     :rings 4})]
+      (is (pos? (count dl)))
+      (is (<= (count dl) (* 2 4 8 2)) "at most the caps' 128")))
+  (testing "slices below 3 become 3"
+    (is (= (s3/capsule [] geo-vp nil cap-start cap-end 1.0 geo-colour {:slices 3
+                                                                       :rings 2})
+           (s3/capsule [] geo-vp nil cap-start cap-end 1.0 geo-colour {:slices 0
+                                                                       :rings 2}))))
+  (testing "a capsule behind the camera makes nothing"
+    (let [vp (s3/view-proj (cam [0.0 0.0 10.0] [0.0 0.0 20.0] 45.0 :perspective) [0.0 0.0 400.0 300.0])]
+      (is (= [] (s3/capsule [] vp nil [0.0 0.0 0.0] [0.0 1.0 0.0] 1.0 geo-colour {:slices 4
+                                                                                  :rings 2}))))))
+
+;; wires -----------------------------------------------------------------------
+
+(defn- line-xy [world-segs]
+  (mapv (fn [[p q]] (into (xy-of p) (xy-of q))) world-segs))
+
+(defn- same-lines? [dl expected colour]
+  (and (= (count dl) (count expected))
+       (every? true? (map (fn [it xy] (and (= :line (nth it 0))
+                                           (close? (subvec it 1 5) xy 1e-6)
+                                           (= colour (subvec it 5 9))
+                                           (= :over (nth it 9))))
+                          dl expected))))
+
+(deftest wires-match
+  (testing "DrawCylinderWires, sides 4: four segments a side in the C's order, all of them"
+    (let [at (fn [v i] (shift geo-pos (nth v i)))
+          world (vec (mapcat (fn [i] [[(at cyl-b i) (at cyl-b (inc i))]
+                                      [(at cyl-b (inc i)) (at cyl-t (inc i))]
+                                      [(at cyl-t (inc i)) (at cyl-t i)]
+                                      [(at cyl-t i) (at cyl-b i)]])
+                             (range 4)))
+          dl (s3/cylinder-wires [] geo-vp nil geo-pos 1.0 2.0 3.0 [0 0 139 255] {:slices 4})]
+      (is (= 16 (count world)))
+      (is (same-lines? dl (line-xy world) [0 0 139 255])
+          "no depth buffer, so back edges are kept too")))
+  (testing "a cone's wires keep the C's degenerate and doubled edges"
+    (let [dl (s3/cylinder-wires [] geo-vp nil geo-pos 0.0 2.0 3.0 [255 109 194 255] {:slices 4})]
+      (is (= 16 (count dl)))
+      (is (= 4 (count (filter (fn [it] (and (== (nth it 1) (nth it 3)) (== (nth it 2) (nth it 4)))) dl)))
+          "the top ring has collapsed to the apex: one zero-length edge a side")))
+  (testing "DrawCapsuleWires, axis case: five segments a cell, three a middle slice"
+    (let [seg (fn [c i j]
+                (let [w1 (cap-vertex c i j) w2 (cap-vertex c i (inc j))
+                      w3 (cap-vertex c (inc i) j) w4 (cap-vertex c (inc i) (inc j))]
+                  [[w1 w2] [w2 w3] [w1 w3] [w2 w4] [w3 w4]]))
+          world (vec (concat
+                      (for [c [0 1] i (range 2) j (range 4) s (seg c i j)] s)
+                      (for [j (range 4)
+                            s (let [w1 (mid-vertex false j) w2 (mid-vertex false (inc j))
+                                    w3 (mid-vertex true j) w4 (mid-vertex true (inc j))]
+                                [[w1 w3] [w2 w4] [w2 w3]])]
+                        s)))
+          dl (s3/capsule-wires [] geo-vp nil cap-start cap-end 1.0 [112 31 126 255] {:slices 4
+                                                                                     :rings 2})]
+      (is (= 92 (count world)) "2 caps x 2 rings x 4 slices x 5 + 4 x 3")
+      (is (same-lines? dl (line-xy world) [112 31 126 255]))))
+  (testing "a wire with one end behind the near plane is clipped to it, not dropped or wrapped"
+    (let [vp (s3/view-proj (cam [0.0 0.0 0.0] [0.0 0.0 -10.0] 45.0 :perspective) [0.0 0.0 400.0 300.0])
+          dl (s3/cylinder-wires [] vp nil [0.0 -1.0 -2.0] 1.0 1.0 4.0 [0 0 0 255] {:slices 4})]
+      (is (pos? (count dl)))
+      (is (every? (fn [it] (every? #(< (abs %) 1e5) (subvec it 1 5))) dl))))
+  (testing "wires append to the list they are given"
+    (is (= [:mark] (subvec (s3/capsule-wires [:mark] geo-vp nil cap-start cap-end 1.0 [0 0 0 255] {:slices 4
+                                                                                                   :rings 2}) 0 1)))))
