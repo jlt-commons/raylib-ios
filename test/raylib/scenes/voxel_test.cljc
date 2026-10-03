@@ -135,7 +135,7 @@
         vp (s3/view-proj (s3/fit-camera (:camera start) (/ 800.0 450.0) (:aspect dims)) (:viewport dims))
         centre (s3/world->screen vp [3.5 3.5 3.5])]
     (testing "the block's two near sides are on the glass in the original's BEIGE"
-      (is (= 256 (count ts)))
+      (is (= 4 (count ts)) "128 exposed faces merge into the two sides' two rectangles")
       (is (every? #(= beige (subvec % 7 11)) ts)))
     (testing "the grid of 10 is the original's, 22 lines"
       (is (= 22 (count grid))))
@@ -166,28 +166,63 @@
       (doseq [gone [#{[3 3 3]} #{[7 7 7]} #{[0 0 0] [1 0 0] [2 0 0]} #{[3 3 3] [3 3 4] [3 4 3]}]
               :let [w (apply disj full gone)]]
         (is (= (exposed-count w) (count (:faces (sc/mesh w)))) (str gone))))
-    (testing "the first frame draws two triangles for each exposed face that faces the eye: two sides of 64 faces"
+    (testing "the first frame fills two sides, each one rectangle of two triangles"
       (let [dims (sc/dimensions m measure)]
-        (is (= (* 2 2 64) (count (tris (sc/scene-list start dims)))))))
-    (testing "a voxel taken from the middle adds the faces that look into the hole and face the eye"
-      (let [dims (sc/dimensions m measure)
-            w (disj full [3 3 3])
-            st (assoc start :world w :mesh (sc/mesh w))
-            [ex ey ez] (eye st)
-            ;; brute force: each exposed face whose plane the eye is outside of
-            facing (count (for [[x y z] w
-                                [axis sgn] [[0 1] [0 -1] [1 1] [1 -1] [2 1] [2 -1]]
-                                :let [v [x y z]]
-                                :when (not (contains? w (update v axis + sgn)))
-                                :let [plane (+ (nth v axis) (* 0.5 sgn))
-                                      e (nth [ex ey ez] axis)]
-                                :when (pos? (* sgn (- e plane)))]
-                            1))]
-        (is (= (* 2 facing) (count (tris (sc/scene-list st dims)))))
-        (is (= (+ 256 (* 2 3)) (count (tris (sc/scene-list st dims)))) "the hole's +x, +y and +z faces: the eye's z of 3.5 is past the 2.5 plane of the voxel below")))
-    (testing "no triangle is drawn for a face between two voxels: the same count as the exposed faces facing the eye, on a screen rotated"
-      (let [dims (sc/dimensions {:screen [2334 1206]} measure)]
-        (is (= 256 (count (tris (sc/scene-list start dims)))))))))
+        (is (= 4 (count (tris (sc/scene-list start dims)))))))
+    (testing "what is filled is exactly the exposed faces that face the eye: screen area, summed, on three worlds and two screens"
+      (doseq [screen [[1206 2334] [2334 1206]]
+              :let [dims (sc/dimensions {:screen screen} measure)
+                    vp-of (fn [st] (s3/view-proj (s3/fit-camera (:camera st) (/ 800.0 450.0) (:aspect dims)) (:viewport dims)))]
+              w [full (disj full [3 3 3]) (disj full [7 7 7] [0 0 0] [3 7 3] [5 5 5])]
+              :let [st (assoc start :world w :mesh (sc/mesh w))
+                    vp (vp-of st)
+                    [ex ey ez] (eye st)
+                    area (fn [pts] (* 0.5 (abs (reduce + (map (fn [[x1 y1] [x2 y2]] (- (* x1 y2) (* x2 y1))) pts (rest (cycle pts)))))))
+                    expected (reduce + (for [v w
+                                             [axis sgn] [[0 1] [0 -1] [1 1] [1 -1] [2 1] [2 -1]]
+                                             :when (not (contains? w (update v axis + sgn)))
+                                             :let [plane (+ (nth v axis) (* 0.5 sgn))]
+                                             :when (pos? (* sgn (- (nth [ex ey ez] axis) plane)))
+                                             :let [[u1 u2] (remove #{axis} [0 1 2])
+                                                   at (fn [du dw] (-> (mapv #(- % 0.5) v) (assoc axis plane) (update u1 + du) (update u2 + dw)))]]
+                                         (area (map #(s3/world->screen vp %) [(at 0 0) (at 1 0) (at 1 1) (at 0 1)]))))
+                    got (reduce + (for [[_ x1 y1 x2 y2 x3 y3] (tris (sc/scene-list st dims))]
+                                    (area [[x1 y1] [x2 y2] [x3 y3]])))]]
+        (is (< (abs (- expected got)) (* 1e-6 expected)) (str screen " " (count w)))))))
+
+(deftest the-merged-mesh-covers-exactly-the-exposed-faces
+  (let [full (:world (first ((:init (sc/scene)) {:metrics m})))
+        eaten (set (remove (fn [[x y z]] (zero? (mod (+ (* 3 x x) (* 5 y) (* 7 z z) (* x z) (* y z)) 3))) full))]
+    (doseq [[label w] [["full" full] ["one gone" (disj full [3 3 3])] ["eaten" eaten] ["lone" #{[0 0 0]}] ["row" #{[0 0 0] [1 0 0] [2 0 0]}]]
+            :let [mesh (sc/mesh w)
+                  cells-by-plane (group-by (fn [[axis sgn plane]] [axis sgn plane]) (:rect-cells mesh))
+                  expected (reduce (fn [acc [v axis sgn]]
+                                     (let [[u1 u2] (remove #{axis} [0 1 2])]
+                                       (update acc [axis sgn (+ (nth v axis) (* 0.5 sgn))] (fnil conj #{}) [(nth v u1) (nth v u2)])))
+                                   {}
+                                   (for [v w [axis sgn] [[0 1] [0 -1] [1 1] [1 -1] [2 1] [2 -1]]
+                                         :when (not (contains? w (update v axis + sgn)))]
+                                     [v axis sgn]))]]
+      (testing label
+        (is (= (set (keys expected)) (set (keys cells-by-plane))))
+        (doseq [[k cells] expected
+                :let [rects (get cells-by-plane k)
+                      covered (mapcat (fn [[_ _ _ ua wa ub wb]] (for [a (range ua (inc ub)) b (range wa (inc wb))] [a b])) rects)]]
+          (is (= cells (set covered)) (str k " covers the plane's exposed cells"))
+          (is (= (count cells) (count covered)) (str k " has no overlap"))
+          (is (= (count cells) (reduce + (map (fn [[_ _ _ ua wa ub wb]] (* (inc (- ub ua)) (inc (- wb wa)))) rects)))
+              (str k " area equals the exposed count")))
+        (testing "each rectangle's four nodes are its corners, on its plane"
+          (let [nodes (:nodes mesh)]
+            (doseq [[[axis _ plane i0 i1 i2 i3] [_ _ _ ua wa ub wb]] (map vector (:rects mesh) (:rect-cells mesh))
+                    :let [[u1 u2] (remove #{axis} [0 1 2])
+                          pt (fn [i] (mapv #(aget nodes (+ (* 3 i) %)) [0 1 2]))
+                          ps (map pt [i0 i1 i2 i3])]]
+              (is (every? #(near? plane (nth % axis)) ps))
+              (is (= #{[(- ua 0.5) (- wa 0.5)] [(+ ub 0.5) (- wa 0.5)] [(+ ub 0.5) (+ wb 0.5)] [(- ua 0.5) (+ wb 0.5)]}
+                     (set (map (fn [p] [(nth p u1) (nth p u2)]) ps)))))))))
+    (testing "a full block is six rectangles"
+      (is (= 6 (count (:rects (sc/mesh full))))))))
 
 ;; The unit edges of the faces that face the eye, found by brute force: the
 ;; segments the wires must cover, whatever lines they are merged into.
@@ -268,22 +303,44 @@
         (is (= 0 (:stray r)) (str "angle " angle))
         (is (> (:wires r) 51) "the holes break the straight runs")))))
 
-(deftest paint-order
+(deftest every-fill-is-one-flat-colour-so-no-order-can-show
   (doseq [[label st] [["the first frame" start]
                       ["a hollowed block" (let [w (apply disj (:world start) [[3 7 3] [4 7 3] [7 3 3]])]
                                             (assoc start :world w :mesh (sc/mesh w)))]]
           :let [dims (sc/dimensions m measure)
                 dl (sc/scene-list st dims)
-                kinds (map #(if (= :tri (nth % 0)) :tri (nth % 9)) dl)
-                depths (map #(nth % 11) (tris dl))]]
+                kinds (map #(if (= :tri (nth % 0)) :tri (nth % 9)) dl)]]
     (testing label
-      (testing "the grid first, then every face far to near, then the wires"
+      (testing "the grid first, then the fills, then the wires over every one of them"
         (is (= [:under :tri :over] (map first (partition-by identity kinds))))
         (is (= 22 (count (take-while #{:under} kinds)))))
-      (testing "far to near by mean depth, the order raylib.soft3d/finish gives"
-        (is (apply >= depths))
-        (is (= (tris (s3/finish dl)) (tris dl))
-            "finish on the finished list leaves the triangles where they are")))))
+      (testing "every fill is the same opaque BEIGE, so overpainting in any order gives the same pixels"
+        (is (seq (tris dl)))
+        (is (every? #(= beige (subvec % 7 11)) (tris dl)))))))
+
+(deftest a-pick-from-inside-the-block-takes-the-voxel-the-eye-is-in
+  ;; The original's slab interval starts at 0.0, so the voxel holding the eye
+  ;; is at distance 0 and nearest. ray-box would give the distance to leave it.
+  (let [world (:world start)
+        lcg (fn [s] (mod (+ (* 1103515245 s) 12345) 2147483648))
+        rnd (fn [s] (let [s' (lcg s)] [(/ (double (quot s' 65536)) 32768.0) s']))]
+    (loop [k 0 seed 20261003 diffs 0]
+      (if (< k 60)
+        (let [[a s1] (rnd seed) [b s2] (rnd s1) [c s3] (rnd s2) [d s4] (rnd s3) [e s5] (rnd s4) [f s6] (rnd s5)
+              eye* [(+ 0.01 (* 7.0 (min a 0.999))) (+ 0.01 (* 7.0 (min b 0.999))) (+ 0.01 (* 7.0 (min c 0.999)))]
+              dir (let [v [(- d 0.5) (- e 0.5) (- f 0.5)]
+                        l (Math/sqrt (reduce + (map #(* % %) v)))]
+                    (mapv #(/ % l) v))
+              expected (pick world eye* dir)
+              got (:voxel (sc/pick world {:position eye*
+                                          :direction dir}))]
+          (when-not (= expected got) (println "pick-inside mismatch" eye* dir expected got))
+          (recur (inc k) s6 (if (= expected got) diffs (inc diffs))))
+        (is (zero? diffs) "no ray from inside differs from the original's pick")))
+    (testing "and the voxel the eye is in is the one a tap removes"
+      (let [st (assoc steered :px 3.2 :py 4.1 :pz 2.9 :yaw 0.7 :pitch -0.2)
+            s (tap st look-pt)]
+        (is (= (disj world [3 4 3]) (:world s)))))))
 
 (deftest a-ray-along-an-axis-still-picks
   ;; A direction with exact zeros divides by zero in the slab test; ray-box

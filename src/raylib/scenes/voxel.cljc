@@ -20,8 +20,8 @@
     under it is what a click takes, the nearest voxel the ray enters. Here
     `raylib.soft3d/screen->ray` casts it through the middle of the field, which
     is where the crosshair (a RED dot of radius 4, lines 166-169) is drawn, and
-    `ray-box` tests every voxel, nearest first, as the original's brute force
-    does.
+    `ray-box` tests every voxel and keeps the nearest, as the original's brute
+    force does. A voxel the eye is inside is at distance 0, as the original has it.
 
   Controls. The original's left click removes the voxel under the crosshair and
   nothing else. A tap does that, anywhere in the field: the crosshair picks, the
@@ -47,36 +47,34 @@
     the caption below Back.
 
   Only exposed faces draw. A face is exposed when the voxel next to it is empty,
-  so a full block has 384, and an eye outside it sees 128 of them from two sides
-  (256 triangles) or 192 from three (384 triangles). `mesh` finds the exposed
-  faces, the corners and edges they share, once, whenever the world changes.
-  `scene-list` projects each corner once a frame, draws the faces that look
-  toward the eye as `raylib.soft3d/cube` does for its faces (front winding by
-  screen sign, a face with a corner behind the near plane dropped whole, mean
-  depth for the painter), and draws the wires of those faces once per edge,
-  with edges that carry on in a straight line joined into one line (the same
-  pixels): 35 lines from two sides and 51 from three, where a line for each
-  unit edge was 280 and 408. The order is `raylib.soft3d/finish`'s, far to near, but
-  sorted a record a face rather than a triangle (a face's two triangles share a
-  depth), so `finish` is not called.
+  so a full block has 384. `mesh` finds them once, whenever the world changes,
+  and merges the exposed faces of each plane greedily into rectangles
+  (`:rects`): a full block is six, and the first frame's two sides are two
+  rectangles, four triangles. Every face is the one flat opaque BEIGE, so a
+  rectangle fills exactly what its unit faces would, and no paint order can show,
+  which is why nothing is sorted and `raylib.soft3d/finish` is not called. The
+  grid goes under, the fills next and the wires over them. The voxels' own grid
+  lines stay: the wires are still drawn from the unit faces' edges, each shared
+  edge once, with edges that carry on in a straight line joined into one line
+  (the same pixels): 35 lines from two sides and 51 from three, where a line for
+  each unit edge was 280 and 408. `scene-list` projects each corner once a frame.
+  A rectangle, like a face, with a corner behind the near plane is dropped
+  whole, so a big one near the eye can go where its unit faces would not.
 
   The cost follows the exposed faces, which grow as the block is hollowed out,
-  since each pit shows its walls. Measured under jolt on the laptop (1206x2334,
-  update, build and a stand-in for the draw side's code): 0.38 ms from the
-  start view, 0.56 ms at the orbit's 45 degree corner where three sides show,
-  and 1.3 ms for a block with a third of it eaten away in a scattered pattern.
-  The phone's budget is 0.45, so the first holds and the others do not; a cut
-  of the world was not made.
+  since each pit shows its walls, and mostly the wires and the corners they
+  project, not the fills. Measured under jolt on the laptop (1206x2334, update,
+  build and a stand-in for the draw side's code): 0.20 ms from the start view,
+  0.28 ms at the orbit's 45 degree corner where three sides show, and 0.94 ms
+  for a block with a third of it eaten away in a scattered pattern. Before the
+  merge and with a sort they were 0.38, 0.56 and 1.3.
 
-  The painter has no depth buffer. The faces go far to near by mean depth
-  (`raylib.soft3d/finish`), and the wires after every face, so in a pit hollowed
-  out of the block an edge of the far wall can show over the rim in front of
-  it, where raylib's depth test would hide it. On the convex block the first
-  frame draws, the wires are exact. Faces in a deep pit can also be ordered
-  wrongly where depth buffer and mean depth disagree. Both are limits of the
-  painter, not chased. The original's 45 degree fovy is kept while the field is
-  as wide as 800x450 and widened by `raylib.soft3d/fit-camera` in a narrower
-  one.
+  There is no depth buffer, so the wires draw after every fill, and in a pit
+  hollowed out of the block an edge of the far wall can show over the rim in
+  front of it, where raylib's depth test would hide it. On the convex block the
+  first frame draws, the wires are exact. A limit of the painter, not chased.
+  The original's 45 degree fovy is kept while the field is as wide as 800x450 and
+  widened by `raylib.soft3d/fit-camera` in a narrower one.
 
   The state holds `:world` (a set of `[x y z]` integer voxels), `:mesh`, `:mode`
   (`:remove` or `:place`), the pose (`:px` `:py` `:pz` `:yaw` `:pitch`, with
@@ -142,6 +140,23 @@
    [1 1 [6 7 3 2]]
    [1 -1 [0 1 5 4]]])
 
+(defn- greedy
+  "`cells`, a set of `[u w]`, as rectangles `[ua wa ub wb]` (inclusive) that
+  cover each cell once: from the lowest unused cell, along u as far as it goes,
+  then along w for as long as the whole row is there."
+  [cells]
+  (loop [todo (sort cells) used #{} out []]
+    (if-let [[u w :as c] (first todo)]
+      (if (contains? used c)
+        (recur (rest todo) used out)
+        (let [free? (fn [cell] (and (contains? cells cell) (not (contains? used cell))))
+              ub (loop [u2 u] (if (free? [(inc u2) w]) (recur (inc u2)) u2))
+              wb (loop [w2 w] (if (every? #(free? [% (inc w2)]) (range u (inc ub))) (recur (inc w2)) w2))]
+          (recur (rest todo)
+                 (into used (for [a (range u (inc ub)) b (range w (inc wb))] [a b]))
+                 (conj out [u w ub wb]))))
+      out)))
+
 (defn mesh
   "The exposed faces of `world`, with the shared corners and edges they need:
 
@@ -150,6 +165,11 @@
     plane's coordinate, four node indices counter-clockwise seen from outside,
     and the four edges between them (`i0`-`i1`, `i1`-`i2`, `i2`-`i3`,
     `i3`-`i0`) as indices into `:edges`;
+  - `:rects`, `[axis sign plane i0 i1 i2 i3]` for the same faces merged,
+    plane by plane, into rectangles (`greedy`), which cover each exposed face
+    once and are what is filled; `:rect-cells` is `[axis sign plane ua wa ub wb]`
+    for each, the cells of the plane it spans (`u` and `w` the other two axes in
+    order). The unit faces stay for the wires;
   - `:groups`, `[axis sign [face ...]]` for each of the six directions that has
     a face, the faces ordered by `sign * plane`, so the ones an eye is outside of
     are a prefix of the list and the rest need not be looked at;
@@ -161,6 +181,8 @@
   [world]
   (if (empty? world)
     {:faces []
+     :rects []
+     :rect-cells []
      :groups []
      :nodes (double-array 0)
      :n 0
@@ -191,7 +213,28 @@
                               (idx (+ (- x x0) (bit-and c 1))
                                    (+ (- y y0) (bit-and (bit-shift-right c 1) 1))
                                    (+ (- z z0) (bit-and (bit-shift-right c 2) 1))))
-                            corners)]))
+                            corners)
+                      v]))
+          rect-cells (vec (mapcat (fn [[[axis sgn _] members]]
+                                    (let [[ua* wa*] (remove #{axis} [0 1 2])
+                                          plane (nth (first members) 2)]
+                                      (for [[ua wa ub wb] (greedy (set (map (fn [m] [(nth (nth m 4) ua*) (nth (nth m 4) wa*)]) members)))]
+                                        [axis sgn plane ua wa ub wb])))
+                                  (group-by (fn [[axis sgn _ _ v]] [axis sgn (nth v axis)]) raw)))
+          rects (mapv (fn [[axis sgn plane ua wa ub wb]]
+                        (let [[u*] (remove #{axis} [0 1 2])
+                              vax (long (- plane (* 0.5 sgn)))
+                              corners (some (fn [[a sg cs]] (when (and (= a axis) (= sg sgn)) cs)) face-defs)]
+                          (into [axis sgn plane]
+                                (map (fn [c]
+                                       (let [bit (fn [a] (bit-and (bit-shift-right c a) 1))
+                                             coord (fn [a]
+                                                     (cond (= a axis) (+ vax (bit a))
+                                                           (= a u*) (if (= 1 (bit a)) (inc ub) ua)
+                                                           :else (if (= 1 (bit a)) (inc wb) wa)))]
+                                         (idx (- (coord 0) x0) (- (coord 1) y0) (- (coord 2) z0))))
+                                     corners))))
+                      rect-cells)
           edge-pair (fn [a b] [(min a b) (max a b)])
           edge-ids (reduce (fn [acc [_ _ _ [i0 i1 i2 i3]]]
                              (reduce (fn [acc k] (if (contains? acc k) acc (assoc acc k (count acc))))
@@ -210,6 +253,8 @@
                             :when (seq fs)]
                         [axis sgn (vec (sort-by (fn [f] (* sgn (nth (nth faces f) 2))) fs))]))]
       {:faces faces
+       :rects rects
+       :rect-cells rect-cells
        :groups groups
        :nodes nodes
        :n n
@@ -297,22 +342,21 @@
   (s3/fit-camera (:camera state) original-aspect (:aspect dims)))
 
 (defn scene-list
-  "The draw list for `state`, in paint order: the grid of 10, the exposed faces
-  that look toward the eye as flat BEIGE quads far to near, and their BLACK
-  wires, each edge once and runs of straight edges as one line. Each node is
-  projected once, at most. A face with a corner behind the near plane is
-  dropped whole."
+  "The draw list for `state`: the grid of 10, the merged rectangles that look
+  toward the eye as flat BEIGE quads, in no order (they are one opaque colour),
+  and the BLACK wires of the unit faces that look toward the eye, each edge once
+  and runs of straight edges as one line. Each node is projected once, at most.
+  A face or rectangle with a corner behind the near plane is dropped whole."
   [state dims]
   (let [vp (s3/view-proj (camera state dims) (:viewport dims))
-        {:keys [faces groups edges edge-next edge-prev nodes n]} (:mesh state)
+        {:keys [faces rects groups edges edge-next edge-prev nodes n]} (:mesh state)
         [m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15] (:m vp)
-        [d0 d1 d2 d3] (:d vp)
         ox (:x vp) oy (:y vp)
         hw (* 0.5 (:w vp)) hh (* 0.5 (:h vp))
         [ex ey ez] (:position (:camera vp))
         [vr vg vb va] (:voxel colours)
         [wr wg wb wa] (:wires colours)
-        sx (double-array n) sy (double-array n) sd (double-array n)
+        sx (double-array n) sy (double-array n)
         seen (double-array n)
         done (double-array (count edges))
         project! (fn [i]
@@ -324,64 +368,57 @@
                          (if (>= (+ (* m8 x) (* m9 y) (* m10 z) m11 cw) 0.0)
                            (do (aset sx i (+ ox (* hw (+ 1.0 (/ (+ (* m0 x) (* m1 y) (* m2 z) m3) cw)))))
                                (aset sy i (+ oy (* hh (- 1.0 (/ (+ (* m4 x) (* m5 y) (* m6 z) m7) cw)))))
-                               (aset sd i (+ (* d0 x) (* d1 y) (* d2 z) d3))
                                (aset seen i 1.0)
                                true)
                            (do (aset seen i 2.0)
                                false)))
                        (== s 1.0))))
-        ;; pass 1: a record `[depth tri-1 tri-2 e0 e1 e2 e3]` for each face that
-        ;; faces the eye and is wholly in front of the near plane
-        face! (fn [recs f]
-                (let [[_ _ _ i0 i1 i2 i3 e0 e1 e2 e3] (nth faces f)]
-                  (if (and (project! i0) (project! i1) (project! i2) (project! i3))
-                    (let [xa (aget sx i0) ya (aget sy i0)
-                          xb (aget sx i1) yb (aget sy i1)
-                          xc (aget sx i2) yc (aget sy i2)
-                          xe (aget sx i3) ye (aget sy i3)
-                          depth (* 0.25 (+ (aget sd i0) (aget sd i1) (aget sd i2) (aget sd i3)))
-                          t1? (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
-                          t2? (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))]
-                      (if (or t1? t2?)
-                        (conj! recs [depth
-                                     (when t1? [:tri xa ya xb yb xc yc vr vg vb va depth])
-                                     (when t2? [:tri xa ya xc yc xe ye vr vg vb va depth])
-                                     e0 e1 e2 e3])
-                        recs))
-                    recs)))
-        recs (reduce (fn [recs [axis sgn fs]]
-                       (let [e (case (long axis) 0 ex 1 ey ez)
-                             nfs (count fs)]
-                         (loop [k 0 recs recs]
-                           (if (< k nfs)
-                             (let [f (nth fs k)]
-                               (if (> (* sgn (- e (nth (nth faces f) 2))) 1.0e-9)
-                                 (recur (inc k) (face! recs f))
-                                 recs))
-                             recs))))
-                     (transient [])
-                     groups)
-        ;; far to near by mean depth, the order `raylib.soft3d/finish` gives the
-        ;; triangles (its sort is stable, and so is this one, and a face's two
-        ;; triangles share one depth), on a record a face instead of a triangle
-        sorted (vec (sort (fn [a b] (compare (nth b 0) (nth a 0))) (persistent! recs)))
-        ;; pass 2: the grid under, then the faces in order, noting each edge of
-        ;; them once
         note (fn [drawn e]
                (if (zero? (aget done e))
                  (do (aset done e 1.0)
                      (conj! drawn e))
                  drawn))
-        nsorted (count sorted)
-        [tris drawn] (loop [k 0 tris (transient (s3/grid [] vp 10 1.0)) drawn (transient [])]
-                       (if (< k nsorted)
-                         (let [[_ t1 t2 e0 e1 e2 e3] (nth sorted k)]
-                           (recur (inc k)
-                                  (cond-> tris
-                                    t1 (conj! t1)
-                                    t2 (conj! t2))
-                                  (-> drawn (note e0) (note e1) (note e2) (note e3))))
-                         [tris (persistent! drawn)]))
+        ;; pass 1: the wires' edges. Each unit face that faces the eye and is
+        ;; wholly in front of the near plane notes its edges once.
+        face! (fn [drawn f]
+                (let [[_ _ _ i0 i1 i2 i3 e0 e1 e2 e3] (nth faces f)]
+                  (if (and (project! i0) (project! i1) (project! i2) (project! i3))
+                    (-> drawn (note e0) (note e1) (note e2) (note e3))
+                    drawn)))
+        drawn (persistent!
+               (reduce (fn [drawn [axis sgn fs]]
+                         (let [e (case (long axis) 0 ex 1 ey ez)
+                               nfs (count fs)]
+                           (loop [k 0 drawn drawn]
+                             (if (< k nfs)
+                               (let [f (nth fs k)]
+                                 (if (> (* sgn (- e (nth (nth faces f) 2))) 1.0e-9)
+                                   (recur (inc k) (face! drawn f))
+                                   drawn))
+                               drawn))))
+                       (transient [])
+                       groups))
+        ;; pass 2: the grid under, then the filled rectangles that face the eye
+        ;; as two triangles each, in no particular order
+        nr (count rects)
+        tris (loop [k 0 tris (transient (s3/grid [] vp 10 1.0))]
+               (if (< k nr)
+                 (let [[axis sgn plane i0 i1 i2 i3] (nth rects k)
+                       e (case (long axis) 0 ex 1 ey ez)]
+                   (if (and (> (* sgn (- e plane)) 1.0e-9)
+                            (project! i0) (project! i1) (project! i2) (project! i3))
+                     (let [xa (aget sx i0) ya (aget sy i0)
+                           xb (aget sx i1) yb (aget sy i1)
+                           xc (aget sx i2) yc (aget sy i2)
+                           xe (aget sx i3) ye (aget sy i3)]
+                       (recur (inc k)
+                              (cond-> tris
+                                (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
+                                (conj! [:tri xa ya xb yb xc yc vr vg vb va])
+                                (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
+                                (conj! [:tri xa ya xc yc xe ye vr vg vb va]))))
+                     (recur (inc k) tris)))
+                 tris))
         ;; pass 3: the wires over. Drawn edges that carry on one another in a
         ;; straight line are one line, from the first one's start to the last
         ;; one's end: the same pixels, a tenth of the items.
@@ -406,14 +443,19 @@
   "The nearest voxel of `world` the `ray` (`{:position :direction}`, as
   `raylib.soft3d/screen->ray` gives) enters, as `{:voxel :step}`, or nil. `:step`
   is the unit `[dx dy dz]` out of the voxel through the face the ray came in by,
-  the `ray-box` normal's largest axis. A voxel the eye is inside, or behind the
-  eye, is not a hit, as the original's `hit-distance` (lines 59-65)."
+  the `ray-box` normal's largest axis. A voxel behind the eye is not a hit. A
+  voxel the eye is inside is a hit at distance 0, so it is the nearest: the
+  original's `hit-distance` (lines 59-65) starts its slab interval at 0.0 and
+  returns it, where `ray-box` would give the distance to leave the box."
   [world ray]
-  (let [best (reduce (fn [best [x y z :as v]]
-                       (let [r (s3/ray-box ray [(- x 0.5) (- y 0.5) (- z 0.5)] [(+ x 0.5) (+ y 0.5) (+ z 0.5)])]
-                         (if (and (:hit? r) (>= (:distance r) 0.0)
-                                  (or (nil? best) (< (:distance r) (:distance (second best)))))
-                           [v r]
+  (let [[px py pz] (:position ray)
+        best (reduce (fn [best [x y z :as v]]
+                       (let [r (s3/ray-box ray [(- x 0.5) (- y 0.5) (- z 0.5)] [(+ x 0.5) (+ y 0.5) (+ z 0.5)])
+                             inside? (and (<= (- x 0.5) px (+ x 0.5)) (<= (- y 0.5) py (+ y 0.5)) (<= (- z 0.5) pz (+ z 0.5)))
+                             dist (if inside? 0.0 (:distance r))]
+                         (if (and (:hit? r) (>= dist 0.0)
+                                  (or (nil? best) (< dist (:distance (second best)))))
+                           [v (assoc r :distance dist)]
                            best)))
                      nil
                      world)]
