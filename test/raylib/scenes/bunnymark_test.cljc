@@ -91,6 +91,23 @@
     (testing "nothing spawns once the finger lifts, or with no finger"
       (is (= 380 (:n (tick s3 :release [px py]))))
       (is (= 200 (:n (tick s0)))))
+    (testing "only the field takes a spawn: a hold right of Back and above the field adds nothing, nor does one off the bottom"
+      (is (= 200 (:n (tick s0 :press [700 60]))))
+      (is (= 200 (:n (tick s0 :press [700 119]))))
+      (is (= 260 (:n (tick s0 :press [700 120]))))
+      (is (= 200 (:n (tick s0 :press [700 2334])))))
+    (testing "a finger that began on the clear button, or in Back, never spawns, wherever it slides"
+      (let [[cx cy] (mapv int button-centre)]
+        (is (= 200 (:n (-> s0 (tick :press [cx cy]) (tick :down below-bar)))))
+        (is (= 200 (:n (-> s0 (tick :press [100 60]) (tick :down below-bar)))))))
+    (testing "and one that began in the field stops spawning on the button, resuming off it"
+      (let [[cx cy] (mapv int button-centre)
+            a (tick s0 :press below-bar)
+            b (tick a :down [cx cy])
+            c (tick b :down below-bar)]
+        (is (= 260 (:n a)))
+        (is (= 260 (:n b)))
+        (is (= 320 (:n c)))))
     (testing "the host owns Back, and the clear button is not a place to add"
       (is (= 200 (:n (tick s0 :press [100 60]))))
       (is (= 200 (:n (tick s0 :press (mapv int button-centre))))))))

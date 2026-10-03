@@ -28,10 +28,14 @@
     `GetFPS`, read every frame by the gallery as `starfield` and `deltatime` do.
 
   Controls: holding a finger anywhere outside Back and outside the clear button
-  spawns at that point, in place of the left mouse button. A tap on the \"clear\"
+  spawns at that point, in place of the left mouse button. Only the field takes
+  a spawn (the original cannot spawn outside its window): a finger above it or
+  off its edge adds nothing. A finger belongs to the control it began on, so
+  one that began on the clear button or in Back never spawns wherever it slides,
+  and one that began in the field stops spawning while it is over the button. A tap on the \"clear\"
   button empties the field, in place of SPACE. The tap is by `raylib.gesture`, so
-  it is where the finger started. As in the original, clearing wins over
-  spawning in a frame.
+  it is where the finger started. The tap arrives on the release frame, when no
+  finger is down, so a clear and a spawn never share a frame.
 
   Units. The original's window is 800 by 450. Here the bunnies move in its units
   (the physics above is the original's, unchanged), but the window is 800 wide
@@ -135,11 +139,17 @@
 (defn- next-random [s]
   (mod (+ (* 1103515245 (long s)) 12345) 2147483648))
 
+(defn- roll
+  "An int in [lo, hi] from the high bits of the LCG state `s'`: `random-value`'s
+  value without its pair, so a spawn allocates nothing per bunny."
+  [s' lo hi]
+  (+ lo (mod (quot s' 65536) (inc (- hi lo)))))
+
 (defn random-value
   "`[v seed']`: an int in [lo, hi] from the LCG's high bits."
   [s lo hi]
   (let [s' (next-random s)]
-    [(+ lo (mod (quot s' 65536) (inc (- hi lo)))) s']))
+    [(roll s' lo hi) s']))
 
 ;; kondo reads this .cljc as ClojureScript too, which has no aset-double.
 #_{:clj-kondo/ignore [:unresolved-symbol]}
@@ -182,13 +192,20 @@
     (loop [i from
            s (long (:seed state))]
       (if (< i (+ from cnt))
-        (let [[x s] (if mx [mx s] (random-value s 0 max-x))
-              [y s] (if mx [my s] (random-value s 0 max-y))
-              [vx s] (random-value s -250 250)
-              [vy s] (random-value s -250 250)
-              [r s] (random-value s 90 255)
-              [g s] (random-value s 90 255)
-              [b s] (random-value s 90 255)]
+        (let [s1 (if mx s (next-random s))
+              x (if mx mx (roll s1 0 max-x))
+              s2 (if mx s1 (next-random s1))
+              y (if mx my (roll s2 0 max-y))
+              s3 (next-random s2)
+              vx (roll s3 -250 250)
+              s4 (next-random s3)
+              vy (roll s4 -250 250)
+              s5 (next-random s4)
+              r (roll s5 90 255)
+              s6 (next-random s5)
+              g (roll s6 90 255)
+              s7 (next-random s6)
+              b (roll s7 90 255)]
           (aset-double xs i (double x))
           (aset-double ys i (double y))
           (aset-double vxs i (/ vx 60.0))
@@ -196,7 +213,7 @@
           (aset-int rs i (int r))
           (aset-int gs i (int g))
           (aset-int bs i (int b))
-          (recur (inc i) s))
+          (recur (inc i) s7))
         s))))
 
 #_{:clj-kondo/ignore [:unresolved-symbol]}
@@ -241,21 +258,26 @@
 
 (defn advance
   "One frame, the original's loop. A tap that began on the clear button empties
-  the field; otherwise a finger down outside Back and the button adds a batch
-  when the count is under the cap. Then every bunny steps."
+  the field; otherwise a finger down inside the field, over neither Back nor the
+  button and not begun on either, adds a batch when the count is under the cap. Then every bunny steps."
   [state {:keys [metrics pointer]
           :as input}]
-  (let [{:keys [u top field-h]
+  (let [{:keys [u top field-h w h]
          [bx by bw bh] :button} (geometry metrics)
         [g event] (gesture/track (:gesture state) input)
         pos (:position pointer)
+        field? (fn [[px py]] (and (>= px 0) (< px w) (>= py top) (< py h)))
         in-button? (and pos (gesture/in-rect? [bx by bw bh] pos))
         clear? (and (= :tap (:type event)) (gesture/in-rect? [bx by bw bh] (:at event)))
         n (:n state)
+        start (:start g)
         add? (and (gesture/down? input)
-                  (not (gesture/in-back-region? pos))
+                  (< n max-bunnies)
+                  start
+                  (field? pos)
                   (not in-button?)
-                  (< n max-bunnies))
+                  (not (gesture/in-back-region? start))
+                  (not (gesture/in-rect? [bx by bw bh] start)))
         [n s] (cond
                 clear? [0 (:seed state)]
                 add? [(+ n batch)
