@@ -663,15 +663,19 @@
   two latitudes, by `(int (* f c))` on r, g and b with alpha 255, as sphere!'s
   `shade-color`.
 
+  With `{:shade :flat}` every band takes the colour unchanged, alpha
+  included, as rmodels.c DrawSphere sets one rlColor4ub. Use it where the
+  original calls `draw-sphere!`.
+
   Each triangle goes in only when it faces the camera, and a quad with a corner
   behind the near plane is dropped, as `cube` does. A quad touching a pole has
   two coincident corners, so one of its triangles is a sliver. It is usually
   culled, but a view from straight above can emit two of them, each under a
   millionth of a pixel."
   ([dl vp xf pos radius colour] (sphere dl vp xf pos radius colour {}))
-  ([dl vp xf [cx cy cz] radius [cr cg cb] {:keys [rings slices]
-                                           :or {rings 12
-                                                slices 16}}]
+  ([dl vp xf [cx cy cz] radius [cr cg cb ca] {:keys [rings slices shade]
+                                              :or {rings 12
+                                                   slices 16}}]
    (let [[m d] (frame vp xf)
          {ox :x
           oy :y
@@ -689,7 +693,9 @@
          (let [above (row (inc i))
                y0 (Math/sin (lat i)) y1 (Math/sin (lat (inc i)))
                f (+ 0.45 (* 0.55 (/ (+ y0 y1 2.0) 4.0)))
-               r (int (* f cr)) g (int (* f cg)) b (int (* f cb))]
+               flat? (= shade :flat)
+               r (if flat? cr (int (* f cr))) g (if flat? cg (int (* f cg))) b (if flat? cb (int (* f cb)))
+               al (if flat? ca 255)]
            (recur (inc i) above
                   (loop [j 0 dl dl]
                     (if (< j slices)
@@ -699,8 +705,8 @@
                                (if (and p00 p01 p10 p11)
                                  (let [depth (* 0.25 (+ (nth p00 2) (nth p01 2) (nth p10 2) (nth p11 2)))]
                                    (-> dl
-                                       (tri p00 p10 p11 r g b 255 depth)
-                                       (tri p00 p11 p01 r g b 255 depth)))
+                                       (tri p00 p10 p11 r g b al depth)
+                                       (tri p00 p11 p01 r g b al depth)))
                                  dl)))
                       dl))))
          dl)))))

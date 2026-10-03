@@ -22,8 +22,9 @@
   `cylinder` and `cylinder-wires`, `capsule` and `capsule-wires`, which mirror
   DrawCylinder, DrawCylinderWires, DrawCapsule and DrawCapsuleWires.
   DrawSphereWires is mirrored here by `sphere-wire-segments`, as segments for
-  `raylib.soft3d/lines`. The solid sphere is `raylib.soft3d/sphere`, raylib-jlt's
-  shaded stand-in, not DrawSphereEx's flat colour.
+  `raylib.soft3d/lines`. The solid sphere is `raylib.soft3d/sphere` with
+  `{:shade :flat}`, a flat colour as DrawSphere draws it, on that builder's
+  latitude and longitude tessellation.
 
   Paint order is `raylib.soft3d/finish`: the grid, every triangle far to near
   by its mean depth, then every wire. The shapes overlap and the curved ones
@@ -31,21 +32,25 @@
   shapes is right, which is why this scene sorts triangles.
 
   There is no depth buffer, so a wire is drawn over every face, where raylib's
-  depth test hides the back edges of a solid shape: the sky blue, gold and
-  violet shapes show their far edges through their faces. The red cube's gold
-  wires hide theirs (`{:hide-back? true}`), as the cube is a box.
+  depth test hides what lies behind a solid. Every wire shows through whatever
+  stands in front of it: the far edges of the sky blue, gold and violet shapes,
+  the maroon box's wires behind the red cube, and the lime sphere's wires
+  behind the shapes in front of it. The red cube's own gold wires hide their
+  back edges (`{:hide-back? true}`), as the cube is a box.
 
   TESSELLATION AND THE BUDGET. The counts are the original's, so `original`
   and `tessellation` are equal and a test says so. They make 362 triangles and
   1643 lines (2005 items, 6383 FFI calls to draw): the sphere wires alone are
   864 segments, the capsule wires 664. Built every frame that took 2.5 ms under
-  jolt on the laptop (2.85 ms with the draw side), against the phone's 0.45 ms
-  budget. Cutting tessellation alone cannot reach it, because drawing the
-  original's 2005 items is 0.36 ms by itself. The camera never moves and the
-  scene reads nothing, so the list depends on the screen alone (a test checks
-  that), and `raylib.gallery` builds it once per screen and draws the same list
-  every frame: 0.36 ms a frame with the draw side, and 2.5 ms once on the first
-  frame and on a rotation.
+  jolt on the laptop (2.85 ms with the draw side), against a budget of 0.45 ms
+  on the laptop, the figure that stands in for the phone. Cutting tessellation
+  alone cannot reach it, because drawing the original's 2005 items is 0.36 ms by
+  itself. The camera never moves and the scene reads nothing, so the list
+  depends on the screen alone (a test checks that), and `raylib.gallery` builds
+  it once per screen and draws the same list every frame, 0.36 ms with the draw
+  side. The first frame and every rotation rebuild it: about 2.5 ms on the
+  laptop, a single-frame hitch (about 80 ms on the phone at 33x). The steady
+  state ran at 59 to 60 fps on the iPhone 17 Pro.
 
   The original's text (lines 112-118) is an FPS counter at (10, 10) and
   \"geometric shapes\" at (10, 40), size 10. Here the second is the caption
@@ -148,7 +153,8 @@
         (s3/cube-wires vp nil [-4.0 0.0 2.0] [2.0 5.0 2.0] gold {:hide-back? true})
         (s3/cube-wires vp nil [-4.0 0.0 -2.0] [3.0 6.0 2.0] maroon)
         (s3/sphere vp nil [-1.0 0.0 -2.0] 1.0 green {:rings sr
-                                                     :slices ss})
+                                                     :slices ss
+                                                     :shade :flat})
         (s3/lines vp nil (sphere-wire-segments [1.0 0.0 2.0] 2.0 wr ws lime))
         (s3/cylinder vp nil [4.0 0.0 -2.0] 1.0 2.0 3.0 skyblue {:slices 4})
         (s3/cylinder-wires vp nil [4.0 0.0 -2.0] 1.0 2.0 3.0 darkblue {:slices 4})

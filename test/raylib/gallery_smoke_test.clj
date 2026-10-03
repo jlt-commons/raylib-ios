@@ -146,3 +146,24 @@
 (deftest a-drag-on-the-list-still-scrolls
   ;; The finger moved up 300 pixels, so the offset grows by 300.
   (is (= 600 (next-scroll-after-drag :gallery))))
+
+(deftest geoshapes-cache-is-keyed-on-the-screen
+  ;; host-measure calls MeasureText, which needs a window; the layout under test
+  ;; only needs a width.
+  (with-redefs [rg/host-measure (fn [s size] (* 0.6 size (count s)))]
+    (let [frame @#'rg/geoshapes-frame
+          a (frame {:frame 0} {:screen [1206 2334]})
+          a2 (frame {:frame 7} {:screen [1206 2334]})
+          b (frame {:frame 0} {:screen [2334 1206]})
+          b2 (frame {:frame 1} {:screen [2334 1206]})]
+      (testing "the same screen draws the very same list"
+        (is (identical? (second a) (second a2)))
+        (is (identical? (second b) (second b2))))
+      (testing "a new screen rebuilds the dims and the list"
+        (is (not (identical? (second a) (second b))))
+        (is (not= (:viewport (first a)) (:viewport (first b))))
+        (is (not= (second a) (second b))))
+      (testing "and coming back rebuilds again"
+        (let [a3 (frame {:frame 0} {:screen [1206 2334]})]
+          (is (not (identical? (second a) (second a3))))
+          (is (= (second a) (second a3))))))))

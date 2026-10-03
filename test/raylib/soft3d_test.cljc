@@ -421,6 +421,15 @@
     (testing "bands get brighter toward +y"
       (is (apply < (map first expected))))))
 
+(deftest sphere-flat-is-drawsphere
+  (let [vp (s3/view-proj front-ortho [100 100])
+        shaded (tris (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 77]))
+        flat (tris (s3/sphere [] vp nil [0 0 0] 2.0 [200 100 50 77] {:shade :flat}))]
+    (is (= #{[200 100 50 77]} (set (map colour-of flat))) "one colour, alpha kept, as rlColor4ub")
+    (is (= (count shaded) (count flat)))
+    (is (= (map #(subvec % 1 7) shaded) (map #(subvec % 1 7) flat)) "the same triangles")
+    (is (< 1 (count (set (map colour-of shaded)))) "the default is still shaded")))
+
 (deftest sphere-bands-small-case-by-hand
   ;; rings 2: bands y -1..0 and 0..1, brightness 0.45 + 0.55 * 1/4 = 0.5875 and
   ;; 0.45 + 0.55 * 3/4 = 0.8625. [200 100 50] -> [117 58 29] and [172 86 43].
