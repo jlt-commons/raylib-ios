@@ -33,8 +33,9 @@
   A stick or a look begins only on a fresh press and follows only its own
   finger, so a resting finger never steers. A tap is a press and release that
   moved less than `gesture/slop` and never ends a touch of two fingers, so it
-  is neither a walk nor a look. One tap action, so a button picks the other
-  one:
+  is neither a walk nor a look. So a tap is ignored while the stick is held:
+  stop walking to remove, where the original clicks while holding W. One tap
+  action, so a button picks the other one:
   - Added, not in the original: placing. The button in the row under Back, at
     the right, flips what a tap does between \"tap: remove\" (the original's
     only rule, and the start) and \"tap: place\". A place puts a voxel on the
@@ -68,7 +69,9 @@
   build and a stand-in for the draw side's code): 0.20 ms from the start view,
   0.28 ms at the orbit's 45 degree corner where three sides show, and 0.94 ms
   for a block with a third of it eaten away in a scattered pattern. Before the
-  merge and with a sort they were 0.38, 0.56 and 1.3.
+  merge and with a sort they were 0.38, 0.56 and 1.3. The hollowed block is
+  about three times what the rest of the gallery is sized by and has not been
+  timed on the phone, where 0.56 measured 32 fps.
 
   There is no depth buffer, so the wires draw after every fill, and in a pit
   hollowed out of the block an edge of the far wall can show over the rim in

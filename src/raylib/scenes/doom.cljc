@@ -30,9 +30,10 @@
 
   Changed, and why:
   - **Columns: 180, the original's 450.** The phone runs scene code about 33
-    times slower than jolt on the laptop, and a frame has to take about 0.30 ms
-    there (the update, the build and the draw side's loops with the FFI stubbed)
-    to hold 60 fps. 180 is the most columns whose worst measured frame fits. At
+    times slower than jolt on the laptop, and on the laptop a frame has to take
+    about 0.30 ms under jolt (the update, the build and the draw side's loops
+    with the FFI stubbed) to hold 60 fps. 180 is the largest of the counts
+    measured (100, 160, 180 and 200) whose worst pose fits. At
     1206 pixels wide a column is 6.7 pixels, where the original's 450 are 2.7.
     Measured under jolt on the laptop: 0.20 ms from the start, 0.29 ms at the
     worst of 2576 poses (each open cell's centre by 16 headings, with and without

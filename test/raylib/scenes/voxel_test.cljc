@@ -417,7 +417,7 @@
   (testing "a tap hands the camera over, as a click does in the original"
     (is (:steered? (tap start look-pt)))))
 
-(deftest a-tap-places-as-the-original
+(deftest a-tap-places-on-the-face-the-originals-pick-enters
   ;; The original has only the removing click (its mouse-pressed handler, lines
   ;; 137-141, and the C's MOUSE_LEFT_BUTTON branch), so placing is the one
   ;; addition: the button flips the tap to place, on the face the ray entered.

@@ -37,9 +37,11 @@
     outside the blobs.
 
   Deviations, all in the glow: the original sums the three blobs into the
-  texture and blends once, where here each blob is blended on its own, so an
-  overlap is not the sum of the two glows' alphas but the second blended over
-  the first. The fan has 16 sides, not a circle. Under MULTIPLIED, rlgl's
+  texture and blends once, where here each blob is blended on its own, so where
+  two glows overlap the picture differs: under ADDITIVE two equal glows overlap
+  about half as bright as the original's, since the summed texture's cross
+  terms are lost, ALPHA and MULTIPLIED differ there too, and ADD_COLORS, which
+  only adds, is the same. The fan has 16 sides, not a circle. Under MULTIPLIED, rlgl's
   `glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA)` leaves a pixel alone where
   the source is (0, 0, 0, 0), so the original's note that MULTIPLIED blackens
   everything the blobs do not reach is not what the equation gives: the base

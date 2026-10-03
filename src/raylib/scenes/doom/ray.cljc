@@ -101,7 +101,8 @@
 
 (defn- put!
   "Append the rect `x0 y0 w h` with palette index `colour` at `n` and return
-  the new count, or `n` when the buffer is full."
+  the new count, or `n` when the buffer is full. It cannot fill: a frame is
+  at most 2 + 180 + 6 x 36 + 1 = 399 rects of 1024."
   [n x0 y0 w h colour]
   (let [#?@(:jolt [^int/1 b rect-buf] :default [^"[I" b rect-buf])]
     (if (< n capacity)

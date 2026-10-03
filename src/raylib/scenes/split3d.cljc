@@ -267,17 +267,18 @@
 
 (defn- flat-cubes
   "`raylib.soft3d/cube` with `{:shade :flat}` for each of `ranked` (`[pos size
-  colour d2]`) in turn, appended to `dl`, and the same items to the last bit:
-  the same sums in the same order. The one difference is that a triangle lying
+  colour d2]`) in turn, appended to `dl`, with the same sums in the same order,
+  so the items are `=` to `cube`'s. The one difference is that a triangle lying
   wholly outside `vp`'s rectangle (all three corners more than a pixel past the
   same side) is left out, because the half is scissored to that rectangle (the
-  pixel is what the scissor's `int` can add) and the triangle has no pixel in it. What it saves is the work `cube` does again
-  for every call and what jolt makes dear: taking the clip matrix and the eye
-  apart, a scratch array whose every read and write costs several times a sum,
-  and `abs`. The corners are locals, nil when not needed or behind the near
-  plane, and a product of a matrix entry and a box coordinate is worked out once
-  a cube, not once a corner that uses it. `vp` is a `raylib.soft3d/view-proj` result as it stands, so its `:eye`
-  is the one `cube` would read."
+  pixel is what the scissor's `int` can add) and the triangle has no pixel in
+  it. What it saves is the work `cube` does again for every call and what jolt
+  makes dear: taking the clip matrix and the eye apart, a scratch array whose
+  every read and write costs several times a sum, and `abs`. The corners are
+  locals, nil when not needed or behind the near plane, and a product of a
+  matrix entry and a box coordinate is worked out once a cube, not once a corner
+  that uses it. `vp` is a `raylib.soft3d/view-proj` result as it stands, so its
+  `:eye` is the one `cube` would read."
   [dl vp ranked]
   (let [[m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15] (:m vp)
         [d0 d1 d2 d3] (:d vp)

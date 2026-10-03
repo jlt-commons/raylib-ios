@@ -23,11 +23,13 @@
   aspect, so a tall phone field still shows the original's width.
 
   Building a frame: start from `[]`, thread it through the builders (`cube`,
-  `cube-wires`, `grid`, `lines`, `sphere`, `plane`, `billboard`), then `finish` it into the
-  draw list. `finish` is the general order, a sort of every triangle far to near.
-  A scene may paint in an order it can show is right for its own geometry and
-  skip it, as Waving Cubes, Point Cloud, 3D Split Screen and Bouncing Spheres
-  do. Every builder projects as it goes, so a back face, or a face behind the near plane,
+  `cube-wires`, `grid`, `lines`, `sphere`, `plane`, `billboard`, `cylinder`,
+  `cylinder-wires`, `capsule`, `capsule-wires`), then `finish` it into the draw
+  list. `finish` is the general order, a sort of every triangle far to near. A
+  scene may paint in an order it can show is right for its own geometry and skip
+  it, as Waving Cubes, Point Cloud, 3D Split Screen, Bouncing Spheres, Billboard
+  Rendering, Directional Billboard, Textured Cube and Basic Voxel do. Every
+  builder projects as it goes, so a back face, or a face behind the near plane,
   never becomes an item, and a line behind it is clipped to it instead.
 
   The draw list is a vector of flat items:
@@ -695,7 +697,7 @@
                f (+ 0.45 (* 0.55 (/ (+ y0 y1 2.0) 4.0)))
                flat? (= shade :flat)
                r (if flat? cr (int (* f cr))) g (if flat? cg (int (* f cg))) b (if flat? cb (int (* f cb)))
-               al (if flat? ca 255)]
+               al (if flat? (or ca 255) 255)]
            (recur (inc i) above
                   (loop [j 0 dl dl]
                     (if (< j slices)
@@ -804,7 +806,8 @@
   camera, so both keep rlgl's front winding and a quad that has turned edge on
   draws nothing. A corner behind the near plane drops it whole. The colour is
   flat, because an item carries one colour, so there is no vertex-coloured
-  variant; a gradient is more quads."
+  variant; a gradient is more quads. There is no `xf`: a billboard faces the
+  camera, so only its position could move; pass the moved point."
   ([dl vp pos size colour] (billboard dl vp pos size colour nil))
   ([dl vp pos size [r g b a] opts]
    (let [[c0 c1 c2 c3] (billboard-corners (:camera vp) pos size (or opts {}))

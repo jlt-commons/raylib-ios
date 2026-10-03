@@ -43,13 +43,13 @@
   (the physics above is unchanged), but the window is 800 wide and `(h - top) /
   u` tall, where `u` is the safe region's width over 800 and `top` is the bottom
   of Back, so a circle is round on a phone and a portrait field is taller than
-  450 units. The original's second text sits at `H - 40` and the button is
-  around it, by the bottom of the screen. The top text is centred rather than at
-  x 150, and cut back to fit.
+  450 units. The original's second text sits at `H - 40` and the button sits
+  under it, its bottom 20 units above the screen's. The top text is centred
+  rather than at x 150, and cut back to fit.
 
   The state holds numbers in mutable arrays: `:xs :ys :alphas` (doubles), `:acts`
   (1 for active) and the colours `:rs :gs :bs` and `:sizes`, the `:blending`
-  (0 alpha, 1 additive), the LCG `:seed`, the `:gesture` and the `:screen`.
+  (0 alpha, 1 additive), the `:gesture` and the `:screen`.
   `advance` updates the arrays IN PLACE and returns the state, so a state is not
   a value to keep across `advance`. `particle` is the allocating accessor for
   tests. The draw method draws through `call-blended!`, which ends the blend mode
@@ -294,7 +294,7 @@
           (aset-int (:bs state) i (int (roll s3 0 255)))
           (aset-double (:sizes state) i (/ (roll s4 1 30) 20.0))
           (recur (inc i) s4))
-        [(assoc state :seed s) [[:scene/init :blendparticles]]]))))
+        [state [[:scene/init :blendparticles]]]))))
 
 (defn- update-scene [state input] [(advance state input) []])
 (defn- draw [state _] [state []])

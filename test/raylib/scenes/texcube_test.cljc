@@ -186,6 +186,9 @@
   (let [dims (sc/dimensions {:screen [1206 2334]} measure)
         [vx vy vw vh] (:viewport dims)
         overlaps (atom 0)]
+    ;; One screen and every 5th frame suffice: `cube-order` reads only the
+    ;; camera's x, which no screen changes, and the orbit turns 0.05 rad between
+    ;; samples.
     (doseq [n (range 0 720 5)
             :let [s (frames n)
                   vp (s3/view-proj (sc/camera s dims) (:viewport dims))

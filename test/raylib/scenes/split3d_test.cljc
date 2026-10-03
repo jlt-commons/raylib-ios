@@ -215,7 +215,7 @@
           (is (contains? colours (nth sc/player-colours 1)))))
       ;; At the start the other player's cube is off the glass, which used to be
       ;; counted as "seen" because off-glass triangles were kept. Now it is checked
-      ;; where it is on the glass: the other player 12 behind, the eye in line.
+      ;; where it is on the glass: the other player 12 ahead, the eye in line.
       (testing "the other player's cube is seen when it is in view"
         (let [st (if (zero? i) (assoc start :z1 -12.0 :x2 0.0) (assoc start :z1 0.0 :x2 -12.0))
               seen (filterv #(= :tri (nth % 0)) (sc/scene-list st dims i))]
