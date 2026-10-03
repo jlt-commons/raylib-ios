@@ -42,15 +42,16 @@
   and `tessellation` are equal and a test says so. They make 362 triangles and
   1643 lines (2005 items, 6383 FFI calls to draw): the sphere wires alone are
   864 segments, the capsule wires 664. Built every frame that took 2.5 ms under
-  jolt on the laptop (2.85 ms with the draw side), against a budget of 0.45 ms
-  on the laptop, the figure that stands in for the phone. Cutting tessellation
-  alone cannot reach it, because drawing the original's 2005 items is 0.36 ms by
-  itself. The camera never moves and the scene reads nothing, so the list
+  jolt on the laptop (2.85 ms with the draw side), against a target of 0.30 ms
+  on the laptop, the figure that stands in for the phone (the performance
+  guide's \"Sizing a scene on the laptop\"). Cutting tessellation alone cannot
+  reach it, because drawing the original's 2005 items is 0.36 ms by itself. The camera never moves and the scene reads nothing, so the list
   depends on the screen alone (a test checks that), and `raylib.gallery` builds
   it once per screen and draws the same list every frame, 0.36 ms with the draw
   side. The first frame and every rotation rebuild it: about 2.5 ms on the
-  laptop, a single-frame hitch (about 80 ms on the phone at 33x). The steady
-  state ran at 59 to 60 fps on the iPhone 17 Pro.
+  laptop, a single-frame hitch (about 80 ms on the phone at a rough 33x). The
+  steady state ran at 59 to 60 fps on the iPhone 17 Pro, although 0.36 ms is
+  above the target: the bench stubs the draw loop, which is a share of that.
 
   The original's text (lines 112-118) is an FPS counter at (10, 10) and
   \"geometric shapes\" at (10, 40), size 10. Here the second is the caption

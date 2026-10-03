@@ -45,6 +45,12 @@ per-segment colours are computed once at init and the draw loop does nothing
 but read two vectors. The original recomputes each segment's colour inline from
 three sin calls, which is 3069 transcendentals a frame for a picture that never
 changes.
+
+Three more scenes, from the next round of measuring, break the model the other
+way:
+
+| scene | per frame | fps |
+| --- | --- | --- |
 | penrose | ~2400 FFI calls: 1360 rlgl, 1020 lines | 59 |
 | spirograph | ~1800 lines | 18 |
 | kaleidoscope | ~1788 lines | 15 |
@@ -252,6 +258,45 @@ The shape of the fix is always the same. Keep the collection-returning function,
 because tests want something to inspect, and do not call it from the draw path.
 `ring/arc-points` and `splines/curve` both still exist and are both still tested.
 Neither runs sixty times a second.
+
+## Sizing a scene on the laptop
+
+A port is sized before it reaches the phone, by timing it under jolt on the
+laptop: the update, the build of the draw list and the draw side's own loops,
+with the FFI calls stubbed out. The rule that came out of the 2026-10-03 device
+pass is a target of **about 0.30 ms** for that figure.
+
+That number is empirical. It is not the 16.7 ms of a frame divided by the
+laptop-to-phone factor, because that arithmetic gives 0.50 ms and 0.50 ms did
+not hold 60 fps. The factor itself is about 33: the phone runs scene code about
+33 times slower than jolt on the laptop. It was measured by timing wavecubes and
+pointcloud on both, and it is rough, since the two scenes spend their time
+differently. The 0.30 ms leaves about 6.8 ms of the frame for the host and the
+GPU.
+
+These are the readings that pass produced. Each phone figure is from three idle
+readings:
+
+| scene | laptop ms (bench) | phone fps |
+| --- | --- | --- |
+| voxel, start view, before its fixes | 0.38 | 57 |
+| voxel, corner, before its fixes | 0.56 | 32 |
+| 3D split screen, start, before its speed-up | 0.527 | 40 to 41 |
+| bouncing spheres (6 by 8 builds) | 0.39 | 60 |
+| geometric shapes, cached steady state (draw stubbed) | 0.36 | 59 to 60 |
+| fog of war | 0.30 | 59 to 60 |
+| voxel after its fixes | 0.20 and 0.30 | 59 |
+
+Read it in three bands. At about 0.30 ms and under, scenes held 59 to 60 fps.
+The edge, 0.36 to 0.39 ms, measured 57 to 60. From 0.5 ms up, scenes fell to 32
+to 41. So 0.30 is the line to aim at, but it is not a cliff, and 0.45 ms, the
+figure earlier ports were sized against, is past the edge.
+
+One caveat limits all of this. Each bench stubs a different share of the draw
+side. Geometric shapes' 0.36 ms is mostly a stubbed `draw-3d!` loop and it still
+held 59 to 60 fps, while voxel at 0.38 ms read 57. A laptop
+figure within about 20% of the line, so from 0.24 to 0.36 ms, is a reason to
+measure on the phone and not a verdict either way.
 
 ## How these were measured
 

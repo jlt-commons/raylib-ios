@@ -7,7 +7,7 @@ not to be true.
 ## Before anything
 
 ```sh
-clojure -M:test     # 72 tests, no device needed
+clojure -M:test     # no device needed; 1045 tests on 2026-10-03
 clj-kondo --lint src test
 ```
 

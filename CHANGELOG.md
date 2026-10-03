@@ -2,6 +2,50 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-10-03
+
+### Added
+
+- **Eight more scenes, a hundred and twenty-two in all.** Toys now holds
+  ninety-eight. Blend Modes and Particles Blending, Billboard Rendering and
+  Directional Billboard, Textured Cube, Geometric Shapes, Basic Voxel and the
+  Doom-like Raycaster come from examples that used blend modes, textures or
+  models, and each draws flat shapes instead. Basic Voxel adds a place mode the
+  original lacks. The Doom-like Raycaster casts 180 columns where the original
+  casts 450.
+- **Blend bindings.** `BeginBlendMode` and `EndBlendMode`, the first of their
+  kind here. Both blend scenes end the mode in a `finally`, so a throw in the
+  draw cannot leave the blend on.
+- **`soft3d` builders.** `billboard`, `cylinder`, `cylinder-wires`, `capsule` and
+  `capsule-wires`, each following the matching raylib models code, and a flat
+  shade for `sphere`.
+- **The gallery caches two draw lists.** Geometric Shapes builds its list once per
+  screen, and 3D Split Screen caches its list, keyed on the scene state rather than the
+  screen.
+
+### Changed
+
+- **3D Split Screen is faster.** It draws the same picture with a quicker cube
+  builder that matches `soft3d/cube` item for item, and a test holds the two
+  together.
+- **The smoke test runs every scene's `draw-scene!`.** It used to run the pure
+  update and draw for 120 frames and the draw method for Doom alone. Now every
+  draw method runs over stubbed raylib with each argument's type checked against
+  its FFI signature, and the blend calls must balance on every frame.
+- **NOTICE names the Doom-like Raycaster and Pac-Man** among the files ported
+  from babashka/ffi.
+- **The phone budget is restated from the device.** A scene is sized to about
+  0.30 ms on the laptop (update, build and the draw side's loops, under jolt),
+  where earlier entries said 0.45. The 2026-10-03 pass read 0.36 to 0.39 ms at 57
+  to 60 fps and 0.5 ms and over at 32 to 41. The performance guide has a section
+  on it, and the catalog and docstrings quote the new figure. Seventeen
+  empty fps cells are filled, 120 in all.
+
+### Found
+
+- Basic Voxel measured 32 fps at 0.56 ms and 57 at 0.38 on the phone before
+  its fixes, which is where the new line was drawn. After them it reads 59.
+
 ## 2026-10-02
 
 ### Added

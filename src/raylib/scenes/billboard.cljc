@@ -37,7 +37,8 @@
   they replace, by the corners, and they visibly turn with the spin where the
   original's circles show no turning at all (only its blue square's edge does).
   Discs built of strips through `:part` measured 0.62 ms a frame on the laptop,
-  over the 0.45 ms budget, so they are not used.
+  over the 0.30 ms target (the performance guide's \"Sizing a scene on the
+  laptop\"), so they are not used.
 
   Each billboard's parts are coplanar and painted back to front, and the two
   billboards are on parallel planes, both perpendicular to the view axis, so

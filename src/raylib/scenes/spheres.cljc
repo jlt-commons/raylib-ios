@@ -32,9 +32,11 @@
   The original tessellates each at 10 rings by 14 slices, 140 quads, 280
   triangles, 122 of which face the camera for a ball at the origin. This scene
   draws 6 rings by 8 slices, 48 quads, because the original's tessellation
-  built in 0.89 ms a frame under jolt on the laptop and the phone's budget is
-  0.45 (a build is about 33 times slower there). 6 by 8 builds in about 0.39 ms
-  with about 240 triangles facing the camera. The sphere count, the radii and
+  built in 0.89 ms a frame under jolt on the laptop, and a scene is sized to
+  about 0.30 ms there (the performance guide's \"Sizing a scene on the laptop\":
+  a build is about 33 times slower on the phone). 6 by 8 builds in about 0.39 ms
+  with about 240 triangles facing the camera, which is inside the edge of that
+  rule and held 60 fps on the phone. The sphere count, the radii and
   the physics are the original's. The grid goes in first, then the balls in
   groups, far to near by the distance of each group's mean centre from the eye.
   A ball whose sphere touches no other

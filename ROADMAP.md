@@ -5,11 +5,11 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 116 of
-them are in the gallery as of 2026-10-02, which leaves 71. That counts
-examples and not scenes: the gallery has 111 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 124 of
+them are in the gallery as of 2026-10-03, which leaves 63. That counts
+examples and not scenes: the gallery has 119 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 111 + 2 + 3 = 116. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 119 + 2 + 3 = 124. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
@@ -18,37 +18,58 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (71).** The 2026-10-02 triage sorted the then 95 unported
+**Blocked for now (63).** The 2026-10-02 triage sorted the then 95 unported
 examples by what a port would need. About 32 could be rebuilt with what is
-already bound, and batches 9 to 12 ported 24 of them, so 8 remain. Two more need
-only a pair of scalar blend-mode bindings. The other 61 need something the
-project doesn't bind or the phone doesn't have: shaders, texture and image
-pipelines, 3D models and meshes, desktop windowing, the keyboard, gamepad or
-clipboard, files, or audio. These remain rewrite-ready:
+already bound, and batches 9 to 13 ported 30 of them, so 2 remain. Two more
+needed only a pair of scalar blend-mode bindings, and batch 13 added them. The
+other 61 need something the project doesn't bind or the phone doesn't have:
+shaders, texture and image pipelines, 3D models and meshes, desktop windowing,
+the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 61 = 63. These
+remain rewrite-ready:
 
-- 3D, projected in software: `dna_helix`, `geometric_shapes` and
-  `basic_voxel`. A faithful `dna_helix` built in 12.7 ms on the laptop, about 28
-  times the phone's 0.45 ms budget, so it waits for a rewrite that draws far less.
-- Textures drawn as primitives: `billboard_rendering`,
-  `directional_billboard` and `textured_cube`.
-- Other: `doom` and `reasings`.
-- `blend_modes` and `particles_blending`, which need `BeginBlendMode` and
-  `EndBlendMode`, two scalar bindings.
+- 3D, projected in software: `dna_helix`. A faithful one built in 12.7 ms on
+  the laptop, about 42 times the 0.30 ms a scene is sized to there, so it waits
+  for a rewrite that draws far less.
+- `reasings` is already ported: it is the easing header, and `raylib.easings`
+  carries it, so no scene is left to add for it.
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 3365 lines and grows
+- **Split the drawing out of `raylib.gallery`.** It is 4235 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
-  could move to their own namespace.
+  could move to their own namespace. The file now has 47 `*-cache` atoms with
+  the same eight-line body, so a `memo-last` helper belongs in the same split.
+  The two newest caches hold a whole draw list (`geoshapes-cache` and
+  `split3d-list-cache`), so under `DEV_BUILD=1` a redefined `scene-list` or
+  soft3d builder does not show until the screen or a player changes. Clearing
+  both when a scene opens would fix that.
 - **Lift the virtual window into `raylib.vwindow`.** Viewport Scaling and
   Window Letterbox carry the same `window`, `handle`, `clamp`, start geometry
   and drag step, about 55 lines each. A pure `.cljc` next to `raylib.stick`
   would hold `window`, `handle`, `clamp`, the start geometry and `drag-step`,
   with Viewport Scaling passing its button claim in. It takes about an hour and
   is worth doing when a third scene would use it.
-- **Rebalance the categories.** Toys holds 90 of the 114 scenes, and Games has 11, so a scroll
+- **Rebalance the categories.** Toys holds 98 of the 122 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
+- **Add a batch `soft3d/cubes` builder.** 3D Split Screen carries `flat-cubes`,
+  a 100-line unrolled copy of `soft3d/cube {:shade :flat}` that tests hold to the
+  live builder. A builder that takes many cubes (shared matrix destructuring, no
+  scratch array) could serve it, Basic Voxel's unit-face fallback and any future
+  grove scene, and then `flat-cubes` goes.
+- **Share the corners of a billboard.** A `soft3d/billboard-parts` that works out
+  the corners once for a billboard and derives its parts from them would make the
+  ring of discs in Billboard Rendering affordable (0.62 ms as strips today,
+  against a target of 0.30) and make Directional Billboard cheaper.
+- **Extract `call-blended!` into `raylib.blend`** when a third blend scene
+  arrives. Blend Modes and Particles Blending each carry the same six lines and a
+  test for them, and none is planned yet.
+- **Pick the Basic Voxel axis at an edge.** A place at an edge or corner hit
+  chooses an arbitrary axis from `max-key` over a tied normal.
+- **Tighten some tests, each optional.** The capsule sphere case checks only
+  counts, Directional Billboard's grid-behind claim is untested, 3D Split Screen's
+  `tol` and near-plane `>=` mutants survive, and the text-fit tests use a
+  synthetic measure across the project.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
   `tools/ios/proxy.sh` default to 7888. `proxy.sh` already refuses a busy port,
   but it asks `lsof` rather than attempting the bind, writes no port file, and
@@ -101,15 +122,14 @@ clipboard, files, or audio. These remain rewrite-ready:
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
-- **Time the eleven new scenes on the phone.** The four of batch 11,
-  First-Person Camera, First-Person Maze, 3D Split Screen and Bouncing Spheres,
-  and the seven of batch 12, Bunnymark, Background Scrolling, Sprite Stacking,
-  Smooth Pixel-Perfect, Viewport Scaling, Window Letterbox and Fog of War, have
-  not run on a device, so their fps cells are empty. On the laptop Split Screen
-  and Bouncing Spheres sit at the 0.45 ms budget, and a First-Person Maze
-  corridor can run over it, so walk a long one. Fog of War is the one to watch,
-  since its 0.30 ms leaves out about 3000 FFI calls, and the performance guide
-  has 2400 calls holding 57 to 59 fps. Bunnymark is a stress test by design.
+- **Finish the device pass on batch 13.** Time Doom-like Raycaster, which has
+  4 percent headroom at 180 columns on the laptop, where 160 gives 11 percent.
+  Re-time 3D Split Screen after its speed-up, idle and with both thumbs moving;
+  it read 40 to 41 fps and then 45 to 47 before it. Time Basic Voxel with the
+  block hollowed and feel the tap hitch: the mesh rebuild is 5 to 7 ms on the
+  laptop, so an estimate of 150 to 230 ms on the phone at the rough 33x. Check the
+  four blend modes by eye under GLES2, since only their frame rates are
+  recorded, not the look.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -121,6 +141,13 @@ clipboard, files, or audio. These remain rewrite-ready:
 
 ## Done
 
+- 2026-10-03: batch 13 closed, with eight Toys scenes, `blendmodes`,
+  `blendparticles`, `billboard`, `dirbillboard`, `texcube`, `geoshapes`, `voxel`
+  and `doom`, which make a hundred and twenty-two scenes and give Toys ninety-eight.
+  They add `BeginBlendMode` and `EndBlendMode` and the soft3d `billboard`,
+  `cylinder` and `capsule` builders, and 3D Split Screen got faster. A device pass
+  read 120 scenes at 52 to 60 fps. Doom-like Raycaster and 3D Split Screen await
+  a reading.
 - 2026-10-02: batch 12 closed, with seven Toys scenes drawn without textures,
   `bunnymark`, `bgscroll`, `spritestack`, `pixelperfect`, `vpscaling`,
   `letterbox` and `fogofwar`, which make a hundred and fourteen scenes and give

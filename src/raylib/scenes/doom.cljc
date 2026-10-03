@@ -32,7 +32,8 @@
   - **Columns: 180, the original's 450.** The phone runs scene code about 33
     times slower than jolt on the laptop, and on the laptop a frame has to take
     about 0.30 ms under jolt (the update, the build and the draw side's loops
-    with the FFI stubbed) to hold 60 fps. 180 is the largest of the counts
+    with the FFI stubbed) to hold 60 fps. That 0.30 is empirical, from the
+    2026-10-03 device pass, and not 16.7 ms divided by 33, which is 0.50. 180 is the largest of the counts
     measured (100, 160, 180 and 200) whose worst pose fits. At
     1206 pixels wide a column is 6.7 pixels, where the original's 450 are 2.7.
     Measured under jolt on the laptop: 0.20 ms from the start, 0.29 ms at the
