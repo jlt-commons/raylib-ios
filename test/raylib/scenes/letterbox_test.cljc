@@ -89,7 +89,15 @@
     (testing "a touch in a bar maps outside the scene, as the original's mouse does"
       (is (= [-40 180] (at 800 450 50 225))))
     (testing "the cast truncates toward zero, so just left of the picture is still pixel 0"
-      (is (= [0 0] (at 800 450 99.5 0)))))
+      (is (= [0 0] (at 800 450 99.5 0))))
+    (testing "truncation and rounding differ at a fraction of 0.5 or more, in both signs (s 1.25, offset 100)"
+      ;; (int (/ (- mouse offset) s)): 0.9 / 1.25 = 0.72 -> 0 (rounds to 1),
+      ;; -0.9 / 1.25 = -0.72 -> 0 (rounds to -1), 1.9 / 1.25 = 1.52 -> 1 (rounds to 2),
+      ;; -1.9 / 1.25 = -1.52 -> -1 (rounds to -2); y has offset 0.
+      (is (= [0 0] (at 800 450 100.9 0.9)))
+      (is (= [0 0] (at 800 450 99.1 -0.9)))
+      (is (= [1 1] (at 800 450 101.9 1.9)))
+      (is (= [-1 -1] (at 800 450 98.1 -1.9)))))
   (testing "a press puts the crosshair at the last :down, never the :release position"
     (let [[ox oy] (:origin d)
           s (-> (assoc start :win [800 450])
@@ -216,3 +224,23 @@
   (testing "the picture's own text fits the 480 by 360 scene"
     (doseq [{:keys [s x size]} (:texts (lb/picture start nil))]
       (is (<= (+ x (measure s size)) 480) s))))
+
+(deftest the-crosshair-guard-includes-the-picture-edges
+  ;; The original draws the crosshair when (<= 0 mx VW) and (<= 0 my VH), both ends in.
+  (let [[ox oy] (:origin d)
+        s (assoc start :win [800 450])
+        cross (fn [x y] (:cross (lb/plan (assoc s :mouse [(+ ox x) (+ oy y)]) d)))]
+    (is (= [0 0] (cross 100 0)) "mx = 0 and my = 0 are on the picture")
+    (is (= [480 360] (cross 700 450)) "mx = 480 and my = 360 are on the picture")
+    (is (= [480 0] (cross 700 0)))
+    (is (= [0 360] (cross 100 450)))
+    (is (nil? (cross 701.25 225)) "mx = 481 is off")
+    (is (nil? (cross 400 451.25)) "my = 361 is off")
+    (is (nil? (cross 98.75 225)) "mx = -1 is off")
+    (is (nil? (cross 400 -1.25)) "my = -1 is off")))
+
+(deftest the-circle-truncates-its-swing
+  ;; (int (+ 240 (* 90 (sin t)))): t = 1 gives 315.73 and t = 4 gives 171.89, which
+  ;; truncate to 315 and 171 where rounding would give 316 and 172.
+  (is (= 315 (:x (:circle (lb/picture (assoc start :t 1.0) nil)))))
+  (is (= 171 (:x (:circle (lb/picture (assoc start :t 4.0) nil))))))

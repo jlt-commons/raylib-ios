@@ -49,7 +49,7 @@
 
   `:t` is the sum of `:delta-seconds`, the original's `get-time`, unclamped. The
   state holds numbers, keywords and vectors of numbers only: `:win`, `:t`,
-  `:mouse` in field pixels, `:grab` and its offset, `:screen` and the `:gesture`.
+  `:mouse` in field pixels, `:grab` and its offset and `:screen`.
   Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]))
 
@@ -254,7 +254,7 @@
 (defn- clamp [lo hi v] (max lo (min hi v)))
 
 (defn- fresh
-  "`state` with the window, the crosshair, the drag and the gesture back at their
+  "`state` with the window, the crosshair and the drag back at their
   start for `metrics`. A rotation of the phone does this, since the old window
   was sized for the old field."
   [state metrics]
@@ -266,8 +266,7 @@
            :win [ow oh]
            :mouse [(+ ox (* 0.5 ow)) (+ oy (* 0.5 oh))]
            :grab nil
-           :grab-off [0.0 0.0]
-           :gesture gesture/idle)))
+           :grab-off [0.0 0.0])))
 
 (defn advance
   "One frame. `:t` adds `:delta-seconds`. A press on the handle starts a drag,

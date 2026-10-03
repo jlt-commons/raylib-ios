@@ -296,12 +296,12 @@
          :as r} (rects (:vtype state) w h gw gh)
         src-w (:sw r)
         src-h (- (:sh r))
-        empty? (or (<= dw 0.0) (<= dh 0.0) (<= src-w 0.0) (<= src-h 0.0))
-        pt (when-not empty? (game-point state dims (:mouse state)))]
+        no-picture? (or (<= dw 0.0) (<= dh 0.0) (<= src-w 0.0) (<= src-h 0.0))
+        pt (when-not no-picture? (game-point state dims (:mouse state)))]
     {:rects r
      :source [src-w src-h]
-     :dest (when-not empty? [(+ ox dx) (+ oy dy) dw dh])
-     :scale (if empty? [0.0 0.0] [(/ dw src-w) (/ dh src-h)])
+     :dest (when-not no-picture? [(+ ox dx) (+ oy dy) dw dh])
+     :scale (if no-picture? [0.0 0.0] [(/ dw src-w) (/ dh src-h)])
      :circle (when pt [(long (first pt)) (long (second pt))])}))
 
 (defn readouts

@@ -385,3 +385,19 @@
         (is (<= (+ fy fh) h))
         (is (<= (+ fx fw) w))
         (is (<= (first (:origin dims)) fw))))))
+
+(deftest keep-width-centres-vertically
+  ;; The original on 801 by 450 with the 64 by 64 game, run through its own
+  ;; compute-rects: rr 12.515625, srch 35, dy (450 - 438.05) / 2 = 5, dh 438.
+  (doseq [v [2 5]
+          :let [r (vp/rects v 801 450 64 64)]]
+    (is (= [64.0 -35.0 0.0 5.0 801.0 438.0] ((juxt :sw :sh :dx :dy :dw :dh) r)) (str "policy " v))))
+
+(deftest the-invalid-threshold-is-one-thousandth
+  ;; Not reachable by dragging (the smallest window is 96 pixels), so the state is
+  ;; built directly. 4K game, policy 3: 3 by 2 gives dw 3 and dh 1, ratios 0.00078
+  ;; and 0.00046, under 0.001. 8 by 5 gives dw 8 and dh 4, ratios 0.0021 and 0.0019.
+  (let [dims (vp/dimensions m measure)
+        scale-line (fn [w h] (:s (nth (vp/readouts (with-game 3 3 w h) dims) 3)))]
+    (is (= "Scale ratio: INVALID" (scale-line 3 2)))
+    (is (= "Scale ratio: 0.00 x 0.00" (scale-line 8 5)))))
