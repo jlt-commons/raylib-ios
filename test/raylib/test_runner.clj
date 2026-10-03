@@ -142,6 +142,7 @@
                      raylib.scenes.pixelperfect-test
                      raylib.scenes.vpscaling-test
                      raylib.scenes.letterbox-test
+                     raylib.scenes.fogofwar-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test
