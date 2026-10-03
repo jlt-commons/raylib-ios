@@ -120,6 +120,7 @@
             [raylib.scenes.survivors :as surv]
             [raylib.scenes.tesseract :as tess]
             [raylib.scenes.tetris :as tet]
+            [raylib.scenes.texcube :as texcube]
             [raylib.scenes.touchball :as tball]
             [raylib.scenes.tree :as tree]
             [raylib.scenes.undoredo :as undoredo]
@@ -166,7 +167,7 @@
              (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
              (blendmodes/scene) (blendparticles/scene)
-             (billboard/scene) (dirbillboard/scene)])
+             (billboard/scene) (dirbillboard/scene) (texcube/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -203,7 +204,7 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard]}
+             :blendmodes :blendparticles :billboard :dirbillboard :texcube]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4049,6 +4050,27 @@
     (draw-in-field! safe (:viewport dims)
                     (fn [] (rl/draw-3d! (dirbillboard/scene-list state dims))))
     (rl/draw-text s (int x) (int y) (int size) (rl/rgba r g b a))))
+
+(def ^:private texcube-dims-cache
+  "The last `[screen dims]` for `:texcube`. The layout and the caption size
+  depend on the screen alone."
+  (atom nil))
+
+(defn- texcube-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @texcube-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (texcube/dimensions m host-measure)]
+        (reset! texcube-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :texcube [_ state {:keys [m safe]}]
+  (clear-to! texcube/background-colour)
+  (let [dims (texcube-dims m)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn [] (rl/draw-3d! (texcube/scene-list state dims))))
+    (draw-caption! (:caption dims) texcube/caption-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

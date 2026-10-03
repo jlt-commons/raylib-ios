@@ -147,6 +147,7 @@
                      raylib.scenes.blendparticles-test
                      raylib.scenes.billboard-test
                      raylib.scenes.dirbillboard-test
+                     raylib.scenes.texcube-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test
