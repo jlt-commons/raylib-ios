@@ -140,6 +140,8 @@
                      raylib.scenes.bgscroll-test
                      raylib.scenes.spritestack-test
                      raylib.scenes.pixelperfect-test
+                     raylib.scenes.vpscaling-test
+                     raylib.scenes.letterbox-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

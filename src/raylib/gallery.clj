@@ -65,6 +65,7 @@
             [raylib.scenes.inlinestyle :as istyle]
             [raylib.scenes.invaders :as inv]
             [raylib.scenes.kaleidoscope :as kal]
+            [raylib.scenes.letterbox :as letterbox]
             [raylib.scenes.life :as life]
             [raylib.scenes.logo :as still-logo]
             [raylib.scenes.logoanim :as logoanim]
@@ -120,6 +121,7 @@
             [raylib.scenes.unitcircle :as circle]
             [raylib.scenes.vecangle :as vang]
             [raylib.scenes.virtualpad :as vpad]
+            [raylib.scenes.vpscaling :as vpscaling]
             [raylib.scenes.wavecubes :as wavecubes]
             [raylib.scenes.wheelbox :as wbox]
             [raylib.scenes.wireframes :as wireframes]
@@ -156,7 +158,8 @@
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
              (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
-             (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)])
+             (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
+             (vpscaling/scene) (letterbox/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -192,7 +195,7 @@
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
-             :bunnymark :bgscroll :spritestack :pixelperfect]}
+             :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3694,6 +3697,124 @@
     (text (assoc line-d :s (pixelperfect/fps-line (rl/get-fps))) pixelperfect/fps-colour)
     (button (:smooth-button dims) (:smooth-label dims) (:smooth? state))
     (button (:overscan-button dims) (:overscan-label dims) (:overscan? state))))
+
+(def ^:private vpscaling-dims-cache
+  "The last `[screen dims]` for `:vpscaling`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- vpscaling-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @vpscaling-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (vpscaling/dimensions m host-measure)]
+        (reset! vpscaling-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :vpscaling [_ state {:keys [m safe]}]
+  (clear-to! vpscaling/background-colour)
+  (let [dims (vpscaling-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        text (fn [{:keys [s x y size]} colour]
+               (rl/draw-text s (int x) (int y) (int size) (pack colour)))
+        [wx wy ww wh] (vpscaling/window state dims)
+        {:keys [dest source scale circle]} (vpscaling/plan state dims)
+        [hx hy hw hh] (vpscaling/handle state dims)]
+    (rl/draw-rectangle (int (- wx 2)) (int (- wy 2)) (int (+ ww 4)) (int (+ wh 4))
+                       (pack vpscaling/frame-colour))
+    (rl/draw-rectangle (int wx) (int wy) (int ww) (int wh) (pack vpscaling/window-colour))
+    (when dest
+      (let [[dx dy dw dh] dest
+            [src-w src-h] source
+            [kx ky] scale]
+        ;; BeginScissorMode takes screen pixels, so the destination is moved by
+        ;; the safe region's corner, and the safe region's own scissor is put
+        ;; back afterwards because scissor does not nest. This is the render
+        ;; texture's edge. The push, translate and scale stand in for the blit.
+        (rl/begin-scissor-mode (int (+ (:x safe) dx)) (int (+ (:y safe) dy)) (int dw) (int dh))
+        (try
+          (rl/rl-push-matrix)
+          (try
+            (rl/rl-translatef (double dx) (double dy) 0.0)
+            (rl/rl-scalef (double kx) (double ky) 1.0)
+            (rl/draw-rectangle 0 0 (int src-w) (int src-h) (pack vpscaling/game-colour))
+            (when circle
+              (rl/draw-circle (int (first circle)) (int (second circle)) vpscaling/ball-radius
+                              (pack vpscaling/ball-colour)))
+            (finally (rl/rl-pop-matrix)))
+          (finally
+            (rl/end-scissor-mode)
+            (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe))))))
+    (rl/draw-rectangle (int hx) (int hy) (int hw) (int hh) (pack vpscaling/handle-colour))
+    (let [core (* 0.5 hw)]
+      (rl/draw-rectangle (int (+ hx core)) (int (+ hy core)) (int core) (int core)
+                         (pack vpscaling/handle-core-colour)))
+    (doseq [k [:res-prev :res-next :type-prev :type-next]
+            :let [[bx by bw bh] (k dims)]]
+      (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack vpscaling/button-colour))
+      (text (get-in dims [:arrows k]) vpscaling/button-label-colour))
+    (doseq [line (vpscaling/readouts state dims)]
+      (text line vpscaling/text-colour))))
+
+(def ^:private letterbox-dims-cache
+  "The last `[screen dims]` for `:letterbox`. Its text size needs a measure,
+  which depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- letterbox-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @letterbox-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (letterbox/dimensions m host-measure)]
+        (reset! letterbox-dims-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :letterbox [_ state {:keys [m safe]}]
+  (clear-to! letterbox/background-colour)
+  (let [dims (letterbox-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        [wx wy ww wh] (letterbox/window state dims)
+        {:keys [blit scale cross]} (letterbox/plan state dims)
+        [bx by bw bh] blit
+        [kx ky] scale
+        pic (letterbox/picture state cross)
+        [hx hy hw hh] (letterbox/handle state dims)]
+    (rl/draw-rectangle (int (- wx 2)) (int (- wy 2)) (int (+ ww 4)) (int (+ wh 4))
+                       (pack letterbox/frame-colour))
+    (rl/draw-rectangle (int wx) (int wy) (int ww) (int wh) (pack letterbox/window-colour))
+    ;; BeginScissorMode takes screen pixels, so the blit is moved by the safe
+    ;; region's corner, and the safe region's own scissor is put back afterwards
+    ;; because scissor does not nest. This is the render texture's edge. The
+    ;; picture is drawn in its own 480 by 360 units under a push, translate and
+    ;; scale, which is the blit.
+    (when (and (pos? bw) (pos? bh))
+      (rl/begin-scissor-mode (int (+ (:x safe) bx)) (int (+ (:y safe) by)) (int bw) (int bh))
+      (try
+        (rl/rl-push-matrix)
+        (try
+          (rl/rl-translatef (double bx) (double by) 0.0)
+          (rl/rl-scalef (double kx) (double ky) 1.0)
+          (rl/draw-rectangle 0 0 (:w pic) (:h pic) (pack (:clear pic)))
+          (doseq [{:keys [x y w h colour]} (:blocks pic)]
+            (rl/draw-rectangle x y w h (pack colour)))
+          (let [{:keys [x y radius colour]} (:circle pic)]
+            (rl/draw-circle x y (double radius) (pack colour)))
+          (doseq [{:keys [s x y size colour]} (:texts pic)]
+            (rl/draw-text s x y size (pack colour)))
+          (doseq [[x1 y1 x2 y2] (:cross-lines pic)]
+            (rl/draw-line-ex x1 y1 x2 y2 1.0 (pack letterbox/cross-colour)))
+          (finally (rl/rl-pop-matrix)))
+        (finally
+          (rl/end-scissor-mode)
+          (rl/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe)))))
+    (rl/draw-rectangle (int hx) (int hy) (int hw) (int hh) (pack letterbox/handle-colour))
+    (let [core (* 0.5 hw)]
+      (rl/draw-rectangle (int (+ hx core)) (int (+ hy core)) (int core) (int core)
+                         (pack letterbox/handle-core-colour)))
+    (doseq [{:keys [s x y size colour]} (letterbox/readouts state dims)]
+      (rl/draw-text s (int x) (int y) (int size) (pack colour)))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
