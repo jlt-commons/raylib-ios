@@ -3833,10 +3833,6 @@
         (reset! fogofwar-dims-cache [screen dims])
         dims))))
 
-(def ^:private fog-black
-  "Black at every alpha, packed once: the fog's corners are these 256 colours."
-  (mapv #(rl/rgba 0 0 0 %) (range 256)))
-
 (defmethod draw-scene! :fogofwar [_ state {:keys [m]}]
   (clear-to! fogofwar/background-colour)
   (let [{:keys [scale ox oy tile-line hint-line]} (fogofwar-dims m)
@@ -3879,20 +3875,15 @@
     (let [size (* scale fogofwar/player)]
       (rl/draw-rectangle (int (+ ox (* scale (:px state)))) (int (+ oy (* scale (:py state))))
                          (int size) (int size) (pack fogofwar/player-colour)))
-    ;; The fog: one gradient quad a tile, each corner the mean of the four tiles
-    ;; that meet there, standing in for the 25 by 15 render texture the original
-    ;; stretches with a bilinear filter.
-    (let [alphas (fogofwar/corner-alphas (:fog state))]
-      (dotimes [y ny]
-        (let [y0 (+ oy (* y unit))]
-          (dotimes [x nx]
-            (let [[tl tr br bl] (fogofwar/tile-corners alphas x y)]
-              ;; A tile whose four corners are clear draws nothing, so skipping
-              ;; it changes no pixel.
-              (when-not (and (zero? tl) (zero? tr) (zero? br) (zero? bl))
-                (rl/draw-gradient-quad (+ ox (* x unit)) y0 unit unit
-                                       (nth fog-black tl) (nth fog-black tr)
-                                       (nth fog-black br) (nth fog-black bl))))))))
+    ;; The fog: a quad a tile, each corner the mean of the four tiles that meet
+    ;; there, standing in for the 25 by 15 render texture the original stretches
+    ;; with a bilinear filter. All 375 go in one rlgl batch of triangles, on the
+    ;; fills' own whole-pixel edges, with the colour set only when it changes.
+    (rl/rl-begin rl/RL-TRIANGLES)
+    (fogofwar/emit-fog! (fogofwar/corner-alphas (:fog state)) xs ys
+                        (fn [a] (rl/rl-color-4ub 0 0 0 a))
+                        (fn [x y] (rl/rl-vertex-2f (double x) (double y))))
+    (rl/rl-end)
     (let [text-c (pack fogofwar/text-colour)]
       (rl/draw-text (fogofwar/tile-text state) (int (:x tile-line)) (int (:y tile-line))
                     (int (:size tile-line)) text-c)

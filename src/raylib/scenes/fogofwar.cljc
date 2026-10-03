@@ -11,14 +11,14 @@
   player's tile is `(int (/ (+ x 16) 32))` (`tile-of`, lines 42-45). The loops
   there run over `(range (- t 2) (+ t 2))`, which is t-2 to t+1: four tiles a
   side with one more behind than ahead, kept as it is. An unexplored tile is
-  black, a remembered one is black at alpha 204, a lit one is clear (lines
+  black, a remembered one is black at alpha 204 in the texture, which it stores as 163, a lit one is clear (lines
   104-112), and the text, at (10, 10) and 25 above the window's bottom, is drawn
   last in RAYWHITE (lines 139-148).
 
   The original draws the fog into a render texture ONE PIXEL PER TILE and
   stretches it over the map, so the bilinear filter softens the edges. That
-  texture is not bound here. Each tile is instead one gradient quad
-  (`raylib.host/draw-gradient-quad`) whose four corners carry an alpha, and a
+  texture is not bound here. Each tile is instead one quad, in the
+  vertex order of `raylib.host/draw-gradient-quad`, whose four corners carry an alpha, and a
   corner's alpha is the mean of the four tiles that meet at it
   (`corner-alpha`), rounded to a whole alpha. Off the map's edge the texture's
   CLAMP wrap repeats the edge tile, so a corner on the border averages the tiles
@@ -27,9 +27,13 @@
   centre to centre, where the quads are exact at tile CORNERS and blend across
   each tile. A lit tile among dark ones therefore fades out within its own
   square in the original and across the corners around it here, so the clear
-  patch looks about half a tile smaller at its edge. The corner-averaged colour
-  is still a bilinear surface, just sampled one half tile over. Nothing else
-  about the fog changes.
+  patch looks about half a tile smaller at its edge. Each quad is two
+  triangles sharing the top-left to bottom-right edge, so it blends linearly
+  across each triangle where a texture blends bilinearly; the two differ only
+  where a tile's corners form a saddle. The remembered alpha is 163, not the 204
+  the original draws (see `tile-alpha`). `emit-fog!` hands all the quads to the
+  draw method as one batch of triangles, on the same whole-pixel tile edges as
+  the tile fills, so they cover them exactly.
 
   The original's keys, and what stands in for each:
   - The four arrow keys add and subtract SPEED 5 a frame on x and y (lines
@@ -123,12 +127,18 @@
             [x y])))
 
 (defn tile-alpha
-  "The alpha of the fog over a tile in state `v`: 255 unexplored, 204
-  remembered, 0 lit (lines 104-112)."
+  "The alpha the fog over a tile has: 255 unexplored, 163 remembered, 0 lit.
+  The original draws 204 for a remembered tile, but into a render texture it
+  first clears to (0, 0, 0, 0) (fog_of_war.clj line 98), under raylib's default
+  blend, `rlSetBlendMode` RL_BLEND_ALPHA in rlgl.h (lines 2143-2152), which is
+  `glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)` for the alpha channel
+  too. The alpha stored is then 204 * 204 / 255 + 0 * (1 - 204 / 255) = 163.2,
+  and the texture's draw (lines 133-138) uses that. Unexplored 255 stores
+  255 * 255 / 255 = 255 and lit is never drawn (lines 104-112)."
   [v]
   (case (long v)
     0 255
-    2 204
+    2 163
     0))
 
 (defn corner-alpha
@@ -146,28 +156,46 @@
 (defn corner-alphas
   "`corner-alpha` for every corner, row by row, 26 by 16 of them."
   [fog]
-  (let [alphas (mapv tile-alpha fog)
-        a (fn [x y] (nth alphas (+ x (* y tiles-x))))]
-    (into []
-          (for [cy (range (inc tiles-y))
-                cx (range (inc tiles-x))
-                :let [x0 (max 0 (dec cx))
-                      x1 (min (dec tiles-x) cx)
-                      y0 (max 0 (dec cy))
-                      y1 (min (dec tiles-y) cy)]]
-            (long (+ 0.5 (/ (+ (a x0 y0) (a x1 y0) (a x0 y1) (a x1 y1)) 4.0)))))))
+  (loop [i 0 out (transient [])]
+    (if (< i (* (inc tiles-x) (inc tiles-y)))
+      (recur (inc i) (conj! out (corner-alpha fog (rem i (inc tiles-x)) (quot i (inc tiles-x)))))
+      (persistent! out))))
 
-(defn tile-corners
-  "The alphas at tile `x` `y`'s four corners in `alphas` (`corner-alphas`), as
-  `[top-left top-right bottom-right bottom-left]`, the order
-  `raylib.host/draw-gradient-quad` takes."
-  [alphas x y]
+(defn emit-fog!
+  "Hand the fog to `colour!` and `vertex!` as one batch of triangles: for each
+  tile, row by row, six vertices in the order of `raylib.host/draw-gradient-quad`
+  (top-left, bottom-right, top-right, then top-left, bottom-left, bottom-right),
+  which wind so rlgl does not cull them. `alphas` is `corner-alphas`, `xs` and
+  `ys` are the tile edges in pixels (26 and 16 of them), `(colour! alpha)` sets
+  black at that alpha and is called only when the alpha differs from the one
+  last set, and `(vertex! x y)` places a vertex. A tile whose four corners are
+  clear is skipped, since it draws nothing."
+  [alphas xs ys colour! vertex!]
   (let [stride (inc tiles-x)
-        i (+ x (* y stride))]
-    [(nth alphas i)
-     (nth alphas (inc i))
-     (nth alphas (+ i stride 1))
-     (nth alphas (+ i stride))]))
+        last-alpha (volatile! -1)
+        put! (fn [a x y]
+               (when (not= a @last-alpha)
+                 (vreset! last-alpha a)
+                 (colour! a))
+               (vertex! x y))]
+    (dotimes [ty tiles-y]
+      (let [y0 (nth ys ty)
+            y1 (nth ys (inc ty))]
+        (dotimes [tx tiles-x]
+          (let [i (+ tx (* ty stride))
+                tl (nth alphas i)
+                tr (nth alphas (inc i))
+                br (nth alphas (+ i stride 1))
+                bl (nth alphas (+ i stride))]
+            (when-not (and (zero? tl) (zero? tr) (zero? br) (zero? bl))
+              (let [x0 (nth xs tx)
+                    x1 (nth xs (inc tx))]
+                (put! tl x0 y0)
+                (put! br x1 y1)
+                (put! tr x1 y0)
+                (put! tl x0 y0)
+                (put! bl x0 y1)
+                (put! br x1 y1)))))))))
 
 ;; --- the tile shades ----------------------------------------------------------
 
@@ -340,3 +368,4 @@
    :update update-scene
    :draw draw
    :dispose dispose})
+

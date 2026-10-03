@@ -109,8 +109,13 @@
       (is (= 1 (tile-state fg (first (fog/tile-of (:px moved) (:py moved)))
                            (second (fog/tile-of (:px moved) (:py moved))))))
       (is (= 0 (count (filter #{3} fg))) "no other state is ever stored")))
-  (testing "alphas: unexplored 255 (black), remembered 204, lit 0"
-    (is (= [255 204 0] (mapv fog/tile-alpha [0 2 1])))))
+  (testing "alphas: unexplored 255 (black), remembered 163, lit 0"
+    (is (= [255 163 0] (mapv fog/tile-alpha [0 2 1]))))
+  (testing "163 is what the original's render texture stores for its 204: the texture
+  is cleared to (0 0 0 0) and drawn with glBlendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+  on the alpha channel too, so dst = 204 * 204 / 255 + 0 * (1 - 204 / 255) = 163.2"
+    (is (= 163 (Math/round (/ (* 204.0 204.0) 255.0))))
+    (is (= 255 (Math/round (/ (* 255.0 255.0) 255.0))) "an unexplored tile stays 255")))
 
 (deftest corner-alpha-is-the-average-of-four-tiles
   (let [fg (-> (vec (repeat 375 0))
@@ -123,22 +128,79 @@
                   (assoc (+ 5 (* 4 25)) 2) ; tile [5 4]
                   (assoc (+ 4 (* 5 25)) 0) ; tile [4 5]
                   (assoc (+ 5 (* 5 25)) 2))] ; tile [5 5]
-        (is (= 166 (fog/corner-alpha f 5 5)) "(0 + 204 + 255 + 204) / 4 = 165.75")))
+        (is (= 145 (fog/corner-alpha f 5 5)) "(0 + 163 + 255 + 163) / 4 = 145.25")))
     (testing "the map's edge repeats its own tiles, as CLAMP wrap does for the texture"
       (is (= 0 (fog/corner-alpha fg 0 0)) "the corner is tile [0 0] alone, and it is lit")
-      (is (= 102 (fog/corner-alpha fg 1 0))
-          "the top edge between [0 0] lit and [1 0] remembered: (0 + 204) / 2")
+      (is (= 82 (fog/corner-alpha fg 1 0))
+          "the top edge between [0 0] lit and [1 0] remembered: (0 + 163) / 2 = 81.5")
       (is (= 255 (fog/corner-alpha fg 25 15)) "the far corner is tile [24 14] alone")
       (is (= 255 (fog/corner-alpha fg 25 7)) "the right edge is [24 6] and [24 7] twice each"))
-    (testing "26 by 16 corners, each 0, 204 or the mean of those"
+    (testing "26 by 16 corners"
       (let [alphas (fog/corner-alphas (:fog start))]
         (is (= (* 26 16) (count alphas)))
         (is (every? #(<= 0 % 255) alphas))
-        (is (= 9 (count (filter zero? alphas))) "the 3 by 3 corners inside the lit 4 by 4")))
-    (testing "tile-corners reads the tile's four corners, clockwise from the top-left"
-      (let [alphas (fog/corner-alphas (:fog start))
-            idx (fn [cx cy] (nth alphas (+ cx (* cy 26))))]
-        (is (= [(idx 3 2) (idx 4 2) (idx 4 3) (idx 3 3)] (fog/tile-corners alphas 3 2)))))))
+        (is (= 9 (count (filter zero? alphas))) "the 3 by 3 corners inside the lit 4 by 4")))))
+
+(def mixed-fog
+  "Tiles 0, 1 and 2 in a diagonal pattern, so most corners differ."
+  (vec (for [y (range 15) x (range 25)] (mod (+ (* x x) (* 2 y) (* x y y)) 3))))
+
+(deftest the-drawn-alphas-are-corner-alpha-at-every-corner
+  (let [alphas (fog/corner-alphas mixed-fog)]
+    (is (= (* 26 16) (count alphas)))
+    (is (= (vec (for [cy (range 16) cx (range 26)] (fog/corner-alpha mixed-fog cx cy)))
+           alphas))
+    (is (> (count (set alphas)) 3) "the fixture is not flat")))
+
+(defn- emit
+  "`emit-fog!` on `fog` with edges every 10 units, as `{:colours [..] :verts [[x y colour] ..]}`."
+  [fog]
+  (let [colour (atom nil)
+        colours (atom [])
+        verts (atom [])
+        xs (mapv #(* 10.0 %) (range 26))
+        ys (mapv #(* 10.0 %) (range 16))]
+    (fog/emit-fog! (fog/corner-alphas fog) xs ys
+                   (fn [a] (reset! colour a) (swap! colours conj a))
+                   (fn [x y] (swap! verts conj [x y @colour])))
+    {:colours @colours
+     :verts @verts}))
+
+(deftest emit-fog-order-and-colours
+  (let [{:keys [colours verts]} (emit mixed-fog)
+        alphas (fog/corner-alphas mixed-fog)
+        idx (fn [cx cy] (nth alphas (+ cx (* cy 26))))
+        tile-verts (fn [x y] (nth (partition 6 verts) (+ x (* y 25))))
+        x 2
+        y 1
+        [tl tr br bl] [(idx x y) (idx (inc x) y) (idx (inc x) (inc y)) (idx x (inc y))]]
+    (testing "the fixture tile has four different corners, so an order swap shows"
+      (is (= 4 (count (set [tl tr br bl])))))
+    (testing "one vertex pair at a time: tl, br, tr, then tl, bl, br, as draw-gradient-quad"
+      (is (= [[20.0 10.0 tl] [30.0 20.0 br] [30.0 10.0 tr]
+              [20.0 10.0 tl] [20.0 20.0 bl] [30.0 20.0 br]]
+             (vec (tile-verts x y)))))
+    (testing "both triangles wind the way draw-gradient-quad's do (negative signed area, y down)"
+      (let [cross (fn [[ax ay] [bx by] [cx cy]]
+                    (- (* (- bx ax) (- cy ay)) (* (- by ay) (- cx ax))))
+            [a b c d e f] (tile-verts x y)]
+        (is (neg? (cross a b c)))
+        (is (neg? (cross d e f)))))
+    (testing "every tile is 6 vertices"
+      (is (= (* 375 6) (count verts))))
+    (testing "a colour is set only when it changes"
+      (is (every? (fn [[a b]] (not= a b)) (partition 2 1 colours)))
+      (is (< (count colours) (count verts))))))
+
+(deftest clear-tiles-draw-nothing
+  (let [lit (vec (repeat 375 1))
+        {:keys [verts]} (emit lit)]
+    (is (empty? verts)))
+  (testing "only a tile with all four corners clear is skipped"
+    (let [fg (vec (repeat 375 1))
+          fg (assoc fg 0 0)
+          {:keys [verts]} (emit fg)]
+      (is (= 4 (/ (count verts) 6)) "tile [0 0] and the three that share a corner with it"))))
 
 ;; --- the stick -----------------------------------------------------------------
 
