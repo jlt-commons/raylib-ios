@@ -18,13 +18,13 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (71).** These need something the project doesn't bind or the
-phone doesn't have: shaders (20), textures, images and render textures (34), 3D
-cameras and models (11), desktop windowing (7), the keyboard, gamepad or
-clipboard (6), files and drag-and-drop (4), and audio (3). The batch 9 triage on
-2026-10-02 found that about 32 of the 95 then blocked could be rebuilt with what
-is already bound, and ten of them landed in that batch as software-projected 3D
-scenes. These remain rewrite-ready:
+**Blocked for now (71).** The 2026-10-02 triage sorted the then 95 unported
+examples by what a port would need. About 32 could be rebuilt with what is
+already bound, and batches 9 to 12 ported 24 of them, so 8 remain. Two more need
+only a pair of scalar blend-mode bindings. The other 61 need something the
+project doesn't bind or the phone doesn't have: shaders, texture and image
+pipelines, 3D models and meshes, desktop windowing, the keyboard, gamepad or
+clipboard, files, or audio. These remain rewrite-ready:
 
 - 3D, projected in software: `dna_helix`, `geometric_shapes` and
   `basic_voxel`. A faithful `dna_helix` built in 12.7 ms on the laptop, about 28
