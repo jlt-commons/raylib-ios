@@ -58,8 +58,9 @@
   edge once, with edges that carry on in a straight line joined into one line
   (the same pixels): 35 lines from two sides and 51 from three, where a line for
   each unit edge was 280 and 408. `scene-list` projects each corner once a frame.
-  A rectangle, like a face, with a corner behind the near plane is dropped
-  whole, so a big one near the eye can go where its unit faces would not.
+  A face with a corner behind the near plane is dropped whole. A rectangle with
+  one is drawn as its unit faces instead (`:rect-faces`), each kept or dropped on
+  its own corners, so close to a wall the picture is the unmerged one's.
 
   The cost follows the exposed faces, which grow as the block is hollowed out,
   since each pit shows its walls, and mostly the wires and the corners they
@@ -183,6 +184,7 @@
     {:faces []
      :rects []
      :rect-cells []
+     :rect-faces []
      :groups []
      :nodes (double-array 0)
      :n 0
@@ -221,6 +223,14 @@
                                       (for [[ua wa ub wb] (greedy (set (map (fn [m] [(nth (nth m 4) ua*) (nth (nth m 4) wa*)]) members)))]
                                         [axis sgn plane ua wa ub wb])))
                                   (group-by (fn [[axis sgn _ _ v]] [axis sgn (nth v axis)]) raw)))
+          face-at (into {} (map-indexed (fn [k [axis sgn plane _ v]]
+                                          (let [[u* w*] (remove #{axis} [0 1 2])]
+                                            [[axis sgn plane (nth v u*) (nth v w*)] k]))
+                                        raw))
+          rect-faces (mapv (fn [[axis sgn plane ua wa ub wb]]
+                             (vec (for [a (range ua (inc ub)) b (range wa (inc wb))]
+                                    (get face-at [axis sgn plane a b]))))
+                           rect-cells)
           rects (mapv (fn [[axis sgn plane ua wa ub wb]]
                         (let [[u*] (remove #{axis} [0 1 2])
                               vax (long (- plane (* 0.5 sgn)))
@@ -255,6 +265,7 @@
       {:faces faces
        :rects rects
        :rect-cells rect-cells
+       :rect-faces rect-faces
        :groups groups
        :nodes nodes
        :n n
@@ -346,10 +357,10 @@
   toward the eye as flat BEIGE quads, in no order (they are one opaque colour),
   and the BLACK wires of the unit faces that look toward the eye, each edge once
   and runs of straight edges as one line. Each node is projected once, at most.
-  A face or rectangle with a corner behind the near plane is dropped whole."
+  A face with a corner behind the near plane is dropped whole, and a rectangle with one is drawn as its unit faces."
   [state dims]
   (let [vp (s3/view-proj (camera state dims) (:viewport dims))
-        {:keys [faces rects groups edges edge-next edge-prev nodes n]} (:mesh state)
+        {:keys [faces rects rect-faces groups edges edge-next edge-prev nodes n]} (:mesh state)
         [m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15] (:m vp)
         ox (:x vp) oy (:y vp)
         hw (* 0.5 (:w vp)) hh (* 0.5 (:h vp))
@@ -401,23 +412,35 @@
         ;; pass 2: the grid under, then the filled rectangles that face the eye
         ;; as two triangles each, in no particular order
         nr (count rects)
+        ;; the two triangles of a quad, each only if it has the front winding
+        quad! (fn [tris i0 i1 i2 i3]
+                (let [xa (aget sx i0) ya (aget sy i0)
+                      xb (aget sx i1) yb (aget sy i1)
+                      xc (aget sx i2) yc (aget sy i2)
+                      xe (aget sx i3) ye (aget sy i3)]
+                  (cond-> tris
+                    (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
+                    (conj! [:tri xa ya xb yb xc yc vr vg vb va])
+                    (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
+                    (conj! [:tri xa ya xc yc xe ye vr vg vb va]))))
         tris (loop [k 0 tris (transient (s3/grid [] vp 10 1.0))]
                (if (< k nr)
                  (let [[axis sgn plane i0 i1 i2 i3] (nth rects k)
                        e (case (long axis) 0 ex 1 ey ez)]
-                   (if (and (> (* sgn (- e plane)) 1.0e-9)
-                            (project! i0) (project! i1) (project! i2) (project! i3))
-                     (let [xa (aget sx i0) ya (aget sy i0)
-                           xb (aget sx i1) yb (aget sy i1)
-                           xc (aget sx i2) yc (aget sy i2)
-                           xe (aget sx i3) ye (aget sy i3)]
-                       (recur (inc k)
-                              (cond-> tris
-                                (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
-                                (conj! [:tri xa ya xb yb xc yc vr vg vb va])
-                                (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
-                                (conj! [:tri xa ya xc yc xe ye vr vg vb va]))))
-                     (recur (inc k) tris)))
+                   (cond
+                     (not (> (* sgn (- e plane)) 1.0e-9)) (recur (inc k) tris)
+                     (and (project! i0) (project! i1) (project! i2) (project! i3))
+                     (recur (inc k) (quad! tris i0 i1 i2 i3))
+                     ;; a corner is behind the near plane: its unit faces instead,
+                     ;; each dropped or kept on its own corners
+                     :else (recur (inc k)
+                                  (reduce (fn [tris f]
+                                            (let [[_ _ _ j0 j1 j2 j3] (nth faces f)]
+                                              (if (and (project! j0) (project! j1) (project! j2) (project! j3))
+                                                (quad! tris j0 j1 j2 j3)
+                                                tris)))
+                                          tris
+                                          (nth rect-faces k)))))
                  tris))
         ;; pass 3: the wires over. Drawn edges that carry on one another in a
         ;; straight line are one line, from the first one's start to the last

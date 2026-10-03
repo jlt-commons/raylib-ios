@@ -190,6 +190,26 @@
                                     (area [[x1 y1] [x2 y2] [x3 y3]])))]]
         (is (< (abs (- expected got)) (* 1e-6 expected)) (str screen " " (count w)))))))
 
+(deftest a-rectangle-across-the-near-plane-falls-back-to-its-unit-faces
+  ;; Eye 0.1 off the +x wall, looking along +z: the wall's rectangle has corners
+  ;; behind the eye, but the unit faces ahead of it are in front.
+  (let [dims (sc/dimensions m measure)
+        st (assoc steered :px 7.6 :py 3.5 :pz 3.5 :yaw (/ Math/PI 2.0) :pitch 0.0)
+        st (assoc st :camera (sc/camera-of st))
+        vp (s3/view-proj (s3/fit-camera (:camera st) (/ 800.0 450.0) (:aspect dims)) (:viewport dims))
+        area (fn [pts] (* 0.5 (abs (reduce + (map (fn [[x1 y1] [x2 y2]] (- (* x1 y2) (* x2 y1))) pts (rest (cycle pts)))))))
+        wall-units (for [y (range 8) z (range 8)] [7 y z])
+        expected (reduce + (for [[x y z] wall-units
+                                 :let [at (fn [dy dz] [(+ x 0.5) (+ (- y 0.5) dy) (+ (- z 0.5) dz)])
+                                       ps (map #(s3/project vp %) [(at 0 0) (at 1 0) (at 1 1) (at 0 1)])]
+                                 :when (every? some? ps)]
+                             (area (map (fn [[sx sy]] [sx sy]) ps))))
+        got (reduce + (for [[_ x1 y1 x2 y2 x3 y3] (tris (sc/scene-list st dims))]
+                        (area [[x1 y1] [x2 y2] [x3 y3]])))]
+    (is (pos? expected) "some of the wall is ahead of the eye")
+    (is (some nil? (map #(s3/project vp [7.5 (- % 0.5) -0.5]) (range 9))) "and some of it is behind")
+    (is (< (abs (- expected got)) (* 1e-6 expected)))))
+
 (deftest the-merged-mesh-covers-exactly-the-exposed-faces
   (let [full (:world (first ((:init (sc/scene)) {:metrics m})))
         eaten (set (remove (fn [[x y z]] (zero? (mod (+ (* 3 x x) (* 5 y) (* 7 z z) (* x z) (* y z)) 3))) full))]
