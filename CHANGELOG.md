@@ -6,6 +6,13 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Seven more 2D scenes, a hundred and fourteen in all.** Toys now holds
+  ninety. Bunnymark, Background Scrolling, Sprite Stacking, Smooth Pixel-Perfect,
+  Viewport Scaling, Window Letterbox and Fog of War come from examples that
+  used textures, and each draws rects, circles and triangles instead. Bunnymark
+  keeps its bunnies inside the field when the phone turns. The seven have not
+  run on the phone, and neither have the four before them, so eleven fps cells
+  are empty and the first hundred and three scenes are the measured ones.
 - **Four more 3D scenes, a hundred and seven in all.** Toys now holds
   eighty-three. First-Person Camera and First-Person Maze walk with a thumb-stick
   and look with a drag, the maze drawing only the walls a ray can reach. 3D Split

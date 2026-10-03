@@ -5,11 +5,11 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 109 of
-them are in the gallery as of 2026-10-02, which leaves 78. That counts
-examples and not scenes: the gallery has 104 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 116 of
+them are in the gallery as of 2026-10-02, which leaves 71. That counts
+examples and not scenes: the gallery has 111 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 104 + 2 + 3 = 109. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 111 + 2 + 3 = 116. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
@@ -18,7 +18,7 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (78).** These need something the project doesn't bind or the
+**Blocked for now (71).** These need something the project doesn't bind or the
 phone doesn't have: shaders (20), textures, images and render textures (34), 3D
 cameras and models (11), desktop windowing (7), the keyboard, gamepad or
 clipboard (6), files and drag-and-drop (4), and audio (3). The batch 9 triage on
@@ -30,10 +30,7 @@ scenes. These remain rewrite-ready:
   `basic_voxel`. A faithful `dna_helix` built in 12.7 ms on the laptop, about 28
   times the phone's 0.45 ms budget, so it waits for a rewrite that draws far less.
 - Textures drawn as primitives: `billboard_rendering`,
-  `directional_billboard`, `textured_cube`, `bunnymark`, `background_scrolling`
-  and `sprite_stacking`.
-- Render textures done with a scissor or a scale: `fog_of_war`,
-  `smooth_pixelperfect`, `viewport_scaling` and `window_letterbox`.
+  `directional_billboard` and `textured_cube`.
 - Other: `doom` and `reasings`.
 - `blend_modes` and `particles_blending`, which need `BeginBlendMode` and
   `EndBlendMode`, two scalar bindings.
@@ -43,7 +40,13 @@ scenes. These remain rewrite-ready:
 - **Split the drawing out of `raylib.gallery`.** It is 3365 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace.
-- **Rebalance the categories.** Toys holds 83 of the 107 scenes, and Games has 11, so a scroll
+- **Lift the virtual window into `raylib.vwindow`.** Viewport Scaling and
+  Window Letterbox carry the same `window`, `handle`, `clamp`, start geometry
+  and drag step, about 55 lines each. A pure `.cljc` next to `raylib.stick`
+  would hold `window`, `handle`, `clamp`, the start geometry and `drag-step`,
+  with Viewport Scaling passing its button claim in. It takes about an hour and
+  is worth doing when a third scene would use it.
+- **Rebalance the categories.** Toys holds 90 of the 114 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Pick the nREPL port at run time.** `tools/ios/live.sh` and
@@ -98,11 +101,15 @@ scenes. These remain rewrite-ready:
   stop the first, and first-tap safety the second.
 - **Decide Breakout's pace.** The ball takes about 5 s from the paddle to the
   bricks on a portrait phone, since its speed scales with the width.
-- **Time the four batch 11 scenes on the phone.** First-Person Camera,
-  First-Person Maze, 3D Split Screen and Bouncing Spheres have not run on a
-  device, so their fps cells are empty. On the laptop Split Screen and Bouncing
-  Spheres sit at the 0.45 ms budget, and a First-Person Maze corridor can run
-  over it, so walk a long one.
+- **Time the eleven new scenes on the phone.** The four of batch 11,
+  First-Person Camera, First-Person Maze, 3D Split Screen and Bouncing Spheres,
+  and the seven of batch 12, Bunnymark, Background Scrolling, Sprite Stacking,
+  Smooth Pixel-Perfect, Viewport Scaling, Window Letterbox and Fog of War, have
+  not run on a device, so their fps cells are empty. On the laptop Split Screen
+  and Bouncing Spheres sit at the 0.45 ms budget, and a First-Person Maze
+  corridor can run over it, so walk a long one. Fog of War is the one to watch,
+  since its 0.30 ms leaves out about 3000 FFI calls, and the performance guide
+  has 2400 calls holding 57 to 59 fps. Bunnymark is a stress test by design.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -114,6 +121,11 @@ scenes. These remain rewrite-ready:
 
 ## Done
 
+- 2026-10-02: batch 12 closed, with seven Toys scenes drawn without textures,
+  `bunnymark`, `bgscroll`, `spritestack`, `pixelperfect`, `vpscaling`,
+  `letterbox` and `fogofwar`, which make a hundred and fourteen scenes and give
+  Toys ninety. None of the seven has run on the phone. Bunnymark clamps its
+  bunnies into the field when the phone turns.
 - 2026-10-02: the finger helpers copied into Free Camera, First-Person Camera and
   First-Person Maze moved into `raylib.stick` as `follow-pair` and
   `begin-owners`, with no change in behaviour.

@@ -1,16 +1,18 @@
 # The scenes
 
-A hundred and seven, in four categories. Three come byte-identical from
+A hundred and fourteen, in four categories. Three come byte-identical from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other hundred and four are ports from
+with their sha256 verified, and the other hundred and eleven are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
 seam described in [a REPL on the phone](a-repl-on-the-phone.html). Anything at
 58 or 59 is vsync-limited and has headroom; the numbers below 58 are the ones
-that were tuned to get there. The last four, First-Person Camera, First-Person
-Maze, 3D Split Screen and Bouncing Spheres, have not run on the phone yet, so
-their cells are empty.
+that were tuned to get there. Eleven scenes have not run on the phone yet, so
+their cells are empty and no estimate stands in for a measurement. They are
+First-Person Camera, First-Person Maze, 3D Split Screen and Bouncing Spheres,
+then Bunnymark, Background Scrolling, Sprite Stacking, Smooth Pixel-Perfect,
+Viewport Scaling, Window Letterbox and Fog of War.
 
 ## Generative
 
