@@ -61,6 +61,14 @@
   - The cubes a camera cannot see (wholly behind the eye or outside the sides of
     its view, by a circle round each tree) are not built, which leaves the
     picture unchanged.
+  - A cube's triangles that lie wholly outside the half's rectangle (all three
+    corners more than a pixel past one side) are not built either, because the
+    half is scissored to that rectangle, so this too leaves the picture
+    unchanged. About a fifth of the triangles at the start are such.
+  - The cubes are built by a private copy of `raylib.soft3d/cube`'s sums
+    (`flat-cubes`) that makes the same triangles with less overhead per cube, and
+    the sort key is worked out once a cube, not once a comparison. The gallery
+    keeps each half's list while neither player moves.
 
   Dropped: the key text, whose words become \"PLAYER1: drag to move\" and
   \"PLAYER2: drag to move\". The state holds `:z1` and `:x2` (numbers), the
@@ -220,6 +228,33 @@
                       (<= (- across tree-reach) (* (+ along tree-reach) tan-half)))))
              trees)))
 
+(defn- ranked-cubes
+  "`cube-order`'s cubes, each as `[pos size colour d2]` with `d2` the squared
+  distance from the half's eye to the cube's centre, in paint order. The key is
+  worked out once a cube, not once a comparison."
+  [state dims i]
+  (let [cam (camera state dims i)
+        [_ _ hw hh] (nth (:halves dims) i)
+        [ex ey ez] (:position cam)
+        {:keys [z1 x2]} state
+        keyed (fn [pos size colour]
+                (let [dx (- (double (nth pos 0)) ex)
+                      dy (- (double (nth pos 1)) ey)
+                      dz (- (double (nth pos 2)) ez)]
+                  [pos size colour (+ (* dx dx) (* dy dy) (* dz dz))]))
+        cubes (-> (reduce (fn [out [x z]]
+                            (-> out
+                                (conj (keyed [x 0.5 z] [0.25 1.0 0.25] post-colour))
+                                (conj (keyed [x 1.5 z] 1.0 leaf-colour))))
+                          []
+                          (visible-trees i cam (/ (double hw) (double hh))))
+                  (conj (keyed [0.0 1.0 z1] 1.0 (nth player-colours 0)))
+                  (conj (keyed [x2 3.0 0.0] 1.0 (nth player-colours 1))))]
+    (vec (sort (fn [a b]
+                 (let [da (nth a 3) db (nth b 3)]
+                   (cond (> da db) -1 (< da db) 1 :else 0)))
+               cubes))))
+
 (defn cube-order
   "The cubes half `i` of `state` paints, far to near, as `[pos size colour]`:
   for each tree in `visible-trees` its post then its leaf, then the two
@@ -228,35 +263,177 @@
   top of it when the eye is level with their join (player one's, 1 up), where
   the two are as far."
   [state dims i]
-  (let [cam (camera state dims i)
-        [_ _ hw hh] (nth (:halves dims) i)
-        [ex ey ez] (:position cam)
-        {:keys [z1 x2]} state
-        d2 (fn [[x y z]]
-             (let [dx (- x ex) dy (- y ey) dz (- z ez)]
-               (+ (* dx dx) (* dy dy) (* dz dz))))
-        cubes (-> (reduce (fn [out [x z]]
-                            (-> out
-                                (conj [[x 0.5 z] [0.25 1.0 0.25] post-colour])
-                                (conj [[x 1.5 z] 1.0 leaf-colour])))
-                          []
-                          (visible-trees i cam (/ (double hw) (double hh))))
-                  (conj [[0.0 1.0 z1] 1.0 (nth player-colours 0)])
-                  (conj [[x2 3.0 0.0] 1.0 (nth player-colours 1)]))]
-    (vec (sort-by (fn [[pos]] (d2 pos)) #(compare %2 %1) cubes))))
+  (mapv (fn [[pos size colour]] [pos size colour]) (ranked-cubes state dims i)))
+
+(defn- flat-cubes
+  "`raylib.soft3d/cube` with `{:shade :flat}` for each of `ranked` (`[pos size
+  colour d2]`) in turn, appended to `dl`, and the same items to the last bit:
+  the same sums in the same order. The one difference is that a triangle lying
+  wholly outside `vp`'s rectangle (all three corners more than a pixel past the
+  same side) is left out, because the half is scissored to that rectangle (the
+  pixel is what the scissor's `int` can add) and the triangle has no pixel in it. What it saves is the work `cube` does again
+  for every call and what jolt makes dear: taking the clip matrix and the eye
+  apart, a scratch array whose every read and write costs several times a sum,
+  and `abs`. The corners are locals, nil when not needed or behind the near
+  plane, and a product of a matrix entry and a box coordinate is worked out once
+  a cube, not once a corner that uses it. `vp` is a `raylib.soft3d/view-proj` result as it stands, so its `:eye`
+  is the one `cube` would read."
+  [dl vp ranked]
+  (let [[m0 m1 m2 m3 m4 m5 m6 m7 m8 m9 m10 m11 m12 m13 m14 m15] (:m vp)
+        [d0 d1 d2 d3] (:d vp)
+        [ex ey ez ew] (:eye vp)
+        ox (:x vp)
+        oy (:y vp)
+        hw (* 0.5 (:w vp))
+        hh (* 0.5 (:h vp))
+        absd (fn [v] (if (neg? v) (- v) v))
+        left (- ox 1.0)
+        top (- oy 1.0)
+        right (+ ox (:w vp) 1.0)
+        bottom (+ oy (:h vp) 1.0)
+        ;; a triangle with all three corners past one side of the half's
+        ;; rectangle, by more than the pixel the scissor's `int` can add to it
+        outside? (fn [xa ya xb yb xc yc]
+                   (or (and (< xa left) (< xb left) (< xc left))
+                       (and (> xa right) (> xb right) (> xc right))
+                       (and (< ya top) (< yb top) (< yc top))
+                       (and (> ya bottom) (> yb bottom) (> yc bottom))))
+        face (fn [dl xa ya da xb yb db xc yc dc xe ye de r g bl al]
+               (if (and xa xb xc xe)
+                 (let [depth (* 0.25 (+ da db dc de))
+                       dl (if (and (neg? (- (* (- xb xa) (- yc ya)) (* (- yb ya) (- xc xa))))
+                                   (not (outside? xa ya xb yb xc yc)))
+                            (conj! dl [:tri xa ya xb yb xc yc r g bl al depth])
+                            dl)]
+                   (if (and (neg? (- (* (- xc xa) (- ye ya)) (* (- yc ya) (- xe xa))))
+                            (not (outside? xa ya xc yc xe ye)))
+                     (conj! dl [:tri xa ya xc yc xe ye r g bl al depth])
+                     dl))
+                 dl))
+        ax (+ (absd ex) (absd ey) (absd ez))]
+    (persistent!
+     (reduce
+      (fn [dl [[cx cy cz] size [cr cg cb ca]]]
+        (let [n? (number? size)
+              sx (double (if n? size (nth size 0)))
+              sy (if n? sx (double (nth size 1)))
+              sz (if n? sx (double (nth size 2)))
+              x0 (- cx (/ sx 2.0)) x1 (+ cx (/ sx 2.0))
+              y0 (- cy (/ sy 2.0)) y1 (+ cy (/ sy 2.0))
+              z0 (- cz (/ sz 2.0)) z1 (+ cz (/ sz 2.0))
+              tol (- (* 1.0e-9 (+ ax (* (absd ew) (+ (absd cx) (absd cy) (absd cz) sx sy sz)))))
+              +z? (> (- ez (* z1 ew)) tol) -z? (> (- (* z0 ew) ez) tol)
+              -x? (> (- (* x0 ew) ex) tol) +x? (> (- ex (* x1 ew)) tol)
+              +y? (> (- ey (* y1 ew)) tol) -y? (> (- (* y0 ew) ey) tol)
+              p0x0 (* m0 x0)
+              p4x0 (* m4 x0)
+              p8x0 (* m8 x0)
+              p12x0 (* m12 x0)
+              q0x0 (* d0 x0)
+              p0x1 (* m0 x1)
+              p4x1 (* m4 x1)
+              p8x1 (* m8 x1)
+              p12x1 (* m12 x1)
+              q0x1 (* d0 x1)
+              p1y0 (* m1 y0)
+              p5y0 (* m5 y0)
+              p9y0 (* m9 y0)
+              p13y0 (* m13 y0)
+              q1y0 (* d1 y0)
+              p1y1 (* m1 y1)
+              p5y1 (* m5 y1)
+              p9y1 (* m9 y1)
+              p13y1 (* m13 y1)
+              q1y1 (* d1 y1)
+              p2z0 (* m2 z0)
+              p6z0 (* m6 z0)
+              p10z0 (* m10 z0)
+              p14z0 (* m14 z0)
+              q2z0 (* d2 z0)
+              p2z1 (* m2 z1)
+              p6z1 (* m6 z1)
+              p10z1 (* m10 z1)
+              p14z1 (* m14 z1)
+              q2z1 (* d2 z1)
+              cw0 (when (or -z? -x? -y?)
+                    (let [cw (+ p12x0 p13y0 p14z0 m15)]
+                      (when (>= (+ p8x0 p9y0 p10z0 m11 cw) 0.0)
+                        cw)))
+              sx0 (when cw0 (+ ox (* hw (+ 1.0 (/ (+ p0x0 p1y0 p2z0 m3) cw0)))))
+              sy0 (when cw0 (+ oy (* hh (- 1.0 (/ (+ p4x0 p5y0 p6z0 m7) cw0)))))
+              dp0 (when cw0 (+ q0x0 q1y0 q2z0 d3))
+              cw1 (when (or -z? +x? -y?)
+                    (let [cw (+ p12x1 p13y0 p14z0 m15)]
+                      (when (>= (+ p8x1 p9y0 p10z0 m11 cw) 0.0)
+                        cw)))
+              sx1 (when cw1 (+ ox (* hw (+ 1.0 (/ (+ p0x1 p1y0 p2z0 m3) cw1)))))
+              sy1 (when cw1 (+ oy (* hh (- 1.0 (/ (+ p4x1 p5y0 p6z0 m7) cw1)))))
+              dp1 (when cw1 (+ q0x1 q1y0 q2z0 d3))
+              cw2 (when (or -z? -x? +y?)
+                    (let [cw (+ p12x0 p13y1 p14z0 m15)]
+                      (when (>= (+ p8x0 p9y1 p10z0 m11 cw) 0.0)
+                        cw)))
+              sx2 (when cw2 (+ ox (* hw (+ 1.0 (/ (+ p0x0 p1y1 p2z0 m3) cw2)))))
+              sy2 (when cw2 (+ oy (* hh (- 1.0 (/ (+ p4x0 p5y1 p6z0 m7) cw2)))))
+              dp2 (when cw2 (+ q0x0 q1y1 q2z0 d3))
+              cw3 (when (or -z? +x? +y?)
+                    (let [cw (+ p12x1 p13y1 p14z0 m15)]
+                      (when (>= (+ p8x1 p9y1 p10z0 m11 cw) 0.0)
+                        cw)))
+              sx3 (when cw3 (+ ox (* hw (+ 1.0 (/ (+ p0x1 p1y1 p2z0 m3) cw3)))))
+              sy3 (when cw3 (+ oy (* hh (- 1.0 (/ (+ p4x1 p5y1 p6z0 m7) cw3)))))
+              dp3 (when cw3 (+ q0x1 q1y1 q2z0 d3))
+              cw4 (when (or +z? -x? -y?)
+                    (let [cw (+ p12x0 p13y0 p14z1 m15)]
+                      (when (>= (+ p8x0 p9y0 p10z1 m11 cw) 0.0)
+                        cw)))
+              sx4 (when cw4 (+ ox (* hw (+ 1.0 (/ (+ p0x0 p1y0 p2z1 m3) cw4)))))
+              sy4 (when cw4 (+ oy (* hh (- 1.0 (/ (+ p4x0 p5y0 p6z1 m7) cw4)))))
+              dp4 (when cw4 (+ q0x0 q1y0 q2z1 d3))
+              cw5 (when (or +z? +x? -y?)
+                    (let [cw (+ p12x1 p13y0 p14z1 m15)]
+                      (when (>= (+ p8x1 p9y0 p10z1 m11 cw) 0.0)
+                        cw)))
+              sx5 (when cw5 (+ ox (* hw (+ 1.0 (/ (+ p0x1 p1y0 p2z1 m3) cw5)))))
+              sy5 (when cw5 (+ oy (* hh (- 1.0 (/ (+ p4x1 p5y0 p6z1 m7) cw5)))))
+              dp5 (when cw5 (+ q0x1 q1y0 q2z1 d3))
+              cw6 (when (or +z? -x? +y?)
+                    (let [cw (+ p12x0 p13y1 p14z1 m15)]
+                      (when (>= (+ p8x0 p9y1 p10z1 m11 cw) 0.0)
+                        cw)))
+              sx6 (when cw6 (+ ox (* hw (+ 1.0 (/ (+ p0x0 p1y1 p2z1 m3) cw6)))))
+              sy6 (when cw6 (+ oy (* hh (- 1.0 (/ (+ p4x0 p5y1 p6z1 m7) cw6)))))
+              dp6 (when cw6 (+ q0x0 q1y1 q2z1 d3))
+              cw7 (when (or +z? +x? +y?)
+                    (let [cw (+ p12x1 p13y1 p14z1 m15)]
+                      (when (>= (+ p8x1 p9y1 p10z1 m11 cw) 0.0)
+                        cw)))
+              sx7 (when cw7 (+ ox (* hw (+ 1.0 (/ (+ p0x1 p1y1 p2z1 m3) cw7)))))
+              sy7 (when cw7 (+ oy (* hh (- 1.0 (/ (+ p4x1 p5y1 p6z1 m7) cw7)))))
+              dp7 (when cw7 (+ q0x1 q1y1 q2z1 d3))]
+          (cond-> dl
+            +z? (face sx4 sy4 dp4 sx5 sy5 dp5 sx7 sy7 dp7 sx6 sy6 dp6 cr cg cb ca)
+            -z? (face sx1 sy1 dp1 sx0 sy0 dp0 sx2 sy2 dp2 sx3 sy3 dp3 cr cg cb ca)
+            -x? (face sx0 sy0 dp0 sx4 sy4 dp4 sx6 sy6 dp6 sx2 sy2 dp2 cr cg cb ca)
+            +x? (face sx5 sy5 dp5 sx1 sy1 dp1 sx3 sy3 dp3 sx7 sy7 dp7 cr cg cb ca)
+            +y? (face sx6 sy6 dp6 sx7 sy7 dp7 sx3 sy3 dp3 sx2 sy2 dp2 cr cg cb ca)
+            -y? (face sx0 sy0 dp0 sx1 sy1 dp1 sx5 sy5 dp5 sx4 sy4 dp4 cr cg cb ca))))
+      (transient dl)
+      ranked))))
 
 (defn scene-list
   "The draw list for half `i` of `state` in `dims`, in paint order: the plane
   first, then each cube of `cube-order` whole, far to near, all flat coloured.
   It does not call `raylib.soft3d/finish`: the cubes are separate boxes
   standing on or over the one plane, so painting them whole by the distance of
-  their centres is right here, and sorting every triangle is the cost it saves."
+  their centres is right here, and sorting every triangle is the cost it saves.
+  The cubes are built by `flat-cubes`, which makes the items
+  `raylib.soft3d/cube` would."
   [state dims i]
-  (let [vp (s3/view-proj (camera state dims i) (nth (:halves dims) i))
-        flat {:shade :flat}]
-    (reduce (fn [dl [pos size colour]] (s3/cube dl vp nil pos size colour flat))
-            (floor-list vp i (if (zero? i) (:z1 state) (:x2 state)))
-            (cube-order state dims i))))
+  (let [vp (s3/view-proj (camera state dims i) (nth (:halves dims) i))]
+    (flat-cubes (floor-list vp i (if (zero? i) (:z1 state) (:x2 state)))
+                vp
+                (ranked-cubes state dims i))))
 
 ;; --- fingers --------------------------------------------------------------------
 

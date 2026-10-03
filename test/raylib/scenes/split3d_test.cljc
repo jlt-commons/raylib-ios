@@ -165,6 +165,14 @@
         (is (near? ah bh))
         (is (>= fy (+ (nth gesture/back-region 1) (nth gesture/back-region 3))))))))
 
+(defn- wholly-outside?
+  "Whether the `[:tri x1 y1 x2 y2 x3 y3 ...]` item `it` has all three corners more
+  than a pixel past one side of the half `[x y w h]` (the pixel the gallery's
+  scissor, which truncates to `int`, can add), so no pixel of it is inside."
+  [[x y w h] [_ x1 y1 x2 y2 x3 y3]]
+  (or (every? #(< % (- x 1.0)) [x1 x2 x3]) (every? #(> % (+ x w 1.0)) [x1 x2 x3])
+      (every? #(< % (- y 1.0)) [y1 y2 y3]) (every? #(> % (+ y h 1.0)) [y1 y2 y3])))
+
 (deftest first-frame-draws
   (doseq [m [portrait landscape squarish]
           :let [dims (sc/dimensions m measure)]
@@ -204,8 +212,14 @@
         (let [order (sc/cube-order start dims i)
               colours (set (map #(nth % 2) order))]
           (is (contains? colours (nth sc/player-colours 0)))
-          (is (contains? colours (nth sc/player-colours 1))))
-        (is (some #(= (nth sc/player-colours (- 1 i)) (subvec % 7 11)) tris)))
+          (is (contains? colours (nth sc/player-colours 1)))))
+      ;; At the start the other player's cube is off the glass, which used to be
+      ;; counted as "seen" because off-glass triangles were kept. Now it is checked
+      ;; where it is on the glass: the other player 12 behind, the eye in line.
+      (testing "the other player's cube is seen when it is in view"
+        (let [st (if (zero? i) (assoc start :z1 -12.0 :x2 0.0) (assoc start :z1 0.0 :x2 -12.0))
+              seen (filterv #(= :tri (nth % 0)) (sc/scene-list st dims i))]
+          (is (some #(= (nth sc/player-colours (- 1 i)) (subvec % 7 11)) seen))))
       (is (some? vp)))))
 
 (deftest a-narrow-half-widens-the-fovy
@@ -234,10 +248,13 @@
       (is (apply >= dist))
       (testing "the scene list is the plane, then each cube's own triangles in that order"
         (let [vp (s3/view-proj cam (nth (:halves dims) i))
-              expected (reduce (fn [dl [pos size colour]] (s3/cube dl vp nil pos size colour {:shade :flat}))
-                               (vec (take 2 (sc/scene-list st dims i)))
-                               order)]
-          (is (= expected (sc/scene-list st dims i))))))))
+              plane (vec (take 2 (sc/scene-list st dims i)))
+              built (reduce (fn [dl [pos size colour]] (s3/cube dl vp nil pos size colour {:shade :flat}))
+                            plane
+                            order)]
+          ;; only the triangles wholly outside the half are not in the list
+          (is (= (into plane (remove #(wholly-outside? (nth (:halves dims) i) %)) (subvec built 2))
+                 (sc/scene-list st dims i))))))))
 
 (deftest same-triangles-as-finish
   (doseq [i [0 1]
@@ -265,3 +282,73 @@
       (is (>= y (+ (nth gesture/back-region 1) (nth gesture/back-region 3))))
       (is (<= (+ rx rw) w))
       (is (<= (+ ry rh) h)))))
+
+;; --- the faster builders draw the same picture ------------------------------------
+;; `old-cube-order` and `old-scene-list` are `cube-order` and `scene-list` as they
+;; were before they were made quicker (a `sort-by` that works the distance out at
+;; every comparison, and one `raylib.soft3d/cube` call a cube). The new ones must
+;; give the very same values, not just the same set, but for the cubes' triangles
+;; that lie wholly outside the half's rectangle (the half is scissored to it, so
+;; they have no pixel on the glass). The oracle drops those from the old list.
+
+(defn- old-cube-order [state dims i]
+  (let [cam (sc/camera state dims i)
+        [_ _ hw hh] (nth (:halves dims) i)
+        [ex ey ez] (:position cam)
+        {:keys [z1 x2]} state
+        d2 (fn [[x y z]]
+             (let [dx (- x ex) dy (- y ey) dz (- z ez)]
+               (+ (* dx dx) (* dy dy) (* dz dz))))
+        cubes (-> (reduce (fn [out [x z]]
+                            (-> out
+                                (conj [[x 0.5 z] [0.25 1.0 0.25] sc/post-colour])
+                                (conj [[x 1.5 z] 1.0 sc/leaf-colour])))
+                          []
+                          (sc/visible-trees i cam (/ (double hw) (double hh))))
+                  (conj [[0.0 1.0 z1] 1.0 (nth sc/player-colours 0)])
+                  (conj [[x2 3.0 0.0] 1.0 (nth sc/player-colours 1)]))]
+    (vec (sort-by (fn [[pos]] (d2 pos)) #(compare %2 %1) cubes))))
+
+(defn- old-scene-list [state dims i]
+  (let [vp (s3/view-proj (sc/camera state dims i) (nth (:halves dims) i))
+        flat {:shade :flat}
+        floor (#'sc/floor-list vp i (if (zero? i) (:z1 state) (:x2 state)))]
+    (into floor
+          (remove #(wholly-outside? (nth (:halves dims) i) %))
+          (reduce (fn [dl [pos size colour]] (s3/cube dl vp nil pos size colour flat))
+                  []
+                  (old-cube-order state dims i)))))
+
+(def ^:private sweep-positions
+  "Both players' places: a fine run through the trees (-6 to 6, with the
+  trunks' own rows at the multiples of 4 and the near plane crossed), then a
+  coarse run out to either side of the grove. The second player's place is
+  another function of the first, so the two are rarely level."
+  (vec (concat (for [k (range -24 25)] (* 0.25 k))
+               (for [k (range -14 15)] (* 2.0 k))
+               [-3.0 -3.0 0.5 1.5 4.0 -4.0 3.9999999 -4.0000001 20.0])))
+
+(deftest the-quicker-builders-give-the-same-draw-list
+  (doseq [[w h] screens
+          :let [dims (sc/dimensions {:screen [w h]} measure)]
+          i [0 1]
+          [k p] (map-indexed vector sweep-positions)
+          :let [q (+ 1.3 (* -0.7 (nth sweep-positions (mod (* 7 k) (count sweep-positions)))))
+                st (assoc start :z1 p :x2 q)]]
+    (is (= (old-cube-order st dims i) (sc/cube-order st dims i)) (str [w h] " half " i " " [p q]))
+    (is (= (old-scene-list st dims i) (sc/scene-list st dims i)) (str [w h] " half " i " " [p q]))))
+
+(deftest the-sweep-reaches-the-busy-and-the-empty-frames
+  ;; so the equality above is not met on empty lists alone
+  (let [dims (sc/dimensions landscape measure)
+        sizes (for [p sweep-positions i [0 1]] (count (sc/scene-list (assoc start :z1 p :x2 p) dims i)))]
+    (is (> (apply max sizes) 300))
+    (is (<= (apply min sizes) 2)))
+  (testing "and some triangles really are left out, so the filter is not idle"
+    (let [dims (sc/dimensions landscape measure)
+          vp (s3/view-proj (sc/camera start dims 1) (second (:halves dims)))
+          all (reduce (fn [dl [pos size colour]] (s3/cube dl vp nil pos size colour {:shade :flat}))
+                      (vec (take 2 (sc/scene-list start dims 1)))
+                      (sc/cube-order start dims 1))]
+      (is (< (count (sc/scene-list start dims 1)) (count all)))
+      (is (pos? (count (filter #(wholly-outside? (second (:halves dims)) %) all)))))))

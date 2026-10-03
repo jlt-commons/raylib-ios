@@ -14,6 +14,7 @@
             [poc.raylib.diagnostics :as diag]
             [poc.raylib.gallery :as gallery]
             [raylib.gallery :as rg]
+            [raylib.scenes.split3d :as split3d]
             [raylib.scroll :as scroll]))
 
 (defn input
@@ -167,3 +168,28 @@
         (let [a3 (frame {:frame 0} {:screen [1206 2334]})]
           (is (not (identical? (second a) (second a3))))
           (is (= (second a) (second a3))))))))
+
+(deftest split3d-list-cache-is-keyed-on-both-players-and-the-half
+  (let [m {:screen [1206 2334]}
+        dims (split3d/dimensions m (fn [s size] (* 0.6 size (count s))))
+        st (first ((:init (split3d/scene)) {:metrics m}))
+        lst @#'rg/split3d-list
+        a0 (lst st dims 0)
+        a1 (lst st dims 1)]
+    (testing "nobody moved: both halves come back as the very same lists"
+      (is (identical? a0 (lst st dims 0)))
+      (is (identical? a1 (lst st dims 1))))
+    (testing "the cached list is the one scene-list builds"
+      (is (= a0 (split3d/scene-list st dims 0)))
+      (is (= a1 (split3d/scene-list st dims 1))))
+    (testing "either player moving rebuilds both halves, for each is a cube in the other's view"
+      (doseq [moved [(assoc st :z1 -2.0) (assoc st :x2 -2.0)]
+              i [0 1]
+              :let [dl (lst moved dims i)]]
+        (is (= dl (split3d/scene-list moved dims i)))
+        (is (not (identical? dl (if (zero? i) a0 a1))))))
+    (testing "a new screen rebuilds"
+      (let [m2 {:screen [2334 1206]}
+            dims2 (split3d/dimensions m2 (fn [s size] (* 0.6 size (count s))))
+            st2 (assoc st :screen (:screen m2))]
+        (is (= (lst st2 dims2 0) (split3d/scene-list st2 dims2 0)))))))
