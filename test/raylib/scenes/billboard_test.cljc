@@ -133,30 +133,58 @@
           (when (#{:yellow} k) (is (inside? (part-of :yellow) x y) (str x "," y)))
           (when (#{:yellow :red} k) (is (inside? (part-of :red) x y) (str x "," y))))))))
 
-(deftest paint-farther-first-as-the-original
-  (testing "the one whose centre is farther from the eye goes first (draw-both, lines 107-125 of the original)"
-    (doseq [n (range 0 800 11)
-            :let [s (frames n 0.05)
-                  eye (:position (sc/camera s (sc/dimensions metrics measure)))
-                  d (fn [p] (vdot (vsub eye p) (vsub eye p)))]]
-      (is (= (if (> (d sc/static-pos) (d sc/spin-pos)) [:static :spin] [:spin :static])
-             (sc/paint-order eye))
-          (str n))))
-  (testing "scene-list paints in that order: the first billboard's six triangles, then the second's"
-    (doseq [n [0 60 120 200 333]
-            :let [s (frames n 0.05)
-                  dims (sc/dimensions metrics measure)
-                  cam (sc/camera s dims)
-                  vp (s3/view-proj cam (:viewport dims))
-                  ring (fn [dl pos opts]
-                         (reduce (fn [dl [colour part]] (s3/billboard dl vp pos 2.0 colour (assoc opts :part part)))
-                                 dl (sc/ring-parts)))
-                  at {:static [sc/static-pos {}]
-                      :spin [sc/spin-pos {:rotation (sc/rotation s)}]}
-                  want (reduce (fn [dl k] (ring dl (first (at k)) (second (at k))))
-                               (s3/grid [] vp 10 1.0)
-                               (sc/paint-order (:position cam)))]]
-      (is (= want (sc/scene-list s dims)) (str "frame " n)))))
+(defn- axis-order
+  "Independent of the scene: the billboards are planes perpendicular to the view
+  axis `target - eye`, so the one with the greater depth along it is farther and
+  goes first."
+  [eye target]
+  (let [f (vsub target eye)
+        depth (fn [c] (vdot (vsub c eye) f))]
+    (if (> (depth sc/static-pos) (depth sc/spin-pos)) [:static :spin] [:spin :static])))
+
+(defn- euclid-order [eye]
+  (let [d (fn [p] (vdot (vsub eye p) (vsub eye p)))]
+    (if (> (d sc/static-pos) (d sc/spin-pos)) [:static :spin] [:spin :static])))
+
+(defn- painted
+  "The list `scene-list` should give when the billboards go in `order`."
+  [s dims order]
+  (let [cam (sc/camera s dims)
+        vp (s3/view-proj cam (:viewport dims))
+        ring (fn [dl pos opts]
+               (reduce (fn [dl [colour part]] (s3/billboard dl vp pos 2.0 colour (assoc opts :part part)))
+                       dl (sc/ring-parts)))
+        at {:static [sc/static-pos {}]
+            :spin [sc/spin-pos {:rotation (sc/rotation s)}]}]
+    (reduce (fn [dl k] (ring dl (first (at k)) (second (at k))))
+            (s3/grid [] vp 10 1.0)
+            order)))
+
+(deftest paint-by-depth-along-the-view-axis
+  (let [dims (sc/dimensions metrics measure)
+        at-angle (fn [deg] (assoc (frames 0 0.0) :angle (Math/toRadians deg)))]
+    (testing "the planes are perpendicular to the view axis, so depth along it decides, farther first"
+      (doseq [deg (range 0 360 0.1)
+              :let [s (at-angle deg)
+                    cam (sc/camera s dims)]]
+        (is (= (axis-order (:position cam) (:target cam))
+               (sc/paint-order (:position cam) (:target cam)))
+            (str deg))))
+    (testing "scene-list paints in that order"
+      (doseq [deg [0 60 129.3 130.0 200 320.7 333]
+              :let [s (at-angle deg)
+                    cam (sc/camera s dims)]]
+        (is (= (painted s dims (axis-order (:position cam) (:target cam)))
+               (sc/scene-list s dims))
+            (str deg))))
+    (testing "the centre-distance order the original uses disagrees inside a window of each lap
+              (0 < cos a + sin a < 1/7.07, about 5.7 degrees), so there the two rules differ"
+      (let [s (at-angle 129.3)
+            cam (sc/camera s dims)]
+        (is (not= (euclid-order (:position cam))
+                  (axis-order (:position cam) (:target cam))))
+        (is (= (axis-order (:position cam) (:target cam))
+               (sc/paint-order (:position cam) (:target cam))))))))
 
 (deftest first-frame-draws
   (doseq [screen screens

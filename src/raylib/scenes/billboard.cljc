@@ -34,13 +34,19 @@
   three flat squares of the circles' diameters, blue the whole billboard, red 0.7
   of its side and yellow 0.35 of it (`ring-parts`), painted in that order as
   `raylib.soft3d/billboard`'s `:part`s. The squares are larger than the circles
-  they replace, by the corners, which is the one thing that looks different.
+  they replace, by the corners, and they visibly turn with the spin where the
+  original's circles show no turning at all (only its blue square's edge does).
+  Discs built of strips through `:part` measured 0.62 ms a frame on the laptop,
+  over the 0.45 ms budget, so they are not used.
 
   Each billboard's parts are coplanar and painted back to front, and the two
-  billboards are on parallel planes, so painter order is exact and there is
+  billboards are on parallel planes, both perpendicular to the view axis, so
+  painting them by depth along that axis, farther first, is exact and there is
   no `raylib.soft3d/finish`: the grid goes first, then the farther billboard, then
-  the nearer, by the original's own rule. The grid is always behind them, because
-  the camera is above the grid and above the billboards.
+  the nearer. This is not the original's rule, which sorts by the distance of the
+  centre from the camera and is wrong for about 5.7 degrees of each lap
+  (see `paint-order`); the original's depth buffer hides that. The grid is always
+  behind them, because the camera is above the grid and above the billboards.
 
   Controls: the original reads no input (it has no key), so none is mapped. The
   one text line (line 135) sits below Back, not at (10, 40), with the 3D view in
@@ -111,11 +117,17 @@
   (- (double (:spin state))))
 
 (defn paint-order
-  "`[:static :spin]` or `[:spin :static]`: the farther of the two centres from
-  `eye` first, as the original's `d-static > d-spin` test (lines 107-125)."
-  [[ex ey ez]]
-  (let [d2 (fn [[x y z]] (let [dx (- ex x) dy (- ey y) dz (- ez z)] (+ (* dx dx) (* dy dy) (* dz dz))))]
-    (if (> (d2 static-pos) (d2 spin-pos)) [:static :spin] [:spin :static])))
+  "`[:static :spin]` or `[:spin :static]`: the farther first. The billboards are
+  planes perpendicular to the view axis `target - eye`, so how far one is
+  is its centre's depth along that axis, `(c - eye) . (target - eye)`. The
+  original orders by the squared distance of the centre from the eye (lines
+  107-125), which a depth buffer makes harmless there, and which disagrees with
+  the depth for about 5.7 degrees of each lap, where the spinning billboard is
+  nearer along the axis but farther away. Painting by that would cover it."
+  [[ex ey ez] [tx ty tz]]
+  (let [fx (- tx ex) fy (- ty ey) fz (- tz ez)
+        depth (fn [[x y z]] (+ (* (- x ex) fx) (* (- y ey) fy) (* (- z ez) fz)))]
+    (if (> (depth static-pos) (depth spin-pos)) [:static :spin] [:spin :static])))
 
 (defn- emit-ring [dl vp pos opts]
   (reduce (fn [dl [colour part]]
@@ -134,7 +146,7 @@
                 (emit-ring dl vp static-pos {})
                 (emit-ring dl vp spin-pos {:rotation (rotation state)})))
             (s3/grid [] vp 10 1.0)
-            (paint-order (:position cam)))))
+            (paint-order (:position cam) (:target cam)))))
 
 (defn advance
   "One frame: the camera goes round by 0.5 radians a second of the update's

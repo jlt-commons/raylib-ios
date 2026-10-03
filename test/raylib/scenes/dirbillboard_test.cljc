@@ -106,10 +106,12 @@
   (testing "head, body and legs are tinted as `sheet-pixel`: hue 45 a row, value 1, 0.7 and 0.5"
     (let [rects (sc/cell-rects 1 0)
           colours (mapv last rects)]
-      (is (= 4 (count rects)))
+      (is (= 8 (count rects)) "two legs, the body and a head of five rows of rectangles")
       (is (= [255 210 76 255] (last colours)) "the head, painted last")
+      (is (= [255 210 76 255] (nth colours 3)))
       (is (= [178 147 53 255] (nth colours 2)) "the body: hue 45, v 0.7")
-      (is (= [127 105 38 255] (first colours)) "a leg: hue 45, v 0.5")))
+      (is (= [127 105 38 255] (first colours)) "a leg: hue 45, v 0.5")
+      (is (= 5 (count (filter #{[255 210 76 255]} colours))) "the head is five rectangles")))
   (testing "painted in order on a 24 by 24 cell, the rectangles are the original's cell, for every row and column"
     (doseq [dir (range 8) anim (range 4)
             :let [rects (sc/cell-rects dir anim)
@@ -127,8 +129,7 @@
           :head (is (= head got) (str dir "," anim " head " lx "," ly))
           :body (is (= body got) (str dir "," anim " body " lx "," ly))
           :leg (is (= leg got) (str dir "," anim " leg " lx "," ly))
-          nil (is (or (nil? got) (and (= head got) (<= 8 lx 16) (<= 4 ly 12)))
-                  (str dir "," anim " clear " lx "," ly " got " got)))))))
+          nil (is (nil? got) (str dir "," anim " clear " lx "," ly " got " got)))))))
 
 (deftest the-figure-faces-as-the-originals-quad-does
   (testing "a cell rectangle lands where the original's texel mapping puts it
@@ -167,11 +168,10 @@
                 ts (tris dl)]]
     (testing (str screen)
       (is (= 22 (count (remove (fn [it] (= :tri (nth it 0))) dl))) "the grid of 10")
-      (is (= 8 (count ts)) "four rectangles, two triangles each")
-      (is (= [[127 105 38 255] [127 105 38 255] [127 105 38 255] [127 105 38 255]
-              [178 147 53 255] [178 147 53 255] [255 210 76 255] [255 210 76 255]]
+      (is (= 16 (count ts)) "eight rectangles, two triangles each")
+      (is (= (concat (repeat 4 [127 105 38 255]) (repeat 2 [178 147 53 255]) (repeat 10 [255 210 76 255]))
              (mapv #(subvec % 7 11) ts))
-          "row 1 at the start: two legs, the body, the head")
+          "row 1 at the start: two legs, the body, the head's five rectangles")
       (is (every? (fn [[_ & more]]
                     (every? (fn [[x y]] (and (<= vx x (+ vx vw)) (<= vy y (+ vy vh))))
                             (partition 2 (take 6 more))))
@@ -180,7 +180,7 @@
       (is (every? (fn [n]
                     (let [s (assoc (start) :theta (* n 0.21) :anim (mod n 4))
                           t (tris (sc/scene-list s dims))]
-                      (= 8 (count t))))
+                      (= 16 (count t))))
                   (range 0 90))
           "the figure is whole from every side and in every walk frame")))
   (testing "the caption reads the walk frame and the row"

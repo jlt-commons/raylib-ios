@@ -25,12 +25,11 @@
   to `11 + o` and `12 - o` to `13 - o` where the offset `o` of the column is 0,
   2, 0, -2 (line 47), all of hue 45 degrees a row, saturation 0.7, and
   transparent elsewhere. There is no texture here, so each pose is redrawn as
-  four flat rectangles, `cell-rects`, in the same cell: the two legs, the body, and
-  a head that is the square of the circle's diameter (9 pixels, from 8 to 16 in
-  each direction) in place of the circle. The legs and the body are the original's
-  pixels exactly, and a test paints them over a cell and compares all 576 pixels
-  of all 32 poses with the original's rule. The head's square holds its circle,
-  with the corners left over as the one thing that looks different. Each
+  eight flat rectangles, `cell-rects`, in the same cell: the two legs, the body,
+  and the head as five rectangles, one for the pixel rows it spans, 5, 7, 9
+  (five rows), 7 and 5 pixels wide, which is the circle's `r < 5` test row by
+  row. All of it is the original's pixels exactly, and a test paints them over a
+  cell and compares all 576 pixels of all 32 poses with the original's rule. Each
   rectangle is a part of the billboard (`cell->part`), so the eight rows are eight
   colours and the four columns are four leg positions.
 
@@ -102,14 +101,19 @@
 (defn cell-rects
   "The pose at row `dir`, column `anim`, as `[x0 y0 x1 y1 colour]` rectangles of
   the 24 pixel cell, half-open in pixels with y down, in painting order: the
-  second leg, the first, the body and the head. See the ns docstring."
+  second leg, the first, the body and the head's five rectangles, top to bottom.
+  See the ns docstring."
   [dir anim]
   (let [o (nth leg-offsets (mod anim (count leg-offsets)))
         hue (* dir 45.0)]
     [[(- 12 o) 20 (- 14 o) 23 (hsv->colour hue 0.7 0.5)]
      [(+ 10 o) 20 (+ 12 o) 23 (hsv->colour hue 0.7 0.5)]
      [9 13 15 20 (hsv->colour hue 0.7 0.7)]
-     [8 4 17 13 (hsv->colour hue 0.7 1.0)]]))
+     [10 4 15 5 (hsv->colour hue 0.7 1.0)]
+     [9 5 16 6 (hsv->colour hue 0.7 1.0)]
+     [8 6 17 11 (hsv->colour hue 0.7 1.0)]
+     [9 11 16 12 (hsv->colour hue 0.7 1.0)]
+     [10 12 15 13 (hsv->colour hue 0.7 1.0)]]))
 
 (defn cell->part
   "A cell rectangle `[x0 y0 x1 y1]` (pixels, y down) as the `:part`
@@ -150,7 +154,7 @@
                    original-aspect (:aspect dims))))
 
 (defn scene-list
-  "The draw list for `state`: the grid, then the pose's four rectangles."
+  "The draw list for `state`: the grid, then the pose's eight rectangles."
   [state dims]
   (let [vp (s3/view-proj (camera state dims) (:viewport dims))]
     (reduce (fn [dl [x0 y0 x1 y1 colour]]
