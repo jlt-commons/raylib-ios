@@ -46,6 +46,8 @@
             [raylib.scenes.dashed :as dash]
             [raylib.scenes.deltatime :as dtime]
             [raylib.scenes.dirbillboard :as dirbillboard]
+            [raylib.scenes.doom :as doom]
+            [raylib.scenes.doom.hud :as doom-hud]
             [raylib.scenes.easings :as ease]
             [raylib.scenes.easingsbox :as ebox]
             [raylib.scenes.easingstestbed :as etb]
@@ -170,7 +172,7 @@
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
              (blendmodes/scene) (blendparticles/scene)
              (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
-             (voxel/scene)])
+             (voxel/scene) (doom/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -207,7 +209,7 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel]}
+             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4129,6 +4131,60 @@
                    (:caption colours))
     (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack (:button colours)))
     (draw-caption! (get (:labels dims) (:mode state)) (:button-label colours))))
+
+(def ^:private doom-cache
+  "The last `[screen dims static]` for `:doom`: the layout, and the minimap's panel
+  and walls with their colours packed, which depend on the screen alone."
+  (atom nil))
+
+(defn- doom-layout [m]
+  (let [screen (:screen m)
+        [cached-screen dims static] @doom-cache]
+    (if (= screen cached-screen)
+      [dims static]
+      (let [dims (doom/dimensions m host-measure)
+            static (mapv (fn [[x y w h c]] [(int x) (int y) (int w) (int h) (color c)])
+                         (doom-hud/minimap-static dims))]
+        (reset! doom-cache [screen dims static])
+        [dims static]))))
+
+(defn- draw-doom-rect! [x y w h c]
+  (rl/draw-rectangle (int x) (int y) (int w) (int h) c))
+
+(defmethod draw-scene! :doom [_ state {:keys [m safe]}]
+  (clear-to! doom/background-colour)
+  (let [[dims static] (doom-layout m)
+        n (doom/build! state dims)
+        thick (max 1.0 (:k dims))
+        [hx hy hw hh hc] (doom-hud/hud-bar dims)
+        {:keys [cx cy r]} (:fire dims)
+        shape (doom/stick-shape state dims)]
+    (draw-in-field! safe (:viewport dims)
+                    (fn []
+                      (doom/draw-rects! n draw-doom-rect!)
+                      (rl/draw-rectangle (int hx) (int hy) (int hw) (int hh) (color hc))
+                      (doseq [line (doom-hud/hud-lines state dims)]
+                        (draw-caption! line (:colour line)))
+                      (doseq [[x1 y1 x2 y2] (doom-hud/crosshair dims)]
+                        (rl/draw-line-ex x1 y1 x2 y2 thick (color doom-hud/crosshair-colour)))
+                      (doseq [[x y w h c] static]
+                        (rl/draw-rectangle x y w h c))
+                      (doseq [item (doom-hud/minimap-dynamic state dims)]
+                        (case (first item)
+                          :circle (let [[_ x y rad c] item]
+                                    (rl/draw-circle (int x) (int y) (double rad) (color c)))
+                          :line (let [[_ x1 y1 x2 y2 c] item]
+                                  (rl/draw-line-ex x1 y1 x2 y2 thick (color c)))))
+                      (when-let [died (doom-hud/died state dims)]
+                        (draw-caption! died (:colour died)))
+                      (rl/draw-circle (int cx) (int cy) (double r) (color doom/fire-colour))
+                      (draw-caption! (:fire-label dims) doom/fire-label-colour)
+                      (when shape
+                        (let [[sx sy] (:centre shape)
+                              [kx ky] (:knob shape)]
+                          (rl/draw-circle (int sx) (int sy) (double (:r shape)) (color doom/stick-ring-colour))
+                          (rl/draw-circle (int kx) (int ky) (* 0.4 (:r shape)) (color doom/stick-knob-colour))))))
+    (draw-caption! (:caption dims) doom/caption-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

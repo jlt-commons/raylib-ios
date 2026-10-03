@@ -129,6 +129,7 @@
                      raylib.scenes.boxcollide-test
                      raylib.scenes.fpcamera-test
                      raylib.scenes.voxel-test
+                     raylib.scenes.doom-test
                      raylib.scenes.fpmaze-test
                      raylib.scenes.split3d-test
                      raylib.scenes.picking-test
