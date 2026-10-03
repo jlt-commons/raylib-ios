@@ -137,6 +137,8 @@
                      raylib.scenes.pointcloud-test
                      raylib.scenes.spheres-test
                      raylib.scenes.bunnymark-test
+                     raylib.scenes.bgscroll-test
+                     raylib.scenes.spritestack-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.scenes.clock-test

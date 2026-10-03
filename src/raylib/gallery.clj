@@ -25,6 +25,7 @@
             [raylib.scenes.balls :as balls]
             [raylib.scenes.bars :as bars]
             [raylib.scenes.bezier :as bez]
+            [raylib.scenes.bgscroll :as bgscroll]
             [raylib.scenes.boids :as boids]
             [raylib.scenes.bounce :as bounce]
             [raylib.scenes.boxcollide :as boxcollide]
@@ -104,6 +105,7 @@
             [raylib.scenes.splines :as spl]
             [raylib.scenes.split3d :as split3d]
             [raylib.scenes.splitscreen :as split]
+            [raylib.scenes.spritestack :as spritestack]
             [raylib.scenes.starfield :as sfield]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.strings :as strings]
@@ -153,7 +155,7 @@
              (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
              (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
              (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
-             (bunnymark/scene)])
+             (bunnymark/scene) (bgscroll/scene) (spritestack/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -189,7 +191,7 @@
              :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
-             :bunnymark]}
+             :bunnymark :bgscroll :spritestack]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -3555,6 +3557,76 @@
     (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack bunnymark/button-colour))
     (rl/draw-text (:label dims) (:label-x dims) (:label-y dims) (:label-size dims)
                   (pack bunnymark/button-label-colour))))
+
+(def ^:private bgscroll-dims-cache
+  "The last `[screen dims]` for `:bgscroll`. Its caption size needs a measure,
+  which depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- bgscroll-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @bgscroll-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (bgscroll/dimensions m host-measure)]
+        (reset! bgscroll-dims-cache [screen dims])
+        dims))))
+
+(defn- bgscroll-rect!
+  [x y w h [r g b a]]
+  (rl/draw-rectangle x y w h (rl/rgba r g b a)))
+
+(defmethod draw-scene! :bgscroll [_ state {:keys [m]}]
+  (clear-to! bgscroll/background-colour)
+  (let [dims (bgscroll-dims m)]
+    (bgscroll/emit-layers! bgscroll-rect! state dims)
+    (draw-caption! (first (:lines dims)) bgscroll/caption-colour)))
+
+(def ^:private spritestack-dims-cache
+  "The last `[screen dims]` for `:spritestack`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- spritestack-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @spritestack-dims-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (spritestack/dimensions m host-measure)]
+        (reset! spritestack-dims-cache [screen dims])
+        dims))))
+
+(defn- spritestack-layer!
+  "Turns the matrix to slice `_`'s centre and rotation, runs `f` and puts the
+  matrix back. rlgl transforms each vertex as it is added, so the slice's rects
+  and circles are drawn in its own pixels; a rotation keeps the winding, so
+  nothing is culled."
+  [_ x y rotation f]
+  (rl/rl-push-matrix)
+  (try
+    (rl/rl-translatef (double x) (double y) 0.0)
+    (rl/rl-rotatef (double rotation) 0.0 0.0 1.0)
+    (f)
+    (finally (rl/rl-pop-matrix))))
+
+(defn- spritestack-rect! [x y w h [r g b a]]
+  (rl/draw-rectangle x y w h (rl/rgba r g b a)))
+
+(defn- spritestack-circle! [x y radius [r g b a]]
+  (rl/draw-circle x y (double radius) (rl/rgba r g b a)))
+
+(defmethod draw-scene! :spritestack [_ state {:keys [m]}]
+  (clear-to! spritestack/background-colour)
+  (let [dims (spritestack-dims m)
+        [hint-l spacing-l speed-l note-l] (:lines dims)]
+    (spritestack/emit-stack! spritestack-layer! spritestack-rect! spritestack-circle!
+                             state dims)
+    (draw-caption! hint-l spritestack/text-colour)
+    (draw-caption! (assoc spacing-l :s (spritestack/spacing-line (:spacing state)))
+                   spritestack/text-colour)
+    (draw-caption! (assoc speed-l :s (spritestack/speed-line (:speed state)))
+                   spritestack/text-colour)
+    (draw-caption! note-l spritestack/note-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
