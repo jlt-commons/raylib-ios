@@ -62,18 +62,26 @@ plainly marked as such" asks.
 
 ## Ported from babashka/ffi, and altered
 
-`src/raylib/scenes/helitorus.cljc` is a port of raylib-jlt's `helitorus`, which
-is itself a port of a program from the babashka/ffi examples directory, not of
-one of raylib's own examples. It is an altered version of both.
+`src/raylib/scenes/helitorus.cljc`, `src/raylib/scenes/doom.cljc` (with
+`doom/map.cljc`, `doom/ray.cljc` and `doom/hud.cljc`) and
+`src/raylib/scenes/pacman.cljc` are each a port of raylib-jlt's port of a
+program from the babashka/ffi examples directory, not of one of raylib's own
+examples. Each is an altered version of both.
 
     https://github.com/babashka/ffi
     Copyright (c) 2026 Michiel Borkent (@borkdude)
     MIT License
 
     helitorus  <- examples/helitorus.clj  (1034e56, 2026-08-28)
+    doom       <- examples/doom.clj       (1034e56, 2026-08-28)
+    pacman     <- examples/pacman.clj     (94ccd77, 2026-08-31)
+
+For doom, the sixteen level rows, the DDA, the shading and the HUD came from
+its original; this port draws flat strips instead of textures, casts 180
+columns and replaces keys and mouse with touch.
 
 The geometry, the painter's ordering, the backface test, the lighting and the
-palette came from that original and are substantially unchanged. What the
+palette came from the helitorus original and are substantially unchanged. What the
 ports changed is how the program reaches raylib and its input: babashka.ffi
 calls became this project's wrapper, the buffers gained jolt type hints, the
 loop is inverted so the host owns it, and the mouse and keys became touch. The

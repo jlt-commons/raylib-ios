@@ -6,7 +6,12 @@
   test runner never loaded raylib.gallery, so a scene missing from a category
   just vanished from the menu and a missing draw method crashed on the phone.
   Running each scene for 120 frames of scripted touch also covers the
-  crash-on-open path for scenes that have no test of their own.
+  crash-on-open path for scenes that have no test of their own. A second pass
+  runs every scene's update and its `draw-scene!` over stubbed raylib for the
+  same 120 frames, with each call's argument types checked against its defcfn
+  signature and begin/end pairs counted. The script has a single press, so the
+  stick paths (doom, voxel, fpcamera, split3d) draw only their idle frames in
+  it; doom's own test below adds a held stick.
 
   This is .clj rather than .cljc because raylib.gallery loads jolt.ffi. The
   runner lists it as jolt-only and skips it on the JVM."
@@ -196,9 +201,168 @@
             st2 (assoc st :screen (:screen m2))]
         (is (= (lst st2 dims2 0) (split3d/scene-list st2 dims2 0)))))))
 
+(def ^:private screen-w 1206)
+(def ^:private screen-h 2334)
+
+(defn- type-violation
+  "What is wrong with `args` against the defcfn parameter `types`, or nil. The
+  rules are the FFI's: a :float must be a double (jolt rejects an integer), an
+  :int, :uint or :uint8 an integer and a :string a string."
+  [types args]
+  (or (when (not= (count types) (count args)) :arity)
+      (some (fn [[t a]]
+              (case t
+                :float (when-not (double? a)
+                         (if (integer? a) :float-got-integer :float-got-other))
+                (:int :uint :uint8) (when-not (integer? a) [t :got-other])
+                :string (when-not (string? a) :string-got-other)))
+            (map vector types args))))
+
+(defn- with-stubbed-raylib
+  "Call `(f probe)` with the host's drawing defcfns redefined to stubs that
+  record type violations and begin/end balances in `probe`, an atom of
+  `{:violations [...] :balance {k n}}`."
+  [f]
+  (let [probe (atom {:violations []
+                     :balance {}})
+        chk (fn [nm types args]
+              (when-let [v (type-violation types args)]
+                (swap! probe update :violations conj [nm v])))
+        stub (fn [nm types ret]
+               (fn [& args] (chk nm types args) ret))
+        pair (fn [nm types k d]
+               (fn [& args]
+                 (chk nm types args)
+                 (swap! probe update-in [:balance k] (fnil + 0) d)
+                 nil))]
+    (with-redefs [rg/host-measure (fn [s size] (int (* 0.6 size (count s))))
+                  host/clear-background (stub :clear-background [:uint] nil)
+                  host/draw-text (stub :draw-text [:string :int :int :int :uint] nil)
+                  host/draw-circle (stub :draw-circle [:int :int :float :uint] nil)
+                  host/draw-circle-lines (stub :draw-circle-lines [:int :int :float :uint] nil)
+                  host/draw-rectangle (stub :draw-rectangle [:int :int :int :int :uint] nil)
+                  host/draw-line (stub :draw-line [:int :int :int :int :uint] nil)
+                  host/get-screen-width (stub :get-screen-width [] screen-w)
+                  host/get-screen-height (stub :get-screen-height [] screen-h)
+                  host/get-frame-time (stub :get-frame-time [] 0.016)
+                  host/get-fps (stub :get-fps [] 60)
+                  host/measure-text (fn [s size]
+                                      (chk :measure-text [:string :int] [s size])
+                                      (int (* 0.6 size (count s))))
+                  host/rl-begin (pair :rl-begin [:int] :rl 1)
+                  host/rl-end (pair :rl-end [] :rl -1)
+                  host/rl-vertex-2f (stub :rl-vertex-2f [:float :float] nil)
+                  host/rl-color-4ub (stub :rl-color-4ub [:uint8 :uint8 :uint8 :uint8] nil)
+                  host/rl-push-matrix (pair :rl-push-matrix [] :matrix 1)
+                  host/rl-pop-matrix (pair :rl-pop-matrix [] :matrix -1)
+                  host/rl-translatef (stub :rl-translatef [:float :float :float] nil)
+                  host/rl-rotatef (stub :rl-rotatef [:float :float :float :float] nil)
+                  host/rl-scalef (stub :rl-scalef [:float :float :float] nil)
+                  host/begin-scissor-mode (stub :begin-scissor-mode [:int :int :int :int] nil)
+                  host/end-scissor-mode (stub :end-scissor-mode [] nil)
+                  host/begin-blend-mode (pair :begin-blend-mode [:int] :blend 1)
+                  host/end-blend-mode (pair :end-blend-mode [] :blend -1)]
+      (f probe))))
+
+(defn- draw-args
+  "The map `draw-scene!` is called with, for the phone's screen."
+  [i]
+  {:k 3.0
+   :m (:metrics (frame-input i))
+   :safe {:x 0
+          :y 0
+          :width screen-w
+          :height screen-h}})
+
+(defn- draw-script
+  "Open `id`, run the 120-frame script and call `draw-scene!` after each
+  `run-frame`. Returns `{:error [frame message] :unbalanced [[frame k n] ...]}`,
+  the balances read after each frame's draw."
+  [probe id]
+  (loop [i 0
+         gs (gallery/open-scene rg/registry gallery/initial-gallery-state id
+                                (frame-input 0))
+         out {:unbalanced []}]
+    (if (= i 120)
+      out
+      (let [gs (gallery/run-frame rg/registry gs (frame-input i))
+            _ (swap! probe assoc :balance {})
+            err (try (rg/draw-scene! id (:scene-state gs) (draw-args i))
+                     nil
+                     (catch :default e (str (or (ex-message e) e))))
+            bal (:balance @probe)
+            out (-> out
+                    (update :unbalanced into
+                            (for [[k n] bal :when (not (zero? n))] [i k n])))]
+        (if err
+          (assoc out :error [i err])
+          (recur (inc i) gs out))))))
+
+(deftest every-draw-method-runs-over-stubbed-raylib
+  ;; The pure :update and :draw run in `every-scene-survives-two-seconds-of-touch`;
+  ;; this runs `draw-scene!` itself, where the FFI type traps live. The script
+  ;; presses once, so stick paths draw only their idle frames here.
+  (with-stubbed-raylib
+    (fn [probe]
+      (doseq [id rg/scene-ids]
+        (testing (name id)
+          (swap! probe assoc :violations [])
+          (let [blend-begins (atom 0)
+                counted (fn [orig] (fn [& args]
+                                     (swap! blend-begins inc)
+                                     (apply orig args)))
+                result (with-redefs [host/begin-blend-mode
+                                     (counted host/begin-blend-mode)]
+                         (draw-script probe id))]
+            (is (nil? (:error result))
+                (str id " threw at frame " (first (:error result)) ": "
+                     (second (:error result))))
+            (is (empty? (:violations @probe))
+                (str id " passed the FFI a bad type: "
+                     (vec (take 3 (distinct (:violations @probe))))))
+            (is (empty? (:unbalanced result))
+                (str id " left a begin unmatched: "
+                     (vec (take 3 (:unbalanced result)))))
+            (when (#{:blendmodes :blendparticles} id)
+              (is (pos? @blend-begins)
+                  (str id " never called begin-blend-mode")))))))))
+
+(deftest the-blend-draws-end-the-mode-when-a-draw-throws
+  ;; A draw call that throws inside the blend must not leave the mode begun, or
+  ;; every later draw keeps it. `call-blended!` is what guarantees that, and this
+  ;; ties the two blend scenes' draw methods to it.
+  (with-stubbed-raylib
+    (fn [probe]
+      (doseq [[id thrower] [[:blendmodes :rl-vertex-2f]
+                            [:blendparticles :draw-circle]]]
+        (testing (name id)
+          (let [gs (reduce (fn [s i] (gallery/run-frame rg/registry s (frame-input i)))
+                           (gallery/open-scene rg/registry gallery/initial-gallery-state
+                                               id (frame-input 0))
+                           (range 15))
+                ;; Only a call made while the blend mode is begun throws: the
+                ;; skyline and the labels use the same calls before and after.
+                boom (fn [& _]
+                       (when (pos? (get-in @probe [:balance :blend] 0))
+                         (throw (ex-info "boom" {}))))]
+            (swap! probe assoc :balance {})
+            (let [threw? (try
+                           (case thrower
+                             :rl-vertex-2f
+                             (with-redefs [host/rl-vertex-2f boom]
+                               (rg/draw-scene! id (:scene-state gs) (draw-args 15)))
+                             :draw-circle
+                             (with-redefs [host/draw-circle boom]
+                               (rg/draw-scene! id (:scene-state gs) (draw-args 15))))
+                           false
+                           (catch :default _ true))]
+              (is threw? (str id " did not reach the redefined " thrower))
+              (is (zero? (get-in @probe [:balance :blend] 0))
+                  (str id " left the blend mode begun")))))))))
+
 (deftest doom-draw-method-runs-over-stubbed-raylib
-  ;; Scoped to doom: `run-frame` only calls a scene's pure :update and :draw, so
-  ;; nothing above runs `draw-scene!`. This runs it for 30 frames, a stick held,
+  ;; `every-draw-method-runs-over-stubbed-raylib` runs doom's `draw-scene!` on
+  ;; idle frames only. This adds the held-stick path: 30 frames, a stick held,
   ;; with the raylib calls it makes counted instead of made.
   (let [m {:screen [1206 2334]}
         counts (atom {:rect 0
