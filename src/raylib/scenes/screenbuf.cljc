@@ -1,9 +1,11 @@
 (ns raylib.scenes.screenbuf
   "Screen Buffer, ported from raylib-jlt's `screen_buffer`
-  (net/b12n/raylib_jlt/screen_buffer.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/screen_buffer.clj, EPL 2.0), which is raylib's
   `textures_screen_buffer`: the classic DOS fire as a software screen buffer. A
   200 by 112 grid of palette indices is simulated, blitted through a 256-colour
   flame palette into a texture and drawn scaled up.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from screen_buffer.clj:
   - The sizes (lines 21-26): IMG-W 200, IMG-H 112, MAX-COLORS 256.

@@ -1,8 +1,10 @@
 (ns raylib.scenes.texcurve
   "Textured Curve, ported from raylib-jlt's `textured_curve`
-  (net/b12n/raylib_jlt/textured_curve.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/textured_curve.clj, EPL 2.0), which is raylib's
   `textures_textured_curve`: a road texture laid along a cubic Bezier as a strip
   of quads, each square across the curve at its point.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from textured_curve.clj:
   - The road (lines 45-62): 64 by 128 (lines 37-38), asphalt (58, 58, 64), a

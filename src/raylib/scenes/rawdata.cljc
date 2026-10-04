@@ -1,9 +1,11 @@
 (ns raylib.scenes.rawdata
   "Raw Data, ported from raylib-jlt's `raw_data`
-  (net/b12n/raylib_jlt/raw_data.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/raw_data.clj, EPL 2.0), which is raylib's
   `textures_raw_data`: a texture is a flat block of bytes this program fills in
   itself. Two panels, a 256 by 256 checkerboard, uploaded once, and a 128 by 128
   panel whose colour is arithmetic on x, y and time.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from raw_data.clj:
   - The sizes (lines 26-38): PANEL 256, LIVE 128, and CHECK 32 for the squares.

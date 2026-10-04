@@ -1,10 +1,12 @@
 (ns raylib.scenes.npatch
   "Npatch Drawing, ported from raylib-jlt's `npatch_drawing`
-  (net/b12n/raylib_jlt/npatch_drawing.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/npatch_drawing.clj, EPL 2.0), which is raylib's
   `textures_npatch_drawing`: three panels stretched by the pointer, a nine-patch
   that grows in both axes and two three-patches that grow in one. The corners
   stay the size they were drawn at while the edges and the middle take up the
   slack.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   The original has no npatch helper in its library. `npatch!` (lines 49-83) is
   written out in the example itself, nine quads whose source rectangles carve

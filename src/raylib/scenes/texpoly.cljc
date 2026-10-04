@@ -1,10 +1,12 @@
 (ns raylib.scenes.texpoly
   "Polygon Drawing, ported from raylib-jlt's `polygon_drawing`
-  (net/b12n/raylib_jlt/polygon_drawing.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/polygon_drawing.clj, EPL 2.0), which is raylib's
   `textures_polygon_drawing`: a hue wheel mapped onto a spinning ten-sided
   polygon, drawn as a triangle fan, the same reimplementation of DrawTexturePoly
   the C example uses. The original has no polygon helper in its library; the fan
   is written out in the example (lines 85-101), and `fan` here is that loop.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from polygon_drawing.clj:
   - The texture (lines 35-59): 256 by 256 (line 23), the angle of each texel

@@ -1,9 +1,11 @@
 (ns raylib.scenes.srcrec
   "Source and Destination Rects, ported from raylib-jlt's `srcrec_dstrec`
-  (net/b12n/raylib_jlt/srcrec_dstrec.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/srcrec_dstrec.clj, EPL 2.0), which is raylib's
   `textures_srcrec_dstrec`: one frame of a sprite sheet drawn the way
   DrawTexturePro draws it. A source rectangle picks the frame, a destination
   rectangle scales it, and an origin offset makes it spin in place.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from srcrec_dstrec.clj:
   - The sheet (lines 32-42): six frames of 64 by 64 side by side, 384 by 64.

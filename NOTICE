@@ -56,13 +56,21 @@ seeded LCG, and drawing moves to the caller. Every file names its original in
 its own docstring, as the zlib licence's "altered source versions must be
 plainly marked as such" asks.
 
-Two files outside the scenes are derived too. `src/raylib/texture.clj` lifts the
-rlgl declarations, the wrap and filter setters, the upload loop and the quad
+Two files outside the scenes are derived too. `src/raylib/texture.clj` lifts
+the rlgl declarations, the wrap and filter setters, the upload loop and the quad
 from raylib-jlt's `lib/src/net/b12n/raylib/textures.clj`, and adds the id
 table, the retained staging buffers, the power-of-two rule and `triangles!`.
+That source was added to raylib-jlt on 2026-09-19, after its 2026-09-05
+relicence, so it is EPL 2.0 (Copyright (c) 2026 Burin Choomnuan), not the zlib
+licence of the block below, which describes the older scenes. The same holds for
+eight of the ten texture scenes (Source and Destination Rects, Sprite Button,
+Npatch Drawing, Polygon Drawing, Sprite Animation, Textured Curve, Raw Data and
+Screen Buffer); only Texture Tiling and Procedural Textures predate the
+relicence. Each of those docstrings gives its original's licence, and the raylib
+C examples behind them are zlib, so their altered-source marking stands.
 `src/raylib/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
-`rtextures.c`, and its tests are worked by hand from them. raylib's notice is under
-"Linked". Each file names its source in its own docstring.
+`rtextures.c`, and its tests are worked by hand from them. raylib's notice is
+under "Linked". Each file names its source in its own docstring.
 
     https://github.com/jlt-commons/raylib-jlt
     Copyright (c) 2026 Burin Choomnuan

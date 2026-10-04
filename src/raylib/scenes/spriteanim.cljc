@@ -1,8 +1,10 @@
 (ns raylib.scenes.spriteanim
   "Sprite Animation, ported from raylib-jlt's `sprite_animation`
-  (net/b12n/raylib_jlt/sprite_animation.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/sprite_animation.clj, EPL 2.0), which is raylib's
   `textures_sprite_animation`: one strip of six frames goes to the GPU once, and
   a source rectangle walks along it. Only the texcoords change.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from sprite_animation.clj:
   - The strip (lines 37-89): 576 by 120 (lines 26-29), six frames of 96 by 120,

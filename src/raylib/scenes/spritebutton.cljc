@@ -1,10 +1,12 @@
 (ns raylib.scenes.spritebutton
   "Sprite Button, ported from raylib-jlt's `sprite_button`
-  (net/b12n/raylib_jlt/sprite_button.clj, zlib licence), which is raylib's
+  (net/b12n/raylib_jlt/sprite_button.clj, EPL 2.0), which is raylib's
   `textures_sprite_button`: one texture holds three stacked frames of a button,
   normal, hover and pressed, and the button picks its frame by sliding a window
   down the sheet, a third of the texture's height at a time. Click it and the
   counter goes up.
+  The raylib C example it follows is zlib licensed, and this is an altered
+  version of that too.
 
   Mirrored from sprite_button.clj:
   - The sheet (lines 33-62): 160 by 144, three frames of 160 by 48 stacked
