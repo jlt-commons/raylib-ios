@@ -20,7 +20,8 @@
   `rlLoadTexture` alone, with no pixel fn calls and no write loop. Specs are
   pure, so the same object means the same pixels. A different spec object under
   the same key refills and replaces the kept buffer. A versioned spec is never
-  kept, and `band!` and the version refresh use temporary buffers.
+  kept, and `band!` and the version refresh use temporary buffers, and a texture first made by `band!`
+  is never kept (it is dynamic).
 
   Lifted from net.b12n.raylib.textures in jlt-commons/raylib-jlt (the rlgl
   declarations, the wrap and filter setters, the upload loop and the quad), with
@@ -93,27 +94,14 @@
                      :was-w (:w have)
                      :was-h (:h have)}))))
 
-(defn id!
-  "The rlgl texture id for `key` in scene `scene-id`, uploading it on first use.
-
-  `spec` is `{:w :h :pixel :wrap :filter :version}`. `:pixel` is `(f x y)` to a
-  packed colour, `:wrap` is :clamp (the default) or :repeat, `:filter` is
-  :nearest (the default) or :linear. A later call with a different `:version`
-  rewrites the pixels in place with rlUpdateTexture and keeps the id; the same
-  version is a table lookup. A size that differs from the one uploaded under the
-  same key throws, since rlUpdateTexture would write outside the texture.
-
-  A spec without a `:version` is kept: its filled staging buffer stays for the
-  life of the app, and a later first-use of the same key (after `enter!` freed
-  the GL texture) with the identical spec object loads from that buffer without
-  calling `:pixel`. See the ns docstring.
-
-  GLES2 only repeats a power-of-two texture, so :repeat on any other size throws
-  an ex-info with :scene, :key, :w and :h."
+(defn- upload!
+  "`id!`, with `retain?` saying whether a first upload keeps its staging buffer.
+  `band!` passes false: a banded texture is dynamic, so a kept buffer would be
+  stale and never reused."
   [scene-id key {:keys [w h pixel wrap filter version]
                  :or {wrap :clamp
                       filter :nearest}
-                 :as spec}]
+                 :as spec} retain?]
   (let [k [scene-id key]
         have (get @table k)]
     (when (and (= :repeat wrap) (not (and (pow2? w) (pow2? h))))
@@ -126,7 +114,7 @@
     (cond
       (nil? have)
       (let [old (get @kept k)
-            reuse? (and (nil? version) (identical? spec (:spec old)))
+            reuse? (and retain? (nil? version) (identical? spec (:spec old)))
             buf (if reuse? (:buf old) (ffi/alloc (* w h 4)))
             owned? (atom (not reuse?))]
         (try
@@ -147,7 +135,7 @@
             (rl-texture-parameters id RL-TEXTURE-WRAP-T (RL-WRAP wrap))
             (rl-texture-parameters id RL-TEXTURE-MIN-FILTER (RL-FILTER filter))
             (rl-texture-parameters id RL-TEXTURE-MAG-FILTER (RL-FILTER filter))
-            (when (and (nil? version) (not reuse?))
+            (when (and retain? (nil? version) (not reuse?))
               (when-let [prev (:buf old)]
                 (ffi/free prev))
               (swap! kept assoc k {:spec spec
@@ -172,6 +160,26 @@
           id
           (finally (ffi/free buf)))))))
 
+(defn id!
+  "The rlgl texture id for `key` in scene `scene-id`, uploading it on first use.
+
+  `spec` is `{:w :h :pixel :wrap :filter :version}`. `:pixel` is `(f x y)` to a
+  packed colour, `:wrap` is :clamp (the default) or :repeat, `:filter` is
+  :nearest (the default) or :linear. A later call with a different `:version`
+  rewrites the pixels in place with rlUpdateTexture and keeps the id; the same
+  version is a table lookup. A size that differs from the one uploaded under the
+  same key throws, since rlUpdateTexture would write outside the texture.
+
+  A spec without a `:version` is kept: its filled staging buffer stays for the
+  life of the app, and a later first-use of the same key (after `enter!` freed
+  the GL texture) with the identical spec object loads from that buffer without
+  calling `:pixel`. See the ns docstring.
+
+  GLES2 only repeats a power-of-two texture, so :repeat on any other size throws
+  an ex-info with :scene, :key, :w and :h."
+  [scene-id key spec]
+  (upload! scene-id key spec true))
+
 (defn band!
   "Refill rows [`y0`, `y0` + `rows`) of the texture for `key` in scene
   `scene-id` from `spec`'s `:pixel`, and upload only those rows with
@@ -185,7 +193,8 @@
   `:pixel` is called with the texture's own y, not the band's. The band is cut
   off at the bottom (a `y0` and `rows` that run past the last row keep only the
   rows that exist, and a band wholly below uploads nothing). If the texture does
-  not exist yet, `id!` makes it first, filling all of it. A band never changes
+  not exist yet, it is made first, filling all of it, and its staging buffer is
+  not kept, as `id!` would keep a static one. A band never changes
   the texture's `:version`; that belongs to `id!`'s whole-texture refresh.
   Answers the GL id."
   [scene-id key {:keys [w h pixel]
@@ -202,7 +211,7 @@
             (rl-update-texture gl-id 0 y0 w n PIXELFORMAT-R8G8B8A8 buf)
             (finally (ffi/free buf)))))
       gl-id)
-    (id! scene-id key spec)))
+    (upload! scene-id key spec false)))
 
 (defn enter!
   "Free every texture that does not belong to `scene-id`. Called every frame

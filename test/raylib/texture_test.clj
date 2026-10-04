@@ -328,6 +328,24 @@
        (tex/id! :s :k a)
        (is (= 24 @n) "a was replaced, so it fills again")))))
 
+(deftest a-banded-texture-is-never-kept
+  (let [n (atom 0)
+        shared (counting-spec n)
+        kept-keys (fn [] (set (keys @@#'tex/kept)))]
+    (recording
+     (fn [calls]
+       (tex/band! :s :live shared 0 1)
+       (is (= 8 @n) "the first band! of a missing key fills the whole texture")
+       (is (not (contains? (kept-keys) [:s :live])) "and keeps nothing")
+       (tex/enter! :other)
+       (tex/band! :s :live shared 0 1)
+       (is (= 16 @n) "so a return fills again, though the spec is the identical object")
+       (is (not (contains? (kept-keys) [:s :live])))
+       (is (= 2 (count (of calls :load))))
+       (testing "id! on a fresh key still keeps"
+         (tex/id! :s :static shared)
+         (is (contains? (kept-keys) [:s :static])))))))
+
 (deftest the-size-of-a-key-cannot-change-under-a-version-refresh
   (recording
    (fn [calls]
