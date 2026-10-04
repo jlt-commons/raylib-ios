@@ -11,6 +11,7 @@
             [jolt.ffi :as ffi]
             [raylib.host :as host]
             [raylib.probe :as probe]
+            [raylib.rlgl-model :as gl]
             [raylib.texel :as texel]
             [raylib.texture :as tex]))
 
@@ -21,6 +22,18 @@
   (atom 1))
 
 (def ^:private sdl-fbo 77)
+
+(def ^:private model
+  "The rlgl matrix model the stubbed matrix calls act on."
+  (gl/fresh))
+
+(def ^:private bound
+  "The framebuffer the stubs say is bound: `sdl-fbo` at the start of a test,
+  0 after the calls rlgl implements with an implicit bind of 0."
+  (atom sdl-fbo))
+
+(def ^:private mode-of {0x1700 :modelview
+                        0x1701 :projection})
 (def ^:private screen-size [1206 2334])
 
 (defn- recording
@@ -50,39 +63,63 @@
                    tex/rl-load-framebuffer (fn []
                                              (let [id (swap! next-id inc)]
                                                (swap! calls conj [:load-fbo])
+                                               (reset! bound 0)
                                                id))
                    tex/rl-load-texture-depth (fn [& args]
                                                (let [id (swap! next-id inc)]
                                                  (swap! calls conj (into [:load-depth] args))
                                                  id))
-                   tex/rl-framebuffer-attach (rec :attach)
+                   tex/rl-framebuffer-attach (fn [& args]
+                                               (swap! calls conj (into [:attach] args))
+                                               (reset! bound 0))
                    tex/rl-framebuffer-complete (fn [fbo]
                                                  (swap! calls conj [:complete fbo])
+                                                 (reset! bound 0)
                                                  @complete-result)
-                   tex/rl-enable-framebuffer (rec :enable-fbo)
-                   tex/rl-disable-framebuffer (rec :disable-fbo)
-                   tex/rl-unload-framebuffer (rec :unload-fbo)
+                   tex/rl-enable-framebuffer (fn [fbo]
+                                               (swap! calls conj [:enable-fbo fbo])
+                                               (reset! bound fbo))
+                   tex/rl-disable-framebuffer (fn []
+                                                (swap! calls conj [:disable-fbo])
+                                                (reset! bound 0))
+                   tex/rl-unload-framebuffer (fn [fbo]
+                                               (swap! calls conj [:unload-fbo fbo])
+                                               (reset! bound 0))
                    tex/rl-viewport (rec :viewport)
                    tex/rl-set-framebuffer-width (rec :fb-width)
                    tex/rl-set-framebuffer-height (rec :fb-height)
-                   tex/rl-matrix-mode (rec :matrix-mode)
-                   tex/rl-load-identity (rec :identity)
-                   tex/rl-ortho (rec :ortho)
+                   tex/rl-matrix-mode (fn [m]
+                                        (swap! calls conj [:matrix-mode m])
+                                        (gl/matrix-mode model (mode-of m)))
+                   tex/rl-load-identity (fn []
+                                          (swap! calls conj [:identity])
+                                          (gl/identity* model))
+                   tex/rl-ortho (fn [& args]
+                                  (swap! calls conj (into [:ortho] args))
+                                  (apply gl/ortho model args))
                    tex/rl-draw-render-batch-active (rec :flush)
                    tex/rl-set-blend-factors (rec :blend-factors)
                    host/end-scissor-mode (rec :end-scissor)
                    host/begin-scissor-mode (rec :begin-scissor)
-                   host/rl-push-matrix (rec :push)
-                   host/rl-pop-matrix (rec :pop)
+                   host/rl-push-matrix (fn []
+                                         (swap! calls conj [:push])
+                                         (gl/push model))
+                   host/rl-pop-matrix (fn []
+                                        (swap! calls conj [:pop])
+                                        (gl/pop* model))
                    host/begin-blend-mode (rec :begin-blend)
                    host/end-blend-mode (rec :end-blend)
-                   host/gl-bind-framebuffer (rec :bind-fbo)
+                   host/gl-bind-framebuffer (fn [& args]
+                                              (swap! calls conj (into [:bind-fbo] args))
+                                              (reset! bound (second args)))
                    host/get-screen-width (fn [] (first screen-size))
                    host/get-screen-height (fn [] (second screen-size))]
        ;; Inside the redefs: a table left dirty by an earlier failure would
        ;; otherwise reach the real rlUnloadTexture with no GL context.
        (tex/enter! nil)
        (reset! complete-result 1)
+       (reset! bound sdl-fbo)
+       (reset! model @(gl/fresh))
        (reset! probe/wm-info {:framebuffer sdl-fbo})
        (try
          (f calls)
@@ -523,9 +560,11 @@
    (fn [calls]
      (let [rt (tex/target! :s :rt {:w 256
                                    :h 128})
-           [load-fbo load-tex load-depth a1 a2 complete :as seq*] (into [] not-param @calls)
+           [flush load-fbo load-tex load-depth a1 a2 complete rebind :as seq*] (into [] not-param @calls)
            fbo (:fbo rt)]
-       (is (= 6 (count seq*)))
+       (is (= 8 (count seq*)))
+       (is (= [:flush] flush))
+       (is (= [:bind-fbo 0x8D40 sdl-fbo] rebind))
        (is (= [:load-fbo] load-fbo))
        (is (= [:load 7 1] [(first load-tex) (nth load-tex 4) (nth load-tex 5)]))
        (is (= [256 128] [(nth load-tex 2) (nth load-tex 3)]))
@@ -618,6 +657,7 @@
        (is (= [[:flush]
                [:end-scissor]
                [:push]
+               [:identity]
                [:enable-fbo (:fbo rt)]
                [:viewport 0 0 256 128]
                [:fb-width 256]
@@ -637,6 +677,8 @@
                [:identity]
                [:ortho 0.0 1206.0 2334.0 0.0 0.0 1.0]
                [:matrix-mode 0x1700]
+               [:push]
+               [:pop]
                [:pop]
                [:begin-scissor 0 100 1206 2000]]
               @calls))))))
@@ -660,9 +702,11 @@
                [:identity]
                [:ortho 0.0 1206.0 2334.0 0.0 0.0 1.0]
                [:matrix-mode 0x1700]
+               [:push]
+               [:pop]
                [:pop]
                [:begin-scissor 0 100 1206 2000]]
-              (subvec @calls (- (count @calls) 11))))))))
+              (subvec @calls (- (count @calls) 13))))))))
 
 (deftest two-passes-flush-between-them
   (recording
@@ -703,3 +747,73 @@
        (is (= "boom" (ex-message e)))
        (is (= [[:blend-factors 0x0302 1 0x8008] [:begin-blend 6] [:end-blend]] @calls)))
      (is (= [0x0302 0x8007 0x8008] [tex/RL-SRC-ALPHA tex/RL-MIN tex/RL-MAX])))))
+
+(defn- gallery-translate!
+  "What raylib.gallery does around a scene: push, then translate by the safe
+  region's origin (a push in MODELVIEW mode sends the translate to
+  `transform`)."
+  [safe-y]
+  (gl/push model)
+  (gl/translate-y model safe-y))
+
+(deftest a-pass-draws-untranslated-and-gives-the-gallery-transform-back
+  (recording
+   (fn [_]
+     (let [rt (tex/target! :s :rt {:w 256
+                                   :h 128})
+           inside (atom nil)]
+       (gallery-translate! 162)
+       (let [before (gl/snapshot model)]
+         (is (= 162 (gl/vertex-offset model)))
+         (tex/with-target! rt safe (fn [] (reset! inside (gl/vertex-offset model))))
+         (is (= 0 @inside) "inside the pass a vertex is not translated")
+         (is (= 162 (gl/vertex-offset model)) "after the pass the gallery's translation is back")
+         (is (= before (gl/snapshot model)) "transform, modelview, pointer and stack are as they were")
+         (testing "the throw path"
+           (is (thrown? Exception
+                        (tex/with-target! rt safe (fn [] (throw (ex-info "boom" {}))))))
+           (is (= before (gl/snapshot model))))
+         (gl/pop* model)
+         (is (= 0 (gl/vertex-offset model))))))))
+
+(deftest a-pass-with-no-gallery-push-leaves-a-clean-stack
+  (recording
+   (fn [_]
+     (let [rt (tex/target! :s :rt {:w 8
+                                   :h 8})
+           before (gl/snapshot model)]
+       (tex/with-target! rt safe (fn [] nil))
+       (is (= before (gl/snapshot model)))))))
+
+(deftest the-screen-is-bound-after-target-and-enter
+  (recording
+   (fn [calls]
+     (testing "a new target"
+       (tex/target! :s :rt {:w 64
+                            :h 64})
+       (is (= sdl-fbo @bound)))
+     (testing "the same target again"
+       (tex/target! :s :rt {:w 64
+                            :h 64})
+       (is (= sdl-fbo @bound)))
+     (testing "a replaced target"
+       (reset! bound 5)
+       (tex/target! :s :rt {:w 32
+                            :h 64})
+       (is (= sdl-fbo @bound)))
+     (testing "an incomplete target"
+       (reset! complete-result 0)
+       (is (thrown? Exception (tex/target! :s :bad {:w 8
+                                                    :h 8})))
+       (is (= sdl-fbo @bound)))
+     (testing "a throw while building"
+       (with-redefs [tex/rl-load-texture-depth (fn [& _] (throw (ex-info "boom" {})))]
+         (is (thrown? Exception (tex/target! :s :bad2 {:w 8
+                                                       :h 8}))))
+       (is (= sdl-fbo @bound)))
+     (testing "enter! freeing a target flushes first and rebinds"
+       (reset! calls [])
+       (tex/enter! :other)
+       (is (= [:flush] (first @calls)))
+       (is (= sdl-fbo @bound))
+       (is (= [:bind-fbo 0x8D40 sdl-fbo] (peek @calls)))))))

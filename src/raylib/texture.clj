@@ -261,13 +261,32 @@
       gl-id)
     (upload! scene-id key spec false)))
 
+(defn- bind-screen!
+  "Bind the framebuffer the screen is: SDL's drawable on the phone, and the
+  default framebuffer when the host recorded none."
+  []
+  (if-let [fbo (:framebuffer @probe/wm-info)]
+    (host/gl-bind-framebuffer GL-FRAMEBUFFER fbo)
+    (rl-disable-framebuffer)))
+
 (defn- unload-entry!
   "Free one table entry's GL objects. A target's framebuffer takes its depth
-  renderbuffer with it; the colour texture is ours to free."
+  renderbuffer with it; the colour texture is ours to free.
+
+  rlUnloadFramebuffer binds framebuffer 0 when it is done (rlgl.h, 6.0:
+  glBindFramebuffer(GL_FRAMEBUFFER, 0) at the end of the function), and on iOS 0
+  is not the screen. This runs mid-frame, so the batch is flushed first and
+  SDL's framebuffer is bound again after, on every path."
   [gl-id fbo]
-  (rl-unload-texture gl-id)
   (when fbo
-    (rl-unload-framebuffer fbo)))
+    (rl-draw-render-batch-active))
+  (try
+    (rl-unload-texture gl-id)
+    (when fbo
+      (rl-unload-framebuffer fbo))
+    (finally
+      (when fbo
+        (bind-screen!)))))
 
 (defn enter!
   "Free every texture and render target that does not belong to `scene-id`. Called every frame
@@ -389,32 +408,40 @@
   "The GL objects of a `w` x `h` target: a framebuffer, an RGBA8 colour texture
   (linear, clamped, no mipmaps, transparent black from the zeroed upload buffer)
   and a depth renderbuffer. Answers the table entry, or throws and frees what it
-  made when the framebuffer is incomplete."
+  made when the framebuffer is incomplete.
+
+  rlLoadFramebuffer, rlFramebufferAttach and rlFramebufferComplete each leave
+  framebuffer 0 bound (rlgl.h, 6.0), which on iOS is not the screen. So the
+  batch is flushed before the first of them, while the screen is still bound,
+  and SDL's framebuffer is bound again on the way out, whichever way it goes."
   [scene-id key w h]
-  (let [fbo (rl-load-framebuffer)
-        buf (ffi/alloc (* w h 4))
-        tex (try (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)
-                 (finally (ffi/free buf)))
-        depth (rl-load-texture-depth w h 1)]
-    (rl-texture-parameters tex RL-TEXTURE-WRAP-S (RL-WRAP :clamp))
-    (rl-texture-parameters tex RL-TEXTURE-WRAP-T (RL-WRAP :clamp))
-    (rl-texture-parameters tex RL-TEXTURE-MIN-FILTER (RL-FILTER :linear))
-    (rl-texture-parameters tex RL-TEXTURE-MAG-FILTER (RL-FILTER :linear))
-    (rl-framebuffer-attach fbo tex RL-ATTACHMENT-COLOR-CHANNEL0 RL-ATTACHMENT-TEXTURE2D 0)
-    (rl-framebuffer-attach fbo depth RL-ATTACHMENT-DEPTH RL-ATTACHMENT-RENDERBUFFER 0)
-    (when (zero? (bit-and (rl-framebuffer-complete fbo) 0xff))
-      (unload-entry! tex fbo)
-      (throw (ex-info (str "texture " (pr-str [scene-id key]) ": framebuffer incomplete for "
-                           w "x" h)
-                      {:scene scene-id
-                       :key key
-                       :w w
-                       :h h})))
-    {:gl-id tex
-     :fbo fbo
-     :version nil
-     :w w
-     :h h}))
+  (rl-draw-render-batch-active)
+  (try
+    (let [fbo (rl-load-framebuffer)
+          buf (ffi/alloc (* w h 4))
+          tex (try (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)
+                   (finally (ffi/free buf)))
+          depth (rl-load-texture-depth w h 1)]
+      (rl-texture-parameters tex RL-TEXTURE-WRAP-S (RL-WRAP :clamp))
+      (rl-texture-parameters tex RL-TEXTURE-WRAP-T (RL-WRAP :clamp))
+      (rl-texture-parameters tex RL-TEXTURE-MIN-FILTER (RL-FILTER :linear))
+      (rl-texture-parameters tex RL-TEXTURE-MAG-FILTER (RL-FILTER :linear))
+      (rl-framebuffer-attach fbo tex RL-ATTACHMENT-COLOR-CHANNEL0 RL-ATTACHMENT-TEXTURE2D 0)
+      (rl-framebuffer-attach fbo depth RL-ATTACHMENT-DEPTH RL-ATTACHMENT-RENDERBUFFER 0)
+      (when (zero? (bit-and (rl-framebuffer-complete fbo) 0xff))
+        (unload-entry! tex fbo)
+        (throw (ex-info (str "texture " (pr-str [scene-id key]) ": framebuffer incomplete for "
+                             w "x" h)
+                        {:scene scene-id
+                         :key key
+                         :w w
+                         :h h})))
+      {:gl-id tex
+       :fbo fbo
+       :version nil
+       :w w
+       :h h})
+    (finally (bind-screen!))))
 
 (defn target!
   "The render target for `key` in scene `scene-id`, made on first use, as
@@ -446,20 +473,12 @@
        :w (:w entry)
        :h (:h entry)})))
 
-(defn- bind-screen!
-  "Bind the framebuffer the screen is: SDL's drawable on the phone, and the
-  default framebuffer when the host recorded none."
-  []
-  (if-let [fbo (:framebuffer @probe/wm-info)]
-    (host/gl-bind-framebuffer GL-FRAMEBUFFER fbo)
-    (rl-disable-framebuffer)))
-
 (defn- restore-screen-view!
   "The screen's viewport and projection, as EndTextureMode leaves them. This host
   opens the window at the drawable's pixel size, so raylib runs at scale 1 and
   GetScreenWidth is the render width, with no HiDPI modelview scale to put
-  back. Leaves the matrix mode on MODELVIEW, so the pop that follows restores
-  the modelview matrix."
+  back. Leaves the matrix mode on MODELVIEW; `with-target!` puts the gallery's
+  `transform` matrix back after this."
   []
   (let [sw (host/get-screen-width)
         sh (host/get-screen-height)]
@@ -479,14 +498,22 @@
   The batch is flushed on the way in and on the way out, because rlgl defers
   geometry and would otherwise draw it into whichever framebuffer is bound
   later. Inside, the scissor is down and the matrix is pushed and reset, so `f`
-  draws in the target's own pixels from (0, 0). On every path, throws included,
-  it then binds the screen, restores the screen viewport and projection, pops
-  the matrix and puts the scissor back, so the rest of the scene's draw sees
-  what it saw before."
+  draws in the target's own pixels from (0, 0), whatever translation the gallery
+  has put on the scene. On every path, throws included, it then binds the
+  screen, restores the screen viewport and projection, gives back the matrix
+  state and puts the scissor back, so the rest of the scene's draw sees what it
+  saw before. `f` must not call BeginScissorMode (on Apple the y flips against
+  the screen height, not the target's) or nest `with-target!` (the inner exit
+  binds the screen, not the outer target)."
   [{:keys [fbo w h]} safe f]
   (rl-draw-render-batch-active)
   (host/end-scissor-mode)
+  ;; The gallery's translate lives in rlgl's `transform` matrix, not modelview
+  ;; (rlgl.h 6.0, rlPushMatrix 1236-1249: in MODELVIEW mode it saves `transform`
+  ;; and points currentMatrix at it). Load identity straight after the push,
+  ;; before any rlMatrixMode call, so `f` draws untranslated.
   (host/rl-push-matrix)
+  (rl-load-identity)
   (try
     (rl-enable-framebuffer fbo)
     (rl-viewport 0 0 w h)
@@ -502,6 +529,13 @@
       (rl-draw-render-batch-active)
       (bind-screen!)
       (restore-screen-view!)
+      ;; currentMatrix is modelview here, and rlPopMatrix writes the saved
+      ;; matrix into currentMatrix (1251-1265). A push first points it back at
+      ;; `transform` (and pushes a copy), the first pop discards that copy, the
+      ;; second restores the gallery's `transform`. With an empty stack outside,
+      ;; the last pop also resets the pointer and transformRequired, as before.
+      (host/rl-push-matrix)
+      (host/rl-pop-matrix)
       (host/rl-pop-matrix)
       (host/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe)))))
 

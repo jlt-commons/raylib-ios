@@ -21,6 +21,7 @@
             [raylib.gallery :as rg]
             [raylib.host :as host]
             [raylib.probe :as probe]
+            [raylib.rlgl-model :as gl]
             [raylib.scenes.doom :as doom]
             [raylib.scenes.split3d :as split3d]
             [raylib.scroll :as scroll]
@@ -238,10 +239,12 @@
   disable) and `:scissor` whether a scissor is up (it starts up, as the
   gallery leaves it around a scene)."
   [f]
-  (let [probe (atom {:violations []
+  (let [model (gl/fresh)
+        probe (atom {:violations []
                      :balance {}
                      :fbo sdl-fbo
-                     :scissor true})
+                     :scissor true
+                     :model model})
         was-wm @probe/wm-info
         next-fbo (atom 500)
         note (fn [k v] (swap! probe assoc k v))
@@ -274,9 +277,18 @@
                   host/rl-end (pair :rl-end [] :rl -1)
                   host/rl-vertex-2f (stub :rl-vertex-2f [:float :float] nil)
                   host/rl-color-4ub (stub :rl-color-4ub [:uint8 :uint8 :uint8 :uint8] nil)
-                  host/rl-push-matrix (pair :rl-push-matrix [] :matrix 1)
-                  host/rl-pop-matrix (pair :rl-pop-matrix [] :matrix -1)
-                  host/rl-translatef (stub :rl-translatef [:float :float :float] nil)
+                  host/rl-push-matrix (let [balanced (pair :rl-push-matrix [] :matrix 1)]
+                                        (fn [& args]
+                                          (gl/push model)
+                                          (apply balanced args)))
+                  host/rl-pop-matrix (let [balanced (pair :rl-pop-matrix [] :matrix -1)]
+                                       (fn [& args]
+                                         (gl/pop* model)
+                                         (apply balanced args)))
+                  host/rl-translatef (fn [& args]
+                                       (chk :rl-translatef [:float :float :float] args)
+                                       (gl/translate-y model (second args))
+                                       nil)
                   host/rl-rotatef (stub :rl-rotatef [:float :float :float :float] nil)
                   host/rl-scalef (stub :rl-scalef [:float :float :float] nil)
                   host/begin-scissor-mode (fn [& args]
@@ -303,28 +315,46 @@
                                            nil)
                   texture/rl-get-texture-id-default (stub :rl-get-texture-id-default [] default-texture-id)
                   texture/rl-tex-coord-2f (stub :rl-tex-coord-2f [:float :float] nil)
+                  ;; rlgl implements these with a glBindFramebuffer(.., 0) (rlgl.h,
+                  ;; 6.0), which on iOS is not the screen
                   texture/rl-load-framebuffer (fn [& args]
                                                 (chk :rl-load-framebuffer [] args)
+                                                (note :fbo 0)
                                                 (swap! next-fbo inc))
-                  texture/rl-framebuffer-attach (stub :rl-framebuffer-attach
-                                                      [:uint :uint :int :int :int] nil)
-                  texture/rl-framebuffer-complete (stub :rl-framebuffer-complete [:uint] 1)
+                  texture/rl-framebuffer-attach (fn [& args]
+                                                  (chk :rl-framebuffer-attach
+                                                       [:uint :uint :int :int :int] args)
+                                                  (note :fbo 0))
+                  texture/rl-framebuffer-complete (fn [& args]
+                                                    (chk :rl-framebuffer-complete [:uint] args)
+                                                    (note :fbo 0)
+                                                    1)
                   texture/rl-enable-framebuffer (fn [& args]
                                                   (chk :rl-enable-framebuffer [:uint] args)
                                                   (note :fbo (first args)))
                   texture/rl-disable-framebuffer (fn [& args]
                                                    (chk :rl-disable-framebuffer [] args)
                                                    (note :fbo :default))
-                  texture/rl-unload-framebuffer (stub :rl-unload-framebuffer [:uint] nil)
+                  texture/rl-unload-framebuffer (fn [& args]
+                                                  (chk :rl-unload-framebuffer [:uint] args)
+                                                  (note :fbo 0))
                   texture/rl-load-texture-depth (fn [& args]
                                                   (chk :rl-load-texture-depth [:int :int :int] args)
                                                   (swap! next-fbo inc))
                   texture/rl-viewport (stub :rl-viewport [:int :int :int :int] nil)
                   texture/rl-set-framebuffer-width (stub :rl-set-framebuffer-width [:int] nil)
                   texture/rl-set-framebuffer-height (stub :rl-set-framebuffer-height [:int] nil)
-                  texture/rl-matrix-mode (stub :rl-matrix-mode [:int] nil)
-                  texture/rl-load-identity (stub :rl-load-identity [] nil)
-                  texture/rl-ortho (stub :rl-ortho [:double :double :double :double :double :double] nil)
+                  texture/rl-matrix-mode (fn [& args]
+                                           (chk :rl-matrix-mode [:int] args)
+                                           (gl/matrix-mode model (case (first args)
+                                                                   0x1700 :modelview
+                                                                   0x1701 :projection)))
+                  texture/rl-load-identity (fn [& args]
+                                             (chk :rl-load-identity [] args)
+                                             (gl/identity* model))
+                  texture/rl-ortho (fn [& args]
+                                     (chk :rl-ortho [:double :double :double :double :double :double] args)
+                                     (apply gl/ortho model args))
                   texture/rl-draw-render-batch-active (stub :rl-draw-render-batch-active [] nil)
                   texture/rl-set-blend-factors (stub :rl-set-blend-factors [:int :int :int] nil)]
       (reset! probe/wm-info {:framebuffer sdl-fbo})
@@ -347,37 +377,46 @@
           :width screen-w
           :height screen-h}})
 
+(def ^:private probe-for-test
+  "The stub probe of the test now running, for a test-only draw method."
+  (atom nil))
+
 (defn- draw-script
   "Open `id`, run the 120-frame script and call `draw-scene!` after each
   `run-frame`. Returns `{:error [frame message] :unbalanced [[frame k n] ...]
-  :bound [[frame id] ...] :screen [[frame fbo scissor] ...]}`: the balances read
-  after each frame's draw, any frame that left a texture bound (the last
-  `rlSetTexture` was neither never made nor the default texture's id), and any
-  frame that did not end with SDL's framebuffer bound and the scissor up."
-  [probe id]
-  (loop [i 0
-         gs (gallery/open-scene rg/registry gallery/initial-gallery-state id
-                                (frame-input 0))
-         out {:unbalanced []
-              :bound []
-              :screen []}]
-    (if (= i 120)
-      out
-      (let [gs (gallery/run-frame rg/registry gs (frame-input i))
-            _ (swap! probe assoc :balance {} :last-bound nil :fbo sdl-fbo :scissor true)
-            err (try (rg/draw-scene! id (:scene-state gs) (draw-args i))
-                     nil
-                     (catch :default e (str (or (ex-message e) e))))
-            bal (:balance @probe)
-            bound (:last-bound @probe)
-            out (cond-> (update out :unbalanced into
-                                (for [[k n] bal :when (not (zero? n))] [i k n]))
-                  (not (contains? #{nil default-texture-id} bound)) (update :bound conj [i bound])
-                  (not (and (= sdl-fbo (:fbo @probe)) (:scissor @probe)))
-                  (update :screen conj [i (:fbo @probe) (:scissor @probe)]))]
-        (if err
-          (assoc out :error [i err])
-          (recur (inc i) gs out))))))
+  :bound [[frame id] ...] :screen [[frame fbo scissor matrix-ok?] ...]}`: the
+  balances read after each frame's draw, any frame that left a texture bound
+  (the last `rlSetTexture` was neither never made nor the default texture's
+  id), and any frame that did not end with SDL's framebuffer bound, the scissor
+  up and rlgl's matrix state (the stack, the pointer, `transform`) as it began.
+  `registry` defaults to the gallery's."
+  ([probe id] (draw-script probe id rg/registry))
+  ([probe id registry]
+   (loop [i 0
+          gs (gallery/open-scene registry gallery/initial-gallery-state id
+                                 (frame-input 0))
+          out {:unbalanced []
+               :bound []
+               :screen []}]
+     (if (= i 120)
+       out
+       (let [gs (gallery/run-frame registry gs (frame-input i))
+             _ (swap! probe assoc :balance {} :last-bound nil :fbo sdl-fbo :scissor true)
+             _ (reset! (:model @probe) @(gl/fresh))
+             err (try (rg/draw-scene! id (:scene-state gs) (draw-args i))
+                      nil
+                      (catch :default e (str (or (ex-message e) e))))
+             bal (:balance @probe)
+             bound (:last-bound @probe)
+             matrix-ok? (= (gl/snapshot (:model @probe)) (gl/snapshot (gl/fresh)))
+             out (cond-> (update out :unbalanced into
+                                 (for [[k n] bal :when (not (zero? n))] [i k n]))
+                   (not (contains? #{nil default-texture-id} bound)) (update :bound conj [i bound])
+                   (not (and (= sdl-fbo (:fbo @probe)) (:scissor @probe) matrix-ok?))
+                   (update :screen conj [i (:fbo @probe) (:scissor @probe) matrix-ok?]))]
+         (if err
+           (assoc out :error [i err])
+           (recur (inc i) gs out)))))))
 
 (deftest every-draw-method-runs-over-stubbed-raylib
   ;; The pure :update and :draw run in `every-scene-survives-two-seconds-of-touch`;
@@ -440,6 +479,53 @@
         (is (= sdl-fbo (:fbo @probe)))
         (is (:scissor @probe))
         (is (zero? (get-in @probe [:balance :matrix])))))))
+
+(deftest a-nested-render-pass-keeps-the-invariants
+  ;; No shipped scene renders into a target yet, so `draw-script`'s per-frame
+  ;; screen check would pass for the wrong reason. This defines a test-only
+  ;; scene whose draw method does what the gallery does around a scene (a push
+  ;; and a translate by the safe origin) and then creates a target, resizes it
+  ;; every other frame and draws a pass inside it, so the check sees a nested
+  ;; pass, a target created mid-frame and a replaced one.
+  (let [id :test-render-pass
+        registry (gallery/make-registry [(assoc (first rg/scenes) :id id)])
+        frames (atom 0)
+        inside (atom [])
+        after-target (atom [])]
+    (defmethod rg/draw-scene! id [_ _ _]
+      (let [n (swap! frames inc)]
+        (host/rl-push-matrix)
+        (host/rl-translatef 0.0 162.0 0.0)
+        (host/draw-rectangle 0 0 10 10 0xFF0000FF)
+        (let [rt (texture/target! :test-pass :rt {:w (if (even? n) 64 32)
+                                                  :h 32})]
+          (swap! after-target conj (:fbo @@probe-for-test))
+          (texture/with-target! rt {:x 0
+                                    :y 162
+                                    :width screen-w
+                                    :height screen-h}
+            (fn [] (swap! inside conj (gl/vertex-offset (:model @@probe-for-test))))))
+        (host/draw-rectangle 20 300 10 10 0xFF00FF00)
+        (host/rl-pop-matrix)))
+    (try
+      (with-stubbed-raylib
+        (fn [probe]
+          (reset! probe-for-test probe)
+          (let [result (draw-script probe id registry)]
+            (is (nil? (:error result)) (str (:error result)))
+            (is (empty? (:violations @probe)) (str (vec (take 3 (:violations @probe)))))
+            (is (empty? (:unbalanced result)) (str (vec (take 3 (:unbalanced result)))))
+            (is (empty? (:screen result))
+                (str "the pass left the screen, scissor or matrix changed: "
+                     (vec (take 3 (:screen result)))))
+            (is (= 120 @frames))
+            (is (= 120 (count @inside)))
+            (is (every? zero? @inside) "a pass draws untranslated")
+            (is (= 120 (count @after-target)))
+            (is (every? #{sdl-fbo} @after-target)
+                "the screen is bound right after target! creates or replaces one"))))
+      (finally
+        (remove-method rg/draw-scene! id)))))
 
 (deftest the-blend-draws-end-the-mode-when-a-draw-throws
   ;; A draw call that throws inside the blend must not leave the mode begun, or
