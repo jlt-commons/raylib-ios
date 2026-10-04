@@ -32,6 +32,12 @@
   grid on a portrait screen and a row of four on a landscape one, whichever
   gives the bigger panel, square, with the names under them.
 
+  Entry cost. The first open after launch pauses for about 0.5 s on the phone
+  (the largest single frame, measured), while the texture's pixels are computed
+  and uploaded. Opening it again takes about 0.14 s, because the noise texture
+  is versioned and so is not kept; the other three open again in about one
+  frame.
+
   The state holds `:seed`, `:version` and `:screen`. A press bumps `:version` and
   reseeds once; the frames a finger stays down change nothing. Colours are `[r g
   b a]` vectors."

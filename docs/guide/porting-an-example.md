@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples, and 116 of them are in the gallery. Those count
+examples, and 134 of them are in the gallery. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
@@ -237,6 +237,44 @@ birthday problem, not a hashing defect.
 Assigning the lowest unused slot is exact for up to eight simultaneous touches.
 No hash needed. When a measurement comes out at exactly the theoretical value,
 that usually means the approach is finished rather than that the tuning is.
+
+## Textures
+
+Ten of the ports draw a real GPU texture rather than flat shapes. They keep
+the scene contract: the namespace stays pure and knows nothing of FFI, and the
+`draw-scene!` method in `raylib.gallery` is the only place a texture is touched.
+
+The scene describes the texture as a spec map, `{:w :h :wrap :filter :pixel
+:version}`. `:pixel` is `(f x y)` and answers a packed colour,
+`r | g<<8 | b<<16 | a<<24`, which `raylib.texel/pack` builds, and `raylib.texel`
+also carries the `ImageDraw*` rasterisers (lines, rects, circles) following
+raylib 6.0's own loops. The draw method then calls into `raylib.texture`:
+
+- `id!` with `(scene-id key spec)` uploads on first use and answers the id.
+  Pass the scene's own registry id, because a texture filed under any other id
+  is freed and uploaded again every frame.
+- `quad!` draws an id as one quad, the stand-in for `DrawTexturePro`, whose
+  rectangle arguments are passed by value and so cannot cross the FFI.
+  `triangles!` draws `[x y u v ...]` triples and winds each one, so back-face
+  culling never drops a triangle.
+- `band!` refreshes a few rows a frame for a picture that changes all the time.
+  Raw Data and Screen Buffer do this, because a whole rewrite every frame costs
+  more than the phone has.
+
+GLES2 repeats only a power-of-two texture, so `:repeat` on any other size
+throws. A sheet like Srcrec Dstrec's 384 by 64 is `:clamp`. Raw Data draws its
+256 by 256 checkerboard from a 64 by 64 `:repeat` tile instead of uploading it.
+
+Test the pixel function texel by texel against the original, over the whole
+texture, and not by eye. A scene that fills the texture in a pixel fn should
+avoid allocating a vector per texel, since the phone runs it 69 thousand times
+for Sprite Animation's strip alone.
+
+Make a static spec a `def` or a `delay` in the gallery, so the same object comes
+back each visit. `raylib.texture` keeps the filled buffer for a spec without a
+`:version`, and a reopen then costs about one frame instead of a refill. The
+catalog rows give each scene's first-open pause, which runs up to about a second
+for Sprite Animation, because the pixels are computed then.
 
 ## Wiring it in
 

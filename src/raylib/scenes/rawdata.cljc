@@ -20,9 +20,9 @@
 
   Deviations. The original rewrites all 16384 live texels every frame. That cost
   about 7 ms on a laptop; on the phone a whole refill of the panel is most of
-  the 179 ms measured when the scene opens, so the live panel is refreshed a
-  band at a time: each frame refills `band-rows` (3) rows,
-  walking down the panel, so every row is refreshed every `period` (43) frames
+  the 171 ms measured on the first open after launch, so the live panel is
+  refreshed a band at a time: each frame refills `band-rows` (3) rows, walking
+  down the panel, so every row is refreshed every `period` (43) frames
   (the last band is 2 rows), which is about 1.4 times a second at 60 frames a
   second. The rows of one band share one `t`, but a row refreshed this sweep and
   one refreshed the last are `period` frames apart in time, so a moving seam
@@ -35,7 +35,8 @@
   The checkerboard is a 64 by 64 texture drawn with `:wrap :repeat` and texcoords
   0 to 4, not the original's 256 by 256 upload. With CHECK 32 the pattern repeats
   every 64 texels, so each drawn texel is the same colour, and the entry fill
-  drops from 65536 texels to 4096.
+  drops from 65536 texels to 4096. Opening the scene again
+  costs about 0.15 s, because the banded live panel is not kept.
 
   The state holds `:frame` and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]

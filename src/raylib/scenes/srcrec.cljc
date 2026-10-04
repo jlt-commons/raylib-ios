@@ -28,6 +28,11 @@
   under it. The first frame drawn has already turned one degree, because the
   gallery runs `update` before `draw`.
 
+  Entry cost. The first open after launch pauses for about 0.2 s on the phone
+  (the largest single frame, measured), while the texture's pixels are computed
+  and uploaded. Opening it again takes about one frame, because the filled
+  texture buffer is kept.
+
   The state holds `:rotation` and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
             [raylib.texel :as texel]))

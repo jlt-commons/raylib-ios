@@ -7,7 +7,7 @@ not to be true.
 ## Before anything
 
 ```sh
-clojure -M:test     # no device needed; 1045 tests on 2026-10-03
+clojure -M:test     # no device needed; 1125 tests on 2026-10-04
 clj-kondo --lint src test
 ```
 
@@ -74,6 +74,42 @@ scene that draws many small boxes may bypass `finish` with its own paint order,
 as `wavecubes` and `pointcloud` do, if the order is provably right for that
 scene.
 
+**Textures.** A scene that draws a texture stays pure and never touches FFI.
+It builds a spec map, `{:w :h :wrap :filter :pixel :version}`, and the
+`draw-scene!` method hands it to `raylib.texture`. `:pixel` is `(f x y)` and
+answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
+`raylib.texel/pack` builds. `:wrap` is `:clamp` (the default) or `:repeat`,
+`:filter` is `:nearest` (the default) or `:linear`, and `:version` is optional.
+
+- `id!` takes `(scene-id key spec)` and answers the texture's id, uploading on
+  first use. Use the scene's own registry id as `scene-id`: a texture filed
+  under any other id is freed and uploaded again on every frame. A later call
+  with a new `:version` rewrites the pixels in place; the same version is a
+  lookup.
+- `quad!` draws an id as one quad, the stand-in for `DrawTexturePro`
+  (`:x :y :width :height :u0 :v0 :u1 :v1 :rotation :origin-x :origin-y :tint`).
+  `triangles!` draws `[x y u v ...]` triples and winds each triangle itself, so
+  rlgl's back-face culling cannot drop one.
+- `band!` refreshes a few rows of a texture a frame, for a picture that has to
+  change continuously. The phone writes a texel in at most about 2.6 us (derived), so a whole
+  128 by 128 rewrite every frame stalls it; `band!` costs the band alone, at
+  the price of a moving seam between fresher and older rows, which the scene
+  should say.
+- GLES2 repeats only a power-of-two texture. `:repeat` on any other size throws
+  before anything is allocated, so a non-power-of-two sheet is `:clamp`.
+- Test the pixel fn texel by texel against the original, over the whole
+  texture, using `raylib.texel` (which follows raylib 6.0's `ImageDraw*` loops,
+  quirks included). Pixel fns that run on the phone should not allocate a vector
+  per texel; `texel/pack4` takes the four channels as arguments.
+- Make a static spec a `def` or a `delay` in `raylib.gallery`, built once. A
+  spec without a `:version`, handed back as the identical object, is kept as a
+  filled buffer, so a reopen costs about one frame instead of a refill. A spec
+  built fresh each frame is refilled each time. Only one scene's textures are on
+  the GPU at once: `raylib.texture/enter!` frees the rest when a scene opens.
+- A first open can pause, because the pixels are computed and uploaded then.
+  Measure it on the phone and say so in the catalog row, and in the scene's
+  docstring, when the largest frame is over 100 ms.
+
 **Thumb-sticks.** A scene that steers with a relative stick tracks it with
 `raylib.stick`, which follows one finger by its touch id and never adopts a
 finger that was already down. `freecam`, `yawpitchroll` and `boxcollide` use it.
@@ -98,7 +134,8 @@ before looking at anything.
 
 **4. A `draw-scene!` method**, also in `raylib.gallery`. This is the only place
 raylib gets called. Drawing reads the state the scene produced and calls
-`rl/draw-line` and friends.
+`rl/draw-line` and friends. A texture scene also keeps its spec here, as a `def` or
+`delay` beside the method (see Textures above).
 
 Then add it to `test/raylib/test_runner.clj`, which lists its namespaces
 explicitly. It also fails if a `*_test` file exists that it does not list, so

@@ -51,7 +51,9 @@
 
   The hot start. The original's roots start at 0 and grow by 0 to 2 a step, so
   at 60 steps a second the fire takes a few seconds to light. At 8.6 steps a
-  second it would take most of a minute and a half. So the roots start hot: from
+  second a cold fire would take about 30 s to light (an estimate from the step
+  rate, not a measurement: the roots grow a mean of 1 a step, so 255 / 8.57 steps
+  a second). That is long to watch a dark screen, so the roots start hot: from
   column 2 on each is a random 192 to 255 (one LCG draw each), and columns 0 and
   1 stay dark as they do in the original. The first sweep already has a flame.
 

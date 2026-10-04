@@ -2,6 +2,63 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## 2026-10-04
+
+### Added
+
+- **Ten texture scenes, a hundred and thirty-two in all.** Toys now holds a
+  hundred and eight. Texture Tiling, Source and Destination Rects, Sprite
+  Button, Npatch Drawing, Polygon Drawing, Procedural Textures, Sprite
+  Animation, Textured Curve, Raw Data and Screen Buffer draw real GPU textures.
+  A device pass read all ten at 58 or 59 fps. Raw Data and Screen Buffer
+  refresh a band of rows a frame rather than the whole texture, and say so.
+- **Texture bindings.** `raylib.texture` uploads, updates and draws textures
+  through rlgl's scalar calls (`rlLoadTexture`, `rlUpdateTexture`,
+  `rlSetTexture`), never raylib's by-value `Texture2D`. `id!` uploads a spec,
+  `quad!` stands in for `DrawTexturePro`, `triangles!` winds each triangle
+  itself and `band!` refreshes a few rows. It throws on `:repeat` with a size
+  that is not a power of two, and frees a scene's textures when the scene is
+  left.
+- **`raylib.texel`.** Packs RGBA8 texels and mirrors the `ImageDraw*`
+  rasterisers of raylib 6.0's `rtextures.c`, including their quirks. The pixel
+  functions of the ten scenes are tested texel by texel against the originals.
+- **Banded uploads.** Raw Data refills 3 rows of its live panel a frame and
+  Screen Buffer steps and uploads 8 rows, so no frame pays for more than a band.
+  Both show a moving seam between fresher and older rows. Screen Buffer's fire
+  is a 100 by 56 grid, a quarter of the original's, and its roots start hot so
+  the first sweep has a flame.
+- **Retained buffers.** A static spec, handed back as the same object, keeps its
+  filled staging buffer, so a scene that was opened before costs about one frame
+  to open again. The noise of Procedural Textures and the live panel of Raw Data are not
+  kept, and reopen in about 0.14 to 0.15 s.
+- **Texture stubs in the smoke test.** The smoke test stubs the rlgl texture
+  calls with each argument's type checked, and fails a draw that leaves a
+  texture bound.
+- **NOTICE names the new derivations.** `src/raylib/texture.clj` lifts from
+  raylib-jlt's textures library and `src/raylib/texel.cljc` follows raylib's
+  `rtextures.c`.
+- **Textures sections** in CONTRIBUTING and the porting guide.
+
+### Changed
+
+- **The ten docstrings give the licence of their raylib-jlt originals.** Eight
+  were added to raylib-jlt after its 2026-09-05 relicence and are EPL 2.0; the
+  other two, Texture Tiling and Procedural Textures, predate it and are zlib.
+  The raylib C examples behind them are zlib, and the scenes say they are altered
+  versions.
+- **Screen Buffer's warm-up is stated as an estimate.** A cold fire at 8.6 steps
+  a second would take about 30 s to light, worked out from the step rate and not
+  measured.
+
+### Found
+
+- **First opens pause.** The first open after launch holds the largest single
+  frame at about 1.0 s for Sprite Animation, 0.8 s for Polygon Drawing, 0.5 s for
+  Procedural Textures, 0.2 s for Srcrec Dstrec and Sprite Button, and 0.17 s for
+  Raw Data. The catalog rows say so.
+- **Basic Voxel freezes on a tap.** A tap holds the phone for about 285 ms. The
+  ROADMAP has the fix.
+
 ## 2026-10-03
 
 ### Added

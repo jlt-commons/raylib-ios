@@ -32,6 +32,11 @@
   REPEAT, and a clamp keeps a vertex sitting exactly on u or v of 1.0 from
   sampling the far side.
 
+  Entry cost. The first open after launch pauses for about 0.8 s on the phone
+  (the largest single frame, measured), while the texture's pixels are computed
+  and uploaded. Opening it again takes about one frame, because the filled
+  texture buffer is kept.
+
   The state holds `:angle` and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
             [raylib.texel :as texel]))

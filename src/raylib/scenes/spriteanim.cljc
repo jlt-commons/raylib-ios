@@ -30,6 +30,11 @@
   proportion. The window-title text is dropped, since the gallery shows the
   title. The hint reads \"Tap SLOWER or FASTER to change the rate\".
 
+  Entry cost. The first open after launch pauses for about 1.0 s on the phone
+  (the largest single frame, measured), while the texture's pixels are computed
+  and uploaded. Opening it again takes about one frame, because the filled
+  texture buffer is kept.
+
   The state holds `:counter`, `:current`, `:speed` and `:screen`. Colours are
   `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]

@@ -5,11 +5,11 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 124 of
-them are in the gallery as of 2026-10-03, which leaves 63. That counts
-examples and not scenes: the gallery has 119 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 134 of
+them are in the gallery as of 2026-10-04, which leaves 53. That counts
+examples and not scenes: the gallery has 129 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 119 + 2 + 3 = 124. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 129 + 2 + 3 = 134. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
@@ -18,13 +18,13 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (63).** The 2026-10-02 triage sorted the then 95 unported
+**Blocked for now (53).** The 2026-10-02 triage sorted the then 95 unported
 examples by what a port would need. About 32 could be rebuilt with what is
 already bound, and batches 9 to 13 ported 30 of them, so 2 remain. Two more
 needed only a pair of scalar blend-mode bindings, and batch 13 added them. The
-other 61 need something the project doesn't bind or the phone doesn't have:
+other 51 need something the project doesn't bind or the phone doesn't have:
 shaders, texture and image pipelines, 3D models and meshes, desktop windowing,
-the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 61 = 63. These
+the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 51 = 53. These
 remain rewrite-ready:
 
 - 3D, projected in software: `dna_helix`. A faithful one built in 12.7 ms on
@@ -49,7 +49,7 @@ remain rewrite-ready:
   would hold `window`, `handle`, `clamp`, the start geometry and `drag-step`,
   with Viewport Scaling passing its button claim in. It takes about an hour and
   is worth doing when a third scene would use it.
-- **Rebalance the categories.** Toys holds 98 of the 122 scenes, and Games has 11, so a scroll
+- **Rebalance the categories.** Toys holds 108 of the 132 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Add a batch `soft3d/cubes` builder.** 3D Split Screen carries `flat-cubes`,
@@ -126,10 +126,13 @@ remain rewrite-ready:
   player walks through the trees, but 31 while a player walks out of the grove
   and looks back, with all 121 trees in view. The original doesn't clamp the
   players. A lossless cut or a disclosed one is still to choose.
-- **Finish the device pass on batch 13.** Time Basic Voxel with the block
-  hollowed and feel the tap hitch: the mesh rebuild is 5 to 7 ms on the laptop,
-  so an estimate of 150 to 230 ms on the phone at the rough 33x. The four blend
-  modes were checked by eye on 2026-10-03 and look as each mode should.
+- **Basic Voxel freezes the phone on a tap.** Measured on the phone on
+  2026-10-03: a tap holds a single frame for about 285 ms, because the mesh
+  rebuild takes 309 ms, and 574 ms for a hollowed block. A hollowed block's
+  frame build is also 23 ms, against 11.6 ms for the full block. The fix is an
+  incremental mesh update on a tap, so a tap changes the faces around one voxel
+  instead of rebuilding them all. The four blend modes were checked by eye on
+  2026-10-03 and look as each mode should.
 - **Try the cameras with a real finger.** The camera pinch and twist in 2D
   Camera and 2D Camera Zoom, and the two thumbs in 2D Split Screen, have not
   been driven by a hand on the phone.
@@ -137,10 +140,32 @@ remain rewrite-ready:
   SWIPE RIGHT and SWIPE DOWN, so raylib's recogniser does fire under the SDL
   host. DRAG and DOUBLETAP have not shown up yet, and pinch can't, because SDL
   feeds raylib one finger at a time.
+- **Texture first opens pause.** The first open after launch holds the largest
+  single frame at about 1.0 s for Sprite Animation, 0.8 s for Polygon Drawing,
+  0.5 s for Procedural Textures, 0.2 s for Srcrec Dstrec and Sprite Button, and
+  0.17 s for Raw Data (phone measurements, 2026-10-04). The cost is the pixel fn
+  and the per-texel write, so the cure is a faster fill or a cached upload. The
+  catalog discloses the pauses for now.
+- **Audit the licence wording on the older scenes.** The 33 scenes that
+  predate the texture arc, and NOTICE's "Ported, and altered" section, call
+  their raylib-jlt originals zlib. raylib-jlt relicensed to EPL 2.0 on
+  2026-09-05, so an original added to it after that date is EPL 2.0. The ten
+  texture scenes already say which.
+- **`jolt live` fails to build under jolt v0.8.16.** The phone's live build
+  stops with `variable error is not bound` in the `jolt.socket.native` unit,
+  and so do builds after that release. v0.8.15 builds it, and the 2026-10-04
+  device pass ran on it. Pin the live build to v0.8.15 until jolt fixes it.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
 
+- 2026-10-04: the texture arc closed, with ten Toys scenes, `textiling`,
+  `srcrec`, `spritebutton`, `npatch`, `texpoly`, `texproc`, `spriteanim`,
+  `texcurve`, `rawdata` and `screenbuf`, which make a hundred and thirty-two
+  scenes and give Toys a hundred and eight. They add `raylib.texture` and
+  `raylib.texel`. A device pass read all ten at 58 or 59 fps, and a scene opened
+  before reopens in about one frame, except the noise of Procedural Textures and
+  Raw Data's live panel (0.14 to 0.15 s).
 - 2026-10-03: batch 13 closed, with eight Toys scenes, `blendmodes`,
   `blendparticles`, `billboard`, `dirbillboard`, `texcube`, `geoshapes`, `voxel`
   and `doom`, which make a hundred and twenty-two scenes and give Toys ninety-eight.

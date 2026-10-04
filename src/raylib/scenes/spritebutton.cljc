@@ -42,6 +42,11 @@
   shorter side wide, the preview a quarter, and the layout keeps both below
   Back.
 
+  Entry cost. The first open after launch pauses for about 0.2 s on the phone
+  (the largest single frame, measured), while the texture's pixels are computed
+  and uploaded. Opening it again takes about one frame, because the filled
+  texture buffer is kept.
+
   The state holds `:clicks`, `:frame`, `:tick` (frames since the scene began),
   `:idle?` (no finger down this frame), `:at` (the last position a finger was
   down, or nil), `:grab` (whether this touch began on the button) and
