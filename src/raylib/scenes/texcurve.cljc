@@ -26,16 +26,12 @@
   buttons and centred, so the road keeps its shape and its texel aspect on any
   screen. The width is in the original's units. LEFT, RIGHT, UP and DOWN are four
   buttons, WIDTH -, WIDTH +, SEG - and SEG +, the width ones repeating while a
-  finger is held and the segment ones a press each. The original has no mouse;
-  raylib's C example does drag its control points, and this port does too: a
-  finger that lands near a point grabs it and drags it until it lifts, and the
-  point then stays where it was left instead of swinging again. The window-title
-  text is dropped, since the gallery shows the title. The first frame drawn is
-  frame 1, because the gallery runs `update` before `draw`.
+  finger is held and the segment ones a press each. The window-title text is
+  dropped, since the gallery shows the title. The first frame drawn is frame 1,
+  because the gallery runs `update` before `draw`.
 
-  The state holds `:frame`, `:width`, `:segments`, `:pins` (point index to the
-  `[x y]` it was left at, in the original's coordinates), `:drag` (the index
-  under a finger or nil) and `:screen`. Colours are `[r g b a]` vectors."
+  The state holds `:frame`, `:width`, `:segments`, `:held` and `:screen`. Colours
+  are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
             [raylib.texel :as texel]))
 
@@ -59,7 +55,7 @@
 (def button-held-colour "A button under a finger." [130 130 130 255])
 (def button-label-colour "DARKGRAY." [80 80 80 255])
 
-(def hint-line "A finger's hint, since the original has none." "Drag a point to bend the road")
+(def hint-line "The original's hint (line 156), with buttons for the keys." "Hold WIDTH, tap SEG")
 (def button-keys [:width- :width+ :seg- :seg+])
 (def labels {:width- "WIDTH -"
              :width+ "WIDTH +"
@@ -103,12 +99,9 @@
      [720.0 110.0]]))
 
 (defn control-points
-  "The four points for `state`: a pinned point stays where a finger left it, the
-  rest flex."
-  [{:keys [frame pins]}]
-  (into []
-        (map-indexed (fn [i p] (get pins i p)))
-        (flex-points frame)))
+  "The four points for `state`: the original's motion at its frame, nothing else."
+  [{:keys [frame]}]
+  (flex-points frame))
 
 (defn bezier-at
   "The original's `bezier-at` (lines 65-74): the cubic Bezier point at `t`."
@@ -178,7 +171,7 @@
 (defn geometry
   "The layout for `metrics`' `:screen`, with no text measured: `:w :h`, `:size
   :pad :row` (the text's), `:status-y` and `:hint-y`, `:buttons` (a map of
-  `[x y w h]`), `:grab` (how near a finger must land to take a point, in pixels)
+  `[x y w h]`)
   and the curve's place, `:ox :oy :k`, which maps the original's coordinates to
   the screen."
   [metrics]
@@ -207,7 +200,6 @@
      :buttons (into {}
                     (map-indexed (fn [i b] [b [(+ pad (* i (+ bw pad))) by bw (double bh)]]))
                     button-keys)
-     :grab (* 2.5 size)
      :ox (/ (- w (* k win-w)) 2.0)
      :oy (+ area-y (/ (- area-h (* k win-h)) 2.0))
      :k k}))
@@ -246,32 +238,6 @@
   [state {:keys [ox oy k]}]
   (ribbon (control-points state) (:segments state) (:width state) ox oy k))
 
-(defn to-curve
-  "A screen point as the original's coordinates, held to its 800 by 450."
-  [{:keys [ox oy k]} [x y]]
-  (if (pos? k)
-    [(max 0.0 (min (double win-w) (/ (- x ox) k)))
-     (max 0.0 (min (double win-h) (/ (- y oy) k)))]
-    [0.0 0.0]))
-
-(defn to-screen
-  "A point in the original's coordinates as a screen point."
-  [{:keys [ox oy k]} [x y]]
-  [(+ ox (* k x)) (+ oy (* k y))])
-
-(defn nearest-point
-  "The index of the control point within `:grab` of the screen point `at`, the
-  nearest if several, or nil."
-  [state geo at]
-  (let [[ax ay] at
-        near (keep-indexed (fn [i p]
-                             (let [[px py] (to-screen geo p)
-                                   d (Math/sqrt (+ (* (- px ax) (- px ax)) (* (- py ay) (- py ay))))]
-                               (when (<= d (:grab geo)) [d i])))
-                           (control-points state))]
-    (when (seq near)
-      (second (first (sort near))))))
-
 (defn held-button
   "`:width-`, `:width+`, `:seg-`, `:seg+` or nil: the button a finger is on."
   [geo input]
@@ -280,12 +246,12 @@
       (some (fn [b] (when (gesture/in-rect? (get (:buttons geo) b) at) b)) button-keys))))
 
 (defn advance
-  "One frame: the width moves while a width button is held, a segment button's
-  press steps the count, and a finger grabs, drags or drops a control point."
+  "One frame: the width moves while a width button is held and a segment
+  button's press steps the count. The control points move only as the original's
+  do, with the frame."
   [state {:keys [metrics pointer]
           :as input}]
-  (let [geo (geometry metrics)
-        held (held-button geo input)
+  (let [held (held-button (geometry metrics) input)
         pressed (when (= :press (:phase pointer)) held)
         width (case held
                 :width+ (min max-width (+ (:width state) width-step))
@@ -294,22 +260,11 @@
         segments (case pressed
                    :seg+ (min max-segments (inc (:segments state)))
                    :seg- (max min-segments (dec (:segments state)))
-                   (:segments state))
-        down? (gesture/down? input)
-        at (:position pointer)
-        drag (cond
-               (not down?) nil
-               (= :press (:phase pointer)) (when-not held (nearest-point state geo at))
-               :else (:drag state))
-        pins (if drag
-               (assoc (:pins state) drag (to-curve geo at))
-               (:pins state))]
+                   (:segments state))]
     (assoc state
            :frame (inc (:frame state))
            :width width
            :segments segments
-           :pins pins
-           :drag drag
            :held held
            :screen (:screen metrics))))
 
@@ -317,8 +272,6 @@
   [{:frame 0
     :width start-width
     :segments start-segments
-    :pins {}
-    :drag nil
     :held nil
     :screen (:screen metrics)}
    [[:scene/init :texcurve]]])

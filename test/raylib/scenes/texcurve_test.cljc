@@ -197,50 +197,37 @@
       (is (= "width 80.0   segments 48" (sc/status-line 80.0 48)))
       (is (= "width 40.8   segments 24" (sc/status-line 40.8 24))))))
 
-(defn- point-at [state i] (sc/to-screen geo (nth (sc/control-points state) i)))
-
-(deftest a-finger-drags-a-control-point
+(deftest the-points-move-only-as-the-originals-do
   (let [s (fresh)
-        [gx gy] (point-at s 1)]
-    (testing "landing near a point grabs it, and it follows the finger"
-      (let [a (tick s :press [(+ gx 10.0) (+ gy 10.0)])]
-        (is (= 1 (:drag a)))
-        (let [b (tick a :down [(+ gx 100.0) (+ gy 60.0)])
-              [bx by] (point-at b 1)]
-          (is (= 1 (:drag b)))
-          (is (near? (+ gx 100.0) bx))
-          (is (near? (+ gy 60.0) by))
-          (testing "the other points are left alone"
-            (is (= (nth (sc/flex-points (:frame b)) 2) (nth (sc/control-points b) 2))))
-          (testing "lifting drops it, and it stays where it was left"
-            (let [c (tick b :release [0.0 0.0])
-                  d (nth (iterate tick c) 30)]
-              (is (nil? (:drag c)))
-              (is (= (nth (sc/control-points c) 1) (nth (sc/control-points d) 1)) "nothing swings it back")
-              (is (not= (nth (sc/control-points c) 2) (nth (sc/control-points d) 2)) "the others still swing")
-              (is (near? (+ gx 100.0) (first (point-at d 1)))))))))
-    (testing "the second middle point drags too, and the ends"
-      (let [[hx hy] (point-at s 2)]
-        (is (= 2 (:drag (tick s :press [hx hy])))))
-      (let [[ex ey] (point-at s 0)]
-        (is (= 0 (:drag (tick s :press [ex ey]))))))
-    (testing "a finger far from every point grabs nothing, and dragging does not start mid-stroke"
-      (let [far [(+ gx 400.0) (+ gy 400.0)]]
-        (is (nil? (:drag (tick s :press far))))
-        (is (empty? (:pins (tick (tick s :press far) :down [gx gy]))))
-        (is (nil? (:drag (tick s :down [gx gy]))) "a finger sliding onto a point does not take it")))
-    (testing "a press on a button grabs no point"
-      (is (nil? (:drag (tick s :press (centre (btn :width+)))))))
-    (testing "a dragged point is held to the 800 by 450 space"
-      (let [a (tick s :press [gx gy])
-            b (tick a :down [-5000.0 9999.0])]
-        (is (= [0.0 450.0] (nth (sc/control-points b) 1)))))
-    (testing "to-curve and to-screen are inverses"
-      (let [p [123.0 321.0]
-            [sx sy] (sc/to-screen geo p)
-            [qx qy] (sc/to-curve geo [sx sy])]
-        (is (near? 123.0 qx))
-        (is (near? 321.0 qy))))))
+        geo (sc/geometry metrics)
+        ;; every pointer a finger could make, on and off the curve and the buttons
+        pointers (concat
+                  (for [phase [:press :down :release :idle]
+                        at [nil [5.0 5.0] [600.0 1200.0] [(:ox geo) (:oy geo)]
+                            (centre (btn :width+)) (centre (btn :seg-)) [-5000.0 9999.0]]]
+                    {:phase phase
+                     :position at})
+                  (for [i (range 40)]
+                    {:phase (if (zero? i) :press :down)
+                     :position [(+ 100.0 (* 25 i)) (+ 900.0 (* 10 i))]}))]
+    (testing "on every frame the points are the original's flex at that frame"
+      (let [states (reductions (fn [st p]
+                                 (first ((:update (sc/scene)) st {:metrics metrics
+                                                                  :pointer p})))
+                               s
+                               (take 200 (cycle pointers)))]
+        (is (= 201 (count states)))
+        (doseq [st states]
+          (is (= (sc/flex-points (:frame st)) (sc/control-points st)) (str "frame " (:frame st))))
+        (is (= (range 201) (map :frame states)))))
+    (testing "a finger dragged straight over a point moves nothing"
+      (let [[px py] [(+ (:ox geo) (* (:k geo) 250.0)) (+ (:oy geo) (* (:k geo) 200.0))]
+            st (reduce (fn [st [phase at]] (tick st phase at))
+                       s
+                       [[:press [px py]] [:down [(+ px 80.0) (+ py 40.0)]] [:release [0.0 0.0]]])]
+        (is (= (sc/flex-points 3) (sc/control-points st)))))
+    (testing "the state carries no drag"
+      (is (not-any? #{:pins :drag} (keys s))))))
 
 (deftest first-frame-draws
   (let [s (fresh)]
@@ -268,9 +255,7 @@
             (is (every? inside? rs))
             (is (every? #(>= (nth % 3) 40) rs))
             (is (apply = (map second rs)))
-            (is (every? true? (map (fn [[x _ bw _] [nx]] (<= (+ x bw) nx)) rs (rest rs))))))
-        (testing "the finger can reach"
-          (is (>= (:grab dims) 40)))))))
+            (is (every? true? (map (fn [[x _ bw _] [nx]] (<= (+ x bw) nx)) rs (rest rs))))))))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens
