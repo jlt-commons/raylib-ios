@@ -165,6 +165,7 @@
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test
+                     raylib.perlin-test
                      raylib.scenes.clock-test
                      raylib.scenes.easings-test
                      raylib.scenes.colorwheel-test
