@@ -450,3 +450,11 @@ also MIT. Both notices are reproduced there.
   here, but `raylib.host`'s binding subset follows the shapes its core example
   established, including packed `:uint` colours and the `[:by-value ...]`
   form.
+- [raylib-jolt-demo](https://github.com/jlt-commons/raylib-jolt-demo) is where
+  raylib-jlt's examples live since 2026-10-04, one project each. A scene's
+  docstring that says "ported from raylib-jlt's `background_scrolling`", or
+  cites `net/b12n/raylib_jlt/background_scrolling.clj`, means that file in
+  raylib-jlt up to commit `2f076ef`. The same code is now raylib-jolt-demo's
+  `background-scrolling/src/net/b12n/raylib_jlt/background_scrolling.clj`:
+  the directory is the file name with `-` for `_`, and the namespace is
+  unchanged.
