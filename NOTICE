@@ -56,6 +56,14 @@ seeded LCG, and drawing moves to the caller. Every file names its original in
 its own docstring, as the zlib licence's "altered source versions must be
 plainly marked as such" asks.
 
+Two files outside the scenes are derived too. `src/raylib/texture.clj` lifts the
+rlgl declarations, the wrap and filter setters, the upload loop and the quad
+from raylib-jlt's `lib/src/net/b12n/raylib/textures.clj`, and adds the id
+table, the retained staging buffers, the power-of-two rule and `triangles!`.
+`src/raylib/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
+`rtextures.c`, and its tests are worked by hand from them. raylib's notice is under
+"Linked". Each file names its source in its own docstring.
+
     https://github.com/jlt-commons/raylib-jlt
     Copyright (c) 2026 Burin Choomnuan
     zlib License
