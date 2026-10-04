@@ -1,8 +1,10 @@
 (ns raylib.scenes.texproc
   "Procedural Textures, ported from raylib-jlt's `texture_procedural`
-  (net/b12n/raylib_jlt/texture_procedural.clj, zlib licence), which is raylib's
-  `textures_procedural` idea: four textures generated pixel by pixel and uploaded
-  to the GPU, each drawn as one quad.
+  (net/b12n/raylib_jlt/texture_procedural.clj, zlib licence), which is
+  raylib-jlt's own example rather than a port of a raylib C example. raylib
+  6.0's nearest is `textures_image_generation`, which builds gradients, a
+  checkerboard and noise with GenImage* on the CPU. Here: four textures
+  generated pixel by pixel and uploaded to the GPU, each drawn as one quad.
 
   Mirrored from texture_procedural.clj:
   - TEX (line 21): each texture is 128 by 128 texels.

@@ -220,10 +220,15 @@
                 :string (when-not (string? a) :string-got-other)))
             (map vector types args))))
 
+(def ^:private default-texture-id
+  "What the stubbed `rlGetTextureIdDefault` answers."
+  1)
+
 (defn- with-stubbed-raylib
   "Call `(f probe)` with the host's drawing defcfns redefined to stubs that
   record type violations and begin/end balances in `probe`, an atom of
-  `{:violations [...] :balance {k n}}`."
+  `{:violations [...] :balance {k n} :last-bound id-or-nil}`, where `:last-bound`
+  is the argument of the latest `rlSetTexture`."
   [f]
   (let [probe (atom {:violations []
                      :balance {}})
@@ -272,8 +277,11 @@
                                                   [:uint :int :int :int :int :int :pointer] nil)
                   texture/rl-unload-texture (stub :rl-unload-texture [:uint] nil)
                   texture/rl-texture-parameters (stub :rl-texture-parameters [:uint :int :int] nil)
-                  texture/rl-set-texture (stub :rl-set-texture [:uint] nil)
-                  texture/rl-get-texture-id-default (stub :rl-get-texture-id-default [] 1)
+                  texture/rl-set-texture (fn [& args]
+                                           (chk :rl-set-texture [:uint] args)
+                                           (swap! probe assoc :last-bound (first args))
+                                           nil)
+                  texture/rl-get-texture-id-default (stub :rl-get-texture-id-default [] default-texture-id)
                   texture/rl-tex-coord-2f (stub :rl-tex-coord-2f [:float :float] nil)]
       ;; A texture scene leaves its stub id in the table. Free it while the
       ;; stubs are still bound, or the next test to call `texture/enter!` would
@@ -294,24 +302,28 @@
 
 (defn- draw-script
   "Open `id`, run the 120-frame script and call `draw-scene!` after each
-  `run-frame`. Returns `{:error [frame message] :unbalanced [[frame k n] ...]}`,
-  the balances read after each frame's draw."
+  `run-frame`. Returns `{:error [frame message] :unbalanced [[frame k n] ...]
+  :bound [[frame id] ...]}`: the balances read after each frame's draw, and any
+  frame that left a texture bound (the last `rlSetTexture` was neither never
+  made nor the default texture's id)."
   [probe id]
   (loop [i 0
          gs (gallery/open-scene rg/registry gallery/initial-gallery-state id
                                 (frame-input 0))
-         out {:unbalanced []}]
+         out {:unbalanced []
+              :bound []}]
     (if (= i 120)
       out
       (let [gs (gallery/run-frame rg/registry gs (frame-input i))
-            _ (swap! probe assoc :balance {})
+            _ (swap! probe assoc :balance {} :last-bound nil)
             err (try (rg/draw-scene! id (:scene-state gs) (draw-args i))
                      nil
                      (catch :default e (str (or (ex-message e) e))))
             bal (:balance @probe)
-            out (-> out
-                    (update :unbalanced into
-                            (for [[k n] bal :when (not (zero? n))] [i k n])))]
+            bound (:last-bound @probe)
+            out (cond-> (update out :unbalanced into
+                                (for [[k n] bal :when (not (zero? n))] [i k n]))
+                  (not (contains? #{nil default-texture-id} bound)) (update :bound conj [i bound]))]
         (if err
           (assoc out :error [i err])
           (recur (inc i) gs out))))))
@@ -341,6 +353,9 @@
             (is (empty? (:unbalanced result))
                 (str id " left a begin unmatched: "
                      (vec (take 3 (:unbalanced result)))))
+            (is (empty? (:bound result))
+                (str id " left a texture bound after a draw: "
+                     (vec (take 3 (:bound result)))))
             (when (#{:blendmodes :blendparticles} id)
               (is (pos? @blend-begins)
                   (str id " never called begin-blend-mode")))))))))

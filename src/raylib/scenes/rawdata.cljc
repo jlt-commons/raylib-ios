@@ -17,8 +17,9 @@
     the stride caption.
 
   Deviations. The original rewrites all 16384 live texels every frame. That cost
-  about 7 ms on a laptop and would be more than 200 ms on the phone, so the live
-  panel is refreshed a band at a time: each frame refills `band-rows` (3) rows,
+  about 7 ms on a laptop; on the phone a whole refill of the panel is most of
+  the 179 ms measured when the scene opens, so the live panel is refreshed a
+  band at a time: each frame refills `band-rows` (3) rows,
   walking down the panel, so every row is refreshed every `period` (43) frames
   (the last band is 2 rows), which is about 1.4 times a second at 60 frames a
   second. The rows of one band share one `t`, but a row refreshed this sweep and

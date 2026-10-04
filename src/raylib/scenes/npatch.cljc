@@ -74,7 +74,7 @@
   "Where the original puts its labels (lines 144-155), as the canvas `[x y]` of
   the panel each belongs to. The text sits above the panel, or beside it."
   [["3-patch H" 60 100 :above]
-   ["3-patch V" 118 150 :beside]
+   ["3-patch V" 118 156 :beside]
    ["9-patch" 380 150 :above]])
 
 (def source-at "The source's top-left corner on the canvas (lines 156-159)." [716 366])

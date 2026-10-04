@@ -24,7 +24,6 @@
    (let [calls (atom [])
          next-id (atom 100)
          rec (fn [nm] (fn [& args] (swap! calls conj (into [nm] args)) nil))]
-     (tex/enter! nil)
      (with-redefs [tex/rl-load-texture (fn [& args]
                                          (let [id (swap! next-id inc)]
                                            (swap! calls conj (into [:load] args))
@@ -40,6 +39,9 @@
                    host/rl-end (rec :end)
                    host/rl-color-4ub (rec :color)
                    host/rl-vertex-2f (rec :vertex)]
+       ;; Inside the redefs: a table left dirty by an earlier failure would
+       ;; otherwise reach the real rlUnloadTexture with no GL context.
+       (tex/enter! nil)
        (try
          (f calls)
          (finally (tex/enter! nil)))))))

@@ -294,3 +294,10 @@
         (doseq [{:keys [y]} labels]
           (is (>= y (- (+ y2 (:size (second lines))) 1)) "clear of the hint")))
       (is (pos? size)))))
+
+(deftest the-labels-sit-where-the-originals-do
+  (testing "npatch_drawing.clj:144-155, as canvas [x y] (the above ones are drawn a line higher)"
+    (is (= [["3-patch H" 60 100 :above]
+            ["3-patch V" 118 156 :beside]
+            ["9-patch" 380 150 :above]]
+           sc/label-spots))))

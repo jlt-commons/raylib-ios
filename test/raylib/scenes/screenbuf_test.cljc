@@ -148,8 +148,14 @@
       (is (= [(dec sc/band-rows) (inc sc/band-rows)] (second ups))))
     (testing "every row is refilled at least once a sweep, and the cover is gap-free"
       (is (= (set (range 112)) (set (mapcat (fn [[y0 n]] (range y0 (+ y0 n))) ups)))))
-    (testing "the schedule repeats each sweep"
-      (is (= (sc/upload-rows 3) (sc/upload-rows (+ 3 (* 0 sc/period))))))
+    (testing "the schedule repeats each sweep: advance steps the same band a period later"
+      (let [states (vec (take (+ 3 (* 2 sc/period)) (rest (iterate tick (fresh)))))
+            stepped (mapv :stepped states)]
+        (is (= (+ 3 (* 2 sc/period)) (count states)))
+        (is (every? #(< -1 % sc/period) stepped) "every band is in range, so upload-rows' bound holds")
+        (is (every? (fn [f] (= (stepped f) (stepped (+ f sc/period))))
+                    (range (+ 3 sc/period))))
+        (is (= (set (range sc/period)) (set (take sc/period stepped))) "a sweep steps every band once")))
     (testing "never past the grid"
       (is (every? (fn [[y0 n]] (and (<= 0 y0) (<= (+ y0 n) 112))) ups)))))
 

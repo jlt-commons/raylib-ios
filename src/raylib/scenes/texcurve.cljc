@@ -26,7 +26,10 @@
   buttons and centred, so the road keeps its shape and its texel aspect on any
   screen. The width is in the original's units. LEFT, RIGHT, UP and DOWN are four
   buttons, WIDTH -, WIDTH +, SEG - and SEG +, the width ones repeating while a
-  finger is held and the segment ones a press each. The window-title text is
+  finger is held and the segment ones a press each. At the widest settings the
+  ribbon can fold on a tight bend; `raylib.texture/triangles!` winds every
+  triangle front-facing, so a fold draws as a mirrored sliver where the
+  original's RL_QUADS would be culled by rlgl. The window-title text is
   dropped, since the gallery shows the title. The first frame drawn is frame 1,
   because the gallery runs `update` before `draw`.
 
@@ -98,11 +101,6 @@
      [(+ 220.0 (* 120.0 (Math/sin t))) (+ 120.0 (* 60.0 (Math/cos (* t 1.3))))]
      [(+ 560.0 (* 120.0 (Math/sin (* t 0.8)))) (+ 330.0 (* 70.0 (Math/sin (* t 1.1))))]
      [720.0 110.0]]))
-
-(defn control-points
-  "The four points for `state`: the original's motion at its frame, nothing else."
-  [{:keys [frame]}]
-  (flex-points frame))
 
 (defn bezier-at
   "The original's `bezier-at` (lines 65-74): the cubic Bezier point at `t`."
@@ -237,7 +235,7 @@
 (defn vertices
   "The ribbon for `state` on the screen `geo` describes."
   [state {:keys [ox oy k]}]
-  (ribbon (control-points state) (:segments state) (:width state) ox oy k))
+  (ribbon (flex-points (:frame state)) (:segments state) (:width state) ox oy k))
 
 (defn held-button
   "`:width-`, `:width+`, `:seg-`, `:seg+` or nil: the button a finger is on."

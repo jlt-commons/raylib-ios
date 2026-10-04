@@ -17,6 +17,9 @@
   - The action (lines 96-97): a release over the button adds one to the click
     count. The original does not look at where the press began, and neither
     does this.
+  - The idle cycle (lines 90, 95, 120): while nobody is at the pointer the frame
+    is `(quot (mod frame 180) 60)`, sixty frames each of normal, hover and
+    pressed, and the hint reads \"cycling the three frames until you hover it\".
   - The text (lines 109-123): `clicks: N`, the frame's name, and
     \"one texture, three frames, sliced by v\".
   - The preview (lines 126-134): the whole sheet drawn at the top right with a
@@ -25,16 +28,20 @@
   Deviations. The mouse becomes touch. A finger down inside the button shows the
   pressed frame. A phone has no pointer to hover with, so the hover frame shows
   while a finger that PRESSED the button has slid off it and is still down, and
-  nowhere else. The original's idle cycle through the three frames when no
-  pointer is about (line 95) is dropped: a phone never has a hovering pointer, so
-  the button would cycle through `pressed` untouched, forever. The preview and
-  its outline already show all three frames. The release's own position is not
-  trusted, because the host hands back the last hardware value, so the scene
-  keeps the position of the last frame the finger was down and tests that. The
-  button is half the shorter side wide, the preview a quarter, and the layout
-  keeps both below Back.
+  nowhere else. The original's idle cycle is kept and ports exactly: its `live?`
+  is \"the pointer is over the button or the mouse is down\", and on a phone
+  the pointer is never over anything, so `live?` is just \"a finger is down\".
+  While none is, the three frames cycle on the frame count, from the scene's
+  first frame; a finger landing stops the cycle that frame and a release starts
+  it again where the count has got to. The hint says \"touch\" where the
+  original says \"hover\". The release's own position is not trusted, because
+  the host hands back the last hardware value, so the scene keeps the position
+  of the last frame the finger was down and tests that. The button is half the
+  shorter side wide, the preview a quarter, and the layout keeps both below
+  Back.
 
-  The state holds `:clicks`, `:frame`, `:at` (the last position a finger was
+  The state holds `:clicks`, `:frame`, `:tick` (frames since the scene began),
+  `:idle?` (no finger down this frame), `:at` (the last position a finger was
   down, or nil), `:grab` (whether this touch began on the button) and
   `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
@@ -53,6 +60,9 @@
 
 (def frame-names "The original's names for frames 0, 1 and 2." ["normal" "hover" "pressed"])
 (def hint-line "The original's hint." "one texture, three frames, sliced by v")
+(def idle-hint "The original's idle hint (line 120), for a finger." "cycling the three frames until you touch it")
+(def cycle-frames "Frames each state of the idle cycle lasts (the original's 60)." 60)
+(def cycle-period "Frames in one idle cycle (the original's 180)." (* cycle-frames frame-count))
 
 (defn clicks-line [n] (str "clicks: " n))
 
@@ -134,7 +144,8 @@
         csize (fit (clicks-line 99999) left (int (* 1.5 size)))
         ssize (fit "pressed" left size)
         y1 (+ top pad)
-        hsize (fit hint-line (- w (* 2 pad)) size)]
+        hsize (min (fit hint-line (- w (* 2 pad)) size)
+                   (fit idle-hint (- w (* 2 pad)) size))]
     (assoc geo :lines {:clicks {:x pad
                                 :y y1
                                 :size csize}
@@ -145,6 +156,11 @@
                               :x pad
                               :y (- h pad hsize)
                               :size hsize}})))
+
+(defn hint
+  "The hint for `state`: the idle one while the frames cycle, else the original's."
+  [state]
+  (if (:idle? state) idle-hint hint-line))
 
 (defn button-quad
   "The button as `raylib.texture/quad!` takes it: the window of the sheet that
@@ -180,7 +196,8 @@
 
 (defn advance
   "One frame. A finger down inside the button shows frame 2; a finger that began
-  on the button and is down off it shows frame 1; otherwise frame 0. A release
+  on the button and is down off it shows frame 1; a finger down elsewhere shows
+  frame 0; with no finger down the frames cycle, `(quot (mod tick 180) 60)`. A release
   adds a click when the last position the finger was down at is inside the
   button."
   [state {:keys [metrics pointer]
@@ -201,7 +218,10 @@
            :frame (cond
                     inside? 2
                     (and down? grab) 1
-                    :else 0)
+                    down? 0
+                    :else (quot (mod (:tick state) cycle-period) cycle-frames))
+           :tick (inc (:tick state))
+           :idle? (not down?)
            :at (cond
                  down? position
                  (= :release (:phase pointer)) (:at state)
@@ -212,6 +232,8 @@
 (defn- init [{:keys [metrics]}]
   [{:clicks 0
     :frame 0
+    :tick 0
+    :idle? true
     :at nil
     :grab false
     :screen (:screen metrics)}

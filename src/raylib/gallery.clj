@@ -4297,7 +4297,7 @@
     (texture/quad! id (spritebutton/button-quad state dims))
     (draw-caption! (assoc clicks-at :s (spritebutton/clicks-line (:clicks state))) spritebutton/clicks-colour)
     (draw-caption! (assoc state-at :s (nth spritebutton/frame-names (:frame state))) spritebutton/state-colour)
-    (draw-caption! hint spritebutton/hint-colour)
+    (draw-caption! (assoc hint :s (spritebutton/hint state)) spritebutton/hint-colour)
     (texture/quad! id (spritebutton/preview-quad dims))
     (let [c (color spritebutton/outline-colour)]
       (doseq [[x y w h] (spritebutton/outline-rects state dims)]
@@ -4377,7 +4377,14 @@
 
 (def ^:private texproc-noise
   "The last `[version spec]` for the noise panel. Building the spec fills 16384
-  values, so it happens once per tap, not once per frame."
+  values, so it happens once per tap, not once per frame.
+
+  It is keyed on `:version` alone because the seed is a pure function of the
+  version (`default-seed` reseeded `version` times, and a scene restarts at
+  version 0), so equal versions mean equal noise, including after the scene is
+  left and entered again. It also hands `id!` the identical spec object while
+  the version holds, so the spec is not rebuilt. `id!` does not keep a versioned
+  spec's texels between visits; only the three static panels' are kept."
   (atom nil))
 
 (defn- texproc-noise-spec [state]

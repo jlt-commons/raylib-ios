@@ -1,9 +1,10 @@
 (ns raylib.scenes.textiling
   "Texture Tiling, ported from raylib-jlt's `texture_tiling`
-  (net/b12n/raylib_jlt/texture_tiling.clj, zlib licence), which is raylib's
-  `textures_texture_tiling`: one small procedural tile covers the screen as a
-  single textured quad, by asking for texture coordinates well past 1.0 and
-  letting the GPU's REPEAT wrap mode do the repeating.
+  (net/b12n/raylib_jlt/texture_tiling.clj, zlib licence), which is raylib-jlt's
+  own example and not a port of a raylib C example. raylib 6.0's nearest is
+  `textures_tiled_drawing`, which tiles with DrawTextureTiled where this lets
+  the GPU's REPEAT wrap do it: one small procedural tile covers the screen as a
+  single textured quad, by asking for texture coordinates well past 1.0.
 
   Mirrored from texture_tiling.clj:
   - The tile (lines 22-35): 64 by 64 (line 21), a diagonal weave over a dark

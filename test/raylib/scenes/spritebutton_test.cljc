@@ -106,8 +106,8 @@
     (testing "the click count adds up over taps"
       (let [tap (fn [st] (tick (tick (tick st :press inside) :down inside) :release inside))]
         (is (= 3 (:clicks (nth (iterate tap s) 3))))))
-    (testing "idle never moves the frame or the count"
-      (is (= s (tick s :idle nil))))))
+    (testing "idle never moves the count, and the frame holds through the first sixty frames"
+      (is (= (dissoc s :tick) (dissoc (tick s :idle nil) :tick))))))
 
 (deftest a-slid-off-finger-shows-hover-and-does-not-act
   (let [s (fresh)
@@ -127,6 +127,49 @@
       (let [e (-> s (tick :press outside) (tick :down inside))]
         (is (= 2 (:frame e)))
         (is (= 1 (:clicks (tick e :release outside))))))))
+
+(defn- frames-of
+  "The `:frame` after each of `n` updates of `state` under `step`, a function
+  from state to state."
+  [state step n]
+  (map :frame (rest (take (inc n) (iterate step state)))))
+
+(deftest the-idle-cycle-is-the-originals
+  (let [s (fresh)
+        idle (fn [st] (tick st :idle nil))
+        frames (frames-of s idle 360)]
+    (testing "sixty frames each of 0, 1 and 2 in turn, as (quot (mod frame 180) 60)"
+      (is (= (concat (repeat 60 0) (repeat 60 1) (repeat 60 2)) (take 180 frames)))
+      (is (= (take 180 frames) (drop 180 frames)) "and round again"))
+    (testing "the first drawn frame is the original's frame 0"
+      (is (= 0 (:frame (idle s))))
+      (is (= 1 (:frame (nth (iterate idle s) 61)))))
+    (testing "the hint says cycling until the frames stop"
+      (is (= sc/idle-hint (sc/hint s)))
+      (is (= "cycling the three frames until you touch it" (sc/hint (idle s)))))))
+
+(deftest a-finger-stops-the-cycle-and-a-release-resumes-it
+  (let [idle (fn [st] (tick st :idle nil))
+        s (nth (iterate idle (fresh)) 70)
+        cycling (:frame (idle s))]
+    (is (= 1 cycling) "70 frames in, the cycle is on hover")
+    (testing "a press on the button shows pressed that frame, not the cycle"
+      (let [p (tick s :press inside)]
+        (is (= 2 (:frame p)))
+        (is (= sc/hint-line (sc/hint p)))))
+    (testing "a press elsewhere shows normal, not the cycle"
+      (let [p (tick s :press outside)]
+        (is (= 0 (:frame p)))
+        (is (= sc/hint-line (sc/hint p)))))
+    (testing "held, the cycle does not run, though the count does"
+      (let [held (nth (iterate #(tick % :down outside) (tick s :press outside)) 100)]
+        (is (= 0 (:frame held)))
+        (is (= (+ 70 101) (:tick held)))))
+    (testing "a release resumes the cycle where the count has got to"
+      (let [held (nth (iterate #(tick % :down outside) (tick s :press outside)) 100)
+            r (tick held :release outside)]
+        (is (= (quot (mod (:tick held) 180) 60) (:frame r)))
+        (is (= sc/idle-hint (sc/hint r)))))))
 
 (deftest first-frame-draws
   (let [s (fresh)]
@@ -180,7 +223,8 @@
     (testing (str screen)
       (doseq [[nm s ln] [[:clicks (sc/clicks-line 99999) clicks]
                          [:state "pressed" state]
-                         [:hint sc/hint-line hint]]
+                         [:hint sc/hint-line hint]
+                         [:idle-hint sc/idle-hint hint]]
               :let [{:keys [x y size]} ln]]
         (testing nm
           (is (<= 0 x))

@@ -139,8 +139,7 @@
     ;; triangle that is already non-positive goes out as it came in. The test
     ;; is on the scene's own output, so the swap is never what makes it pass.
     (doseq [frame [1 90 400]
-            :let [pts (vec (sc/control-points {:frame frame
-                                               :pins {}}))]
+            :let [pts (vec (sc/flex-points frame))]
             [segments width] [[24 40.0] [3 80.0] [48 6.0]]
             tri (triangles (sc/ribbon pts segments width 100.0 200.0 1.7))
             :let [[[x1 y1] [x2 y2] [x3 y3]] tri
@@ -176,8 +175,8 @@
       (is (= 1 (:frame (tick s))))
       (is (= 7 (:frame (nth (iterate tick s) 7)))))
     (testing "the middle points swing and the ends do not"
-      (let [a (sc/control-points s)
-            b (sc/control-points (nth (iterate tick s) 50))]
+      (let [a (sc/flex-points (:frame s))
+            b (sc/flex-points (:frame (nth (iterate tick s) 50)))]
         (is (= (first a) (first b)))
         (is (= (last a) (last b)))
         (is (not= (nth a 1) (nth b 1)))
@@ -218,14 +217,18 @@
                                (take 200 (cycle pointers)))]
         (is (= 201 (count states)))
         (doseq [st states]
-          (is (= (sc/flex-points (:frame st)) (sc/control-points st)) (str "frame " (:frame st))))
+          (is (= (sc/ribbon (sc/flex-points (:frame st)) (:segments st) (:width st)
+                            (:ox geo) (:oy geo) (:k geo))
+                 (sc/vertices st geo))
+              (str "frame " (:frame st))))
         (is (= (range 201) (map :frame states)))))
     (testing "a finger dragged straight over a point moves nothing"
       (let [[px py] [(+ (:ox geo) (* (:k geo) 250.0)) (+ (:oy geo) (* (:k geo) 200.0))]
             st (reduce (fn [st [phase at]] (tick st phase at))
                        s
                        [[:press [px py]] [:down [(+ px 80.0) (+ py 40.0)]] [:release [0.0 0.0]]])]
-        (is (= (sc/flex-points 3) (sc/control-points st)))))
+        (is (= 3 (:frame st)))
+        (is (= (sc/vertices (nth (iterate tick s) 3) geo) (sc/vertices st geo)))))
     (testing "the state carries no drag"
       (is (not-any? #{:pins :drag} (keys s))))))
 
