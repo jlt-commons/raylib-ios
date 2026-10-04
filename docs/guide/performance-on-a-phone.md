@@ -340,10 +340,10 @@ read 58 to 59 fps (measured).
 
 **Render targets are cheap to make.** A target is zeroed on the CPU and
 uploaded, and a field-sized one is large: Mouse Painting's 9.3 MB canvas opens
-in 22 ms (measured, largest single frame). Top Down Lights opens in 119 ms, and
-most of that is probably its ground texture, which packs a vector per texel
-(estimate: 30 to 80 ms at the figures above, which a reopen's 44 ms is
-consistent with, since the static ground is kept). Sixteen
+in 29 ms (measured, largest single frame). Top Down Lights opens in 75 ms, down
+from 119 ms when its targets also carried depth buffers (measured), and its
+ground texture, which packs a vector per texel, is probably part of what is
+left (estimate: 30 to 80 ms at the figures above). Sixteen
 field-sized lights, 17 targets and about 182 MB of colour (arithmetic), ran at
 58 fps idle and while dragging a light (measured).
 

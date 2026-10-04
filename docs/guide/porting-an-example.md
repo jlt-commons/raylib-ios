@@ -332,9 +332,9 @@ by value; jolt passes a buffer first for that, and the pixels go straight to
 texel under laptop jolt, so 6 seconds for 800 by 450, and stays as the tested
 reference. The C took 11.7 ms on the phone.
 
-On the phone all five read 58 or 59 fps. First opens pause 22 to 34 ms, except
-Top Down Lights at 119 ms, and 16 field-sized lights in Top Down Lights ran at
-58 fps. The catalog rows give each figure.
+On the phone all five read 58 fps. First opens pause 29 to 33 ms, except
+Top Down Lights at 75 ms and Render Texture at 103 ms (the first scene opened
+after launch), and 16 field-sized lights in Top Down Lights ran at 58 fps. The catalog rows give each figure.
 
 ## Wiring it in
 

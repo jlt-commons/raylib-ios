@@ -9,9 +9,10 @@ Notable changes, newest first. Dates are the day the work landed.
 - **Five render-target scenes, a hundred and thirty-seven in all.** Toys now
   holds a hundred and thirteen. Render Texture, Framebuffer Rendering, Mouse
   Painting, Magnifying Glass and Top Down Lights draw into off-screen
-  framebuffers and draw the result back. A device pass read all five at 58 or
-  59 fps, and Top Down Lights held 58 with 16 lights. Top Down Lights pauses
-  about 0.12 s on its first open, the other four under 35 ms.
+  framebuffers and draw the result back. A device pass of the final build read
+  all five at 58 fps, and Top Down Lights held 58 with 16 lights while dragging
+  one. Top Down Lights pauses 75 ms on its first open, Render Texture 103 ms
+  (the first scene opened after launch) and the other three 29 to 33 ms.
 - **Render targets.** `raylib.texture/target!` makes a framebuffer with an
   RGBA8 colour texture, and a depth buffer unless asked not to, from rlgl's
   scalar calls, never raylib's by-value `RenderTexture2D`. `with-target!` draws

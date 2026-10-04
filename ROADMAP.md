@@ -178,20 +178,14 @@ Still blocked, and what each waits on:
   render targets resident (arithmetic, not measured), background included.
   Stop drawing in the background and free targets on a memory warning. Locking
   the phone and switching apps in that scene has not been tried.
-- **Top Down Lights' first open.** 119 ms on the phone, over the 100 ms line.
-  The ground packs a vector per texel, and `texel/pack4` should take most of it
-  (estimate 30 to 80 ms). If a target-heavy open still passes 100 ms, upload
+- **Top Down Lights' first open.** 75 ms on the phone (119 ms before its
+  targets dropped their depth buffers). The ground packs a vector per texel,
+  and `texel/pack4` should take part of it (estimate 30 to 80 ms). If a
+  target-heavy open passes 100 ms, upload
   NULL and clear in the first pass instead of zeroing on the CPU.
 - **`texture/release!`.** Top Down Lights shrinks a dropped light's mask to
   1x1, which keeps a framebuffer and a texture until the scene is left. A
   release that frees one key is the honest primitive.
-- **Put the depth-free build on the phone.** The device pass of the five
-  render-target scenes ran before Framebuffer Rendering, Mouse Painting, Render
-  Texture and Top Down Lights dropped their depth buffers. A colour-only
-  framebuffer should be complete on GLES2, but if a driver calls one
-  incomplete, `target!` throws and the scene is abandoned on its first frame.
-  Re-read the fps and the first-open pauses, and look for "framebuffer
-  incomplete" in the console.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
@@ -201,8 +195,8 @@ Still blocked, and what each waits on:
   thirty-seven scenes and give Toys a hundred and thirteen. They add
   `raylib.texture/target!`, `with-target!`, `with-blend-factors!` and
   `perlin-texture!`, which calls raylib's own `GenImagePerlinNoise`, and
-  `host/draw-circle-gradient`. A device pass read all five at 58 or 59 fps,
-  Top Down Lights included with 16 lights, and its first open pauses 0.12 s.
+  `host/draw-circle-gradient`. A device pass of the final build read all five at 58 fps,
+  Top Down Lights included with 16 lights, and its first open pauses 75 ms.
 - 2026-10-04: the texture arc closed, with ten Toys scenes, `textiling`,
   `srcrec`, `spritebutton`, `npatch`, `texpoly`, `texproc`, `spriteanim`,
   `texcurve`, `rawdata` and `screenbuf`, which make a hundred and thirty-two
