@@ -115,7 +115,9 @@
             [raylib.scenes.splines :as spl]
             [raylib.scenes.split3d :as split3d]
             [raylib.scenes.splitscreen :as split]
+            [raylib.scenes.spritebutton :as spritebutton]
             [raylib.scenes.spritestack :as spritestack]
+            [raylib.scenes.srcrec :as srcrec]
             [raylib.scenes.starfield :as sfield]
             [raylib.scenes.stars :as stars]
             [raylib.scenes.strings :as strings]
@@ -175,7 +177,7 @@
              (blendmodes/scene) (blendparticles/scene)
              (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
              (voxel/scene) (doom/scene)
-             (textiling/scene)])
+             (textiling/scene) (srcrec/scene) (spritebutton/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -213,7 +215,7 @@
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
-             :textiling]}
+             :textiling :srcrec :spritebutton]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4229,6 +4231,66 @@
                                  textiling/button-held-colour
                                  textiling/button-colour)))
       (draw-caption! (get (:labels dims) k) textiling/button-label-colour))))
+
+(def ^:private srcrec-cache
+  "The last `[screen dims]` for `:srcrec`. Its text size needs a measure, which
+  depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- srcrec-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @srcrec-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (srcrec/dimensions m host-measure)]
+        (reset! srcrec-cache [screen dims])
+        dims))))
+
+(def ^:private srcrec-spec (srcrec/sheet-spec))
+
+(defmethod draw-scene! :srcrec [_ state {:keys [m]}]
+  (clear-to! srcrec/background-colour)
+  (let [dims (srcrec-dims m)
+        id (texture/id! :srcrec :sheet srcrec-spec)
+        line-c (color srcrec/line-colour)
+        [vx1 vy1 vx2 vy2] (:vline dims)
+        [hx1 hy1 hx2 hy2] (:hline dims)]
+    (texture/quad! id (srcrec/quad state dims))
+    (rl/draw-line vx1 vy1 vx2 vy2 line-c)
+    (rl/draw-line hx1 hy1 hx2 hy2 line-c)
+    (draw-caption! (first (:lines dims)) srcrec/text-colour)))
+
+(def ^:private spritebutton-cache
+  "The last `[screen dims]` for `:spritebutton`. Its text sizes need a measure,
+  which depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- spritebutton-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @spritebutton-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (spritebutton/dimensions m host-measure)]
+        (reset! spritebutton-cache [screen dims])
+        dims))))
+
+(def ^:private spritebutton-spec (spritebutton/sheet-spec))
+
+(defmethod draw-scene! :spritebutton [_ state {:keys [m]}]
+  (clear-to! spritebutton/background-colour)
+  (let [dims (spritebutton-dims m)
+        id (texture/id! :spritebutton :sheet spritebutton-spec)
+        {clicks-at :clicks
+         state-at :state
+         hint :hint} (:lines dims)]
+    (texture/quad! id (spritebutton/button-quad state dims))
+    (draw-caption! (assoc clicks-at :s (spritebutton/clicks-line (:clicks state))) spritebutton/clicks-colour)
+    (draw-caption! (assoc state-at :s (nth spritebutton/frame-names (:frame state))) spritebutton/state-colour)
+    (draw-caption! hint spritebutton/hint-colour)
+    (texture/quad! id (spritebutton/preview-quad dims))
+    (let [c (color spritebutton/outline-colour)]
+      (doseq [[x y w h] (spritebutton/outline-rects state dims)]
+        (rl/draw-rectangle (int x) (int y) (max 1 (int w)) (max 1 (int h)) c)))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

@@ -153,6 +153,8 @@
                      raylib.scenes.texcube-test
                      raylib.scenes.geoshapes-test
                      raylib.scenes.textiling-test
+                     raylib.scenes.srcrec-test
+                     raylib.scenes.spritebutton-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test
