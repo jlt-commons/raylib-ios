@@ -268,6 +268,42 @@
     (emit c-tl x0 y0) (emit c-bl x0 y1) (emit c-br x1 y1)
     (rl-end)))
 
+(defn draw-circle-gradient
+  "A disc whose colour runs from `inner` at the centre to `outer` at the rim, as
+  raylib's DrawCircleGradient draws it (rshapes.c, 6.0): 36 wedges of 10 degrees,
+  each the centre in `inner` and two rim points in `outer`.
+
+  raylib 6.0's version takes its centre as a Vector2 by value, so it is rebuilt
+  here from rlgl scalars like draw-ring. The vertex order is raylib's own: the
+  centre, then the rim point at angle i+10, then the one at i. With y growing
+  down that is a negative cross product, which survives back-face culling, the
+  way draw-triangle's survivors do.
+
+  Angles are the usual math ones (zero along +x), so the fan is a full circle
+  and the order within it does not matter to the picture, only to the culling."
+  [cx cy radius inner outer]
+  (let [[ir ig ib ia] (unpack inner)
+        [outr outg outb outa] (unpack outer)
+        cx (double cx)
+        cy (double cy)
+        radius (double radius)
+        rim (fn [deg]
+              (let [t (Math/toRadians (double deg))]
+                [(float (+ cx (* (Math/cos t) radius))) (float (+ cy (* (Math/sin t) radius)))]))]
+    (rl-begin RL-TRIANGLES)
+    (loop [i 0]
+      (when (< i 360)
+        (let [[x1 y1] (rim (+ i 10))
+              [x2 y2] (rim i)]
+          (rl-color-4ub ir ig ib ia)
+          (rl-vertex-2f (float cx) (float cy))
+          (rl-color-4ub outr outg outb outa)
+          (rl-vertex-2f x1 y1)
+          (rl-color-4ub outr outg outb outa)
+          (rl-vertex-2f x2 y2))
+        (recur (+ i 10))))
+    (rl-end)))
+
 (defn draw-line-ex
   "A line `thick` pixels wide, as one rlgl quad.
 

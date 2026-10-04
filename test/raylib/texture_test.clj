@@ -995,3 +995,38 @@
                                       b (:bytes img)]
                                 :when (not= [g g g 255] [(nth b o) (nth b (+ o 1)) (nth b (+ o 2)) (nth b (+ o 3))])]
                             [x y])))))))))
+
+(deftest circle-gradient-is-raylibs-fan
+  ;; host/draw-circle-gradient rebuilds DrawCircleGradient from rlgl, because the
+  ;; C takes its centre as a Vector2 by value. 36 wedges of 10 degrees, each the
+  ;; centre in the inner colour and two rim points in the outer, in the order that
+  ;; survives back-face culling (a negative cross product, y down).
+  (recording
+   (fn [calls]
+     (host/draw-circle-gradient 100.0 200.0 50.0 (texel/pack [255 255 255 0]) (texel/pack [10 20 30 255]))
+     (let [verts (mapv (fn [[_ x y]] [x y]) (of calls :vertex))
+           colours (mapv (fn [[_ & c]] (vec c)) (of calls :color))]
+       (testing "counts first: one triangle batch, 36 wedges of three vertices"
+         (is (= [[:begin 4]] (of calls :begin)))
+         (is (= 1 (count (of calls :end))))
+         (is (= 108 (count verts)))
+         (is (= 108 (count colours))))
+       (testing "the centre is inner, the rim outer, in every wedge"
+         (is (every? #(= [100.0 200.0] (nth verts (* 3 %))) (range 36)))
+         (is (every? #(= [255 255 255 0] (nth colours (* 3 %))) (range 36)))
+         (is (every? #(= [10 20 30 255] (nth colours (+ 1 (* 3 %)))) (range 36)))
+         (is (every? #(= [10 20 30 255] (nth colours (+ 2 (* 3 %)))) (range 36))))
+       (testing "the rim points are 50 out, at i + 10 degrees and then i"
+         (let [[x1 y1] (nth verts 1)
+               [x2 y2] (nth verts 2)]
+           (is (< (abs (- x1 (+ 100.0 (* 50.0 (Math/cos (Math/toRadians 10.0)))))) 1e-4))
+           (is (< (abs (- y1 (+ 200.0 (* 50.0 (Math/sin (Math/toRadians 10.0)))))) 1e-4))
+           (is (< (abs (- x2 150.0)) 1e-4))
+           (is (< (abs (- y2 200.0)) 1e-4))))
+       (testing "every wedge survives back-face culling: a negative cross product"
+         (is (every? (fn [i]
+                       (let [[ax ay] (nth verts (* 3 i))
+                             [bx by] (nth verts (+ 1 (* 3 i)))
+                             [cx cy] (nth verts (+ 2 (* 3 i)))]
+                         (neg? (- (* (- bx ax) (- cy ay)) (* (- by ay) (- cx ax))))))
+                     (range 36))))))))

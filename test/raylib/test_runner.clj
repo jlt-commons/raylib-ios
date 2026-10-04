@@ -165,6 +165,8 @@
                      raylib.scenes.rendertex-test
                      raylib.scenes.fbrender-test
                      raylib.scenes.mousepaint-test
+                     raylib.scenes.magnify-test
+                     raylib.scenes.toplights-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test

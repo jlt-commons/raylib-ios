@@ -16,6 +16,7 @@
   This is .clj rather than .cljc because raylib.gallery loads jolt.ffi. The
   runner lists it as jolt-only and skips it on the JVM."
   (:require [clojure.test :refer [deftest is testing]]
+            [jolt.ffi :as ffi]
             [poc.raylib.diagnostics :as diag]
             [poc.raylib.gallery :as gallery]
             [raylib.gallery :as rg]
@@ -230,6 +231,10 @@
   "The framebuffer id the stubbed host reports as SDL's drawable."
   77)
 
+(def ^:private image-l
+  (ffi/layout [:struct [[:data :pointer] [:width :int] [:height :int]
+                        [:mipmaps :int] [:format :int]]]))
+
 (defn- with-stubbed-raylib
   "Call `(f probe)` with the host's drawing defcfns redefined to stubs that
   record type violations and begin/end balances in `probe`, an atom of
@@ -241,6 +246,7 @@
   [f]
   (let [model (gl/fresh)
         probe (atom {:violations []
+                     :perlin-live #{}
                      :balance {}
                      :fbo sdl-fbo
                      :scissor true
@@ -356,7 +362,27 @@
                                      (chk :rl-ortho [:double :double :double :double :double :double] args)
                                      (apply gl/ortho model args))
                   texture/rl-draw-render-batch-active (stub :rl-draw-render-batch-active [] nil)
-                  texture/rl-set-blend-factors (stub :rl-set-blend-factors [:int :int :int] nil)]
+                  texture/rl-set-blend-factors (stub :rl-set-blend-factors [:int :int :int] nil)
+                  ;; GenImagePerlinNoise fills the Image it is handed with a real
+                  ;; 4-byte pixel buffer, and MemFree must see each one exactly once
+                  texture/gen-image-perlin-noise (fn [img & args]
+                                                   (chk :gen-image-perlin-noise
+                                                        [:pointer :int :int :int :int :float]
+                                                        (cons img args))
+                                                   (let [data (ffi/alloc 4)]
+                                                     (swap! probe update :perlin-live (fnil conj #{}) data)
+                                                     (ffi/write-field img image-l :data data)
+                                                     (ffi/write-field img image-l :width (first args))
+                                                     (ffi/write-field img image-l :height (second args))
+                                                     (ffi/write-field img image-l :mipmaps 1)
+                                                     (ffi/write-field img image-l :format 7)))
+                  texture/mem-free (fn [p]
+                                     (chk :mem-free [:pointer] [p])
+                                     (when-not (contains? (:perlin-live @probe) p)
+                                       (swap! probe update :violations conj [:mem-free :not-live]))
+                                     (swap! probe update :perlin-live disj p)
+                                     (ffi/free p)
+                                     nil)]
       (reset! probe/wm-info {:framebuffer sdl-fbo})
       ;; A texture scene leaves its stub id in the table. Free it while the
       ;; stubs are still bound, or the next test to call `texture/enter!` would
@@ -440,6 +466,8 @@
             (is (empty? (:violations @probe))
                 (str id " passed the FFI a bad type: "
                      (vec (take 3 (distinct (:violations @probe))))))
+            (is (empty? (:perlin-live @probe))
+                (str id " left a perlin image's pixels unfreed"))
             (is (empty? (:unbalanced result))
                 (str id " left a begin unmatched: "
                      (vec (take 3 (:unbalanced result)))))
@@ -609,3 +637,86 @@
         (is (= (:scissor-begin c) (inc (:scissor-end c))) "the field's scissor is closed and the safe region's put back")))
     (testing "the held stick is drawn"
       (is (= [8 10 10] [(:circle (first @per-frame)) (:circle (second @per-frame)) (:circle (last @per-frame))])))))
+
+(deftest top-down-lights-mirror-the-originals-blend-calls
+  ;; The original sets GL_SRC_ALPHA, GL_SRC_ALPHA and GL_MIN around a light's
+  ;; gradient, then GL_SRC_ALPHA, GL_SRC_ALPHA and GL_MAX around its shadows, once
+  ;; per dirty light, then GL_MIN around the merge of every mask.
+  (with-stubbed-raylib
+    (fn [probe]
+      (let [src-alpha 0x0302
+            gl-min 0x8007
+            gl-max 0x8008
+            factors (atom [])
+            begins (atom 0)
+            gs (reduce (fn [s i] (gallery/run-frame rg/registry s (frame-input i)))
+                       (gallery/open-scene rg/registry gallery/initial-gallery-state
+                                           :toplights (frame-input 0))
+                       (range 2))
+            state (:scene-state gs)
+            draw! (fn [st]
+                    (reset! factors [])
+                    (reset! begins 0)
+                    (with-redefs [texture/rl-set-blend-factors (fn [& args]
+                                                                 (swap! factors conj (vec args))
+                                                                 nil)
+                                  host/begin-blend-mode (let [orig host/begin-blend-mode]
+                                                          (fn [& args]
+                                                            (swap! begins inc)
+                                                            (apply orig args)))]
+                      (rg/draw-scene! :toplights st (draw-args 0)))
+                    @factors)]
+        (testing "one dirty light: its MIN, its MAX, then the master's MIN"
+          (is (= [0] (:dirty state)))
+          (is (= [[src-alpha src-alpha gl-min] [src-alpha src-alpha gl-max] [src-alpha src-alpha gl-min]]
+                 (draw! state)))
+          (is (= 3 @begins) "each set of factors is followed by one begin-blend-mode"))
+        (testing "two dirty lights: MIN and MAX each, then one merge"
+          (is (= [[src-alpha src-alpha gl-min] [src-alpha src-alpha gl-max]
+                  [src-alpha src-alpha gl-min] [src-alpha src-alpha gl-max]
+                  [src-alpha src-alpha gl-min]]
+                 (draw! (assoc state :dirty [0 1] :lights (conj (:lights state) (first (:lights state))))))))
+        (testing "nothing dirty: no mask is redrawn and nothing is merged"
+          (is (= [] (draw! (assoc state :dirty [])))))
+        (is (empty? (:violations @probe)) (str (vec (take 3 (:violations @probe)))))))))
+
+(deftest magnify-makes-its-backdrop-once-and-frees-the-pixels
+  (with-stubbed-raylib
+    (fn [probe]
+      (let [gens (atom 0)
+            orig texture/gen-image-perlin-noise
+            result (with-redefs [texture/gen-image-perlin-noise (fn [& args]
+                                                                  (swap! gens inc)
+                                                                  (apply orig args))]
+                     (draw-script probe :magnify))]
+        (is (nil? (:error result)) (str (:error result)))
+        (is (= 1 @gens) "120 frames ask for it, one makes it")
+        (is (empty? (:perlin-live @probe)) "the pixels were freed")
+        (is (empty? (:violations @probe)) (str (vec (take 3 (:violations @probe)))))))))
+
+(deftest top-down-lights-give-a-dropped-mask-back
+  ;; A turn drops the extra lights. Their field-sized masks are shrunk to a pixel
+  ;; (a new size frees the old target), so the GPU does not keep them until the
+  ;; scene is left.
+  (with-stubbed-raylib
+    (fn [probe]
+      (let [gs (reduce (fn [s i] (gallery/run-frame rg/registry s (frame-input i)))
+                       (gallery/open-scene rg/registry gallery/initial-gallery-state
+                                           :toplights (frame-input 0))
+                       (range 2))
+            state (:scene-state gs)
+            three (-> state
+                      (update :lights conj (first (:lights state)) (first (:lights state)))
+                      (assoc :dirty [0 1 2]))
+            draw! (fn [st] (rg/draw-scene! :toplights st (draw-args 0)))
+            ids (fn [] (into {} (map (fn [[k v]] [k (:gl-id v)])) (texture/resident)))]
+        (draw! three)
+        (let [before (ids)]
+          (is (contains? before [:toplights [:mask 2]]))
+          (draw! (assoc state :dirty [] :release [1 2]))
+          (let [after (ids)]
+            (is (not= (before [:toplights [:mask 1]]) (after [:toplights [:mask 1]])))
+            (is (not= (before [:toplights [:mask 2]]) (after [:toplights [:mask 2]])))
+            (is (= (before [:toplights [:mask 0]]) (after [:toplights [:mask 0]])))
+            (is (= (before [:toplights :master]) (after [:toplights :master])))))
+        (is (empty? (:violations @probe)) (str (vec (take 3 (:violations @probe)))))))))
