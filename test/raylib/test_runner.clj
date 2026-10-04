@@ -164,6 +164,7 @@
                      raylib.scenes.texcurve-test
                      raylib.scenes.rendertex-test
                      raylib.scenes.fbrender-test
+                     raylib.scenes.mousepaint-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test

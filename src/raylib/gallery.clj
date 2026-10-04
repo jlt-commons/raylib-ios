@@ -81,6 +81,7 @@
             [raylib.scenes.lorenz :as lor]
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.minesweeper :as msw]
+            [raylib.scenes.mousepaint :as mousepaint]
             [raylib.scenes.multitouch :as multi]
             [raylib.scenes.npatch :as npatch]
             [raylib.scenes.nudge :as nudge]
@@ -188,7 +189,7 @@
              (voxel/scene) (doom/scene)
              (textiling/scene) (srcrec/scene) (spritebutton/scene)
              (npatch/scene) (texpoly/scene) (texproc/scene)
-             (spriteanim/scene) (texcurve/scene) (rendertex/scene) (fbrender/scene)
+             (spriteanim/scene) (texcurve/scene) (rendertex/scene) (fbrender/scene) (mousepaint/scene)
              (rawdata/scene) (screenbuf/scene)])
 
 (def registry (gallery/make-registry scenes))
@@ -228,7 +229,7 @@
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
              :textiling :srcrec :spritebutton :npatch :texpoly :texproc
-             :spriteanim :texcurve :rendertex :fbrender :rawdata :screenbuf]}
+             :spriteanim :texcurve :rendertex :fbrender :mousepaint :rawdata :screenbuf]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4651,6 +4652,65 @@
                                        :v1 v1})
     (outline! (+ sx ix) (+ sy iy) iw ih fbrender/crop-colour)
     (rl/draw-line (int dx1) (int dy1) (int dx2) (int dy2) (color fbrender/divider-colour))))
+
+(def ^:private mousepaint-cache
+  "The last `[screen dims]` for `:mousepaint`. Its button text needs a measure,
+  which depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- mousepaint-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @mousepaint-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (mousepaint/dimensions m host-measure)]
+        (reset! mousepaint-cache [screen dims])
+        dims))))
+
+(defn- replay-mark!
+  "One of the frame's marks, drawn into the canvas in its own pixels."
+  [mark]
+  (case (first mark)
+    :clear (clear-to! (second mark))
+    :stroke (let [[_ x0 y0 x1 y1 radius colour] mark
+                  c (color colour)]
+              (doseq [[x y] (mousepaint/stroke-points x0 y0 x1 y1 radius)]
+                (rl/draw-circle (int x) (int y) (double radius) c)))))
+
+(defmethod draw-scene! :mousepaint [_ state {:keys [m safe]}]
+  (let [dims (mousepaint-dims m)
+        {fx :x
+         fy :y
+         fw :w
+         fh :h} (:field dims)
+        rt (texture/target! :mousepaint :canvas {:w fw
+                                                 :h fh})
+        marks (:marks state)]
+    ;; The canvas keeps its paint, so it is drawn into only by this frame's marks.
+    (when (seq marks)
+      (texture/with-target! rt safe
+        (fn [] (doseq [mark marks] (replay-mark! mark)))))
+    (clear-to! mousepaint/background-colour)
+    (texture/quad! (:texture rt) {:x fx
+                                  :y fy
+                                  :width fw
+                                  :height fh
+                                  :v0 1.0
+                                  :v1 0.0})
+    (when-let [[cx cy] (:cursor state)]
+      (if (:erase? state)
+        (rl/draw-circle-lines (int cx) (int cy) (double (:brush state)) (color mousepaint/preview-colour))
+        (rl/draw-circle (int cx) (int cy) (double (:brush state))
+                        (color (mousepaint/paint-colour state)))))
+    (rl/draw-rectangle 0 (dec fy) (int fw) 1 (color mousepaint/rule-colour))
+    (doseq [{:keys [i x y w h]} (:palette dims)]
+      (rl/draw-rectangle x y w h (color (nth mousepaint/palette i))))
+    (let [{:keys [x y w h]} (nth (:palette dims) (:sel state))]
+      (outline! (- x 2) (- y 2) (+ w 4) (+ h 4) mousepaint/outline-colour))
+    (doseq [{:keys [id x y w h label]} (:buttons dims)
+            :let [on? (and (= id :eraser) (:erase? state))]]
+      (rl/draw-rectangle x y w h (color (if on? mousepaint/button-on-colour mousepaint/button-colour)))
+      (draw-caption! label (if on? mousepaint/button-on-label-colour mousepaint/button-label-colour)))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
