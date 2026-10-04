@@ -105,7 +105,7 @@
         (is (true? (:erase? on)))
         (is (false? (:erase? (press on :eraser))))
         (is (false? (:erase? (step on :press (centre (nth (:palette (sc/layout metrics)) 3))))))))
-    (testing "a press under Back does nothing"
+    (testing "the top left, under Back, is inert"
       (let [s (step s0 :press [10 10])]
         (is (= [] (:marks s)))
         (is (= (:brush s0) (:brush s)))))))

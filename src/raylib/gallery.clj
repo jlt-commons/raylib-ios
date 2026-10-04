@@ -4610,7 +4610,8 @@
   (let [dims (fbrender-dims m)
         [[ox oy hw hh] [sx sy]] (:halves dims)
         spec {:w hw
-              :h hh}
+              :h hh
+              :depth? false}
         observer (texture/target! :fbrender :observer spec)
         subject (texture/target! :fbrender :subject spec)
         [note label] (:observer-lines dims)
@@ -4687,7 +4688,8 @@
          fw :w
          fh :h} (:field dims)
         rt (texture/target! :mousepaint :canvas {:w fw
-                                                 :h fh})
+                                                 :h fh
+                                                 :depth? false})
         marks (:marks state)]
     ;; The canvas keeps its paint, so it is drawn into only by this frame's marks.
     (when (seq marks)

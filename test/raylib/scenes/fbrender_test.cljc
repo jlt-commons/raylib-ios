@@ -148,6 +148,8 @@
       (let [obs (sc/observer-list (fresh) dims)
             sub (sc/subject-list (fresh) dims)
             kinds (fn [dl k] (count (filter #(= k (nth % 0)) dl)))]
+        (is (seq obs))
+        (is (seq sub))
         (testing "the observer: the grid's 22 lines, the cube's faces and wires, the prism's 8 lines"
           (is (<= 2 (kinds obs :tri) 6))
           (is (<= 8 (kinds obs :line) (+ 22 8 12))))
@@ -217,6 +219,12 @@
         (testing "the prism is there: eight green segments"
           (is (= 8 (count (green-lines obs))))
           (is (= 8 (count prism))))
+        (testing "and they are the prism for this frame, projected by the observer camera"
+          (let [pt (fn [p] (let [[x y] (s3/project ovp p)] [(Math/round (* 1000.0 x)) (Math/round (* 1000.0 y))]))
+                ends (fn [[x1 y1 x2 y2]] #{[(Math/round (* 1000.0 x1)) (Math/round (* 1000.0 y1))]
+                                           [(Math/round (* 1000.0 x2)) (Math/round (* 1000.0 y2))]})]
+            (is (= (set (map (fn [[a b _]] #{(pt a) (pt b)}) prism))
+                   (set (map #(ends (subvec % 1 5)) (green-lines obs)))))))
         (testing "the prism's far rectangle fills the subject view's own target"
           (let [[_ _ _ _ :as far] (map second (take 4 prism))
                 pts (map #(s3/project svp %) far)]

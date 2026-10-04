@@ -24,11 +24,11 @@
   is never kept (it is dynamic).
 
   Render targets live in the same table. `target!` makes an off-screen
-  framebuffer with an RGBA8 colour texture and a depth renderbuffer under a
-  `[scene-id key]` pair, and `enter!` frees it with the rest of that scene's
-  textures. A target is render output, so it is never kept on the CPU side, and
-  `id!` refuses a key that holds one (and `target!` a key that holds a plain
-  texture). `with-target!` draws into one and gives the screen back: SDL's
+  framebuffer with an RGBA8 colour texture and, unless the spec says
+  `:depth? false`, a depth renderbuffer under a `[scene-id key]` pair, and
+  `enter!` frees it with the rest of that scene's textures. A target is render
+  output, so it is never kept on the CPU side, and `id!` refuses a key that
+  holds one (and `target!` a key that holds a plain texture). `with-target!` draws into one and gives the screen back: SDL's
   drawable framebuffer, the viewport, the projection, the matrix and the
   gallery's scissor. `with-blend-factors!` sets rlgl's custom blend factors for
   the length of a call.
@@ -268,7 +268,11 @@
                  :as spec} y0 rows]
   (if-let [{:keys [gl-id]
             :as have} (get @table [scene-id key])]
-    (let [_ (check-size! scene-id key have w h)
+    (let [_ (when (:fbo have)
+              (throw (ex-info (str "texture " (pr-str [scene-id key]) ": the key holds a render target")
+                              {:scene scene-id
+                               :key key})))
+          _ (check-size! scene-id key have w h)
           y0 (max 0 y0)
           n (- (min h (+ y0 rows)) y0)]
       (when (pos? n)
@@ -529,7 +533,8 @@
        :fbo fbo
        :version nil
        :w w
-       :h h})
+       :h h
+       :depth? (boolean depth?)})
     (finally (bind-screen!))))
 
 (defn target!
@@ -537,10 +542,15 @@
   `{:fbo :texture :w :h}`. `spec` is `{:w :h :depth?}`; `:depth?` defaults to
   true, and false makes a target with no depth renderbuffer (rlgl runs 2D with
   the depth test off, so a pass that draws only flat shapes loses nothing, and
-  saves 2 bytes a texel). The same size answers the same
-  target, a new size frees the old pair and makes a new one, and `enter!` frees
-  it with the scene's other textures. Throws an ex-info with :scene, :key, :w
-  and :h when the driver calls the framebuffer incomplete, and caches nothing.
+  saves the depth buffer, 2 to 4 bytes a texel depending on the depth format
+  the driver offers). The same size and depth answer the same target, a new
+  size or depth frees the old pair and makes a new one, and `enter!` frees it
+  with the scene's other textures. Ask for it every frame and don't keep the
+  map: a new size or `enter!` frees the framebuffer it names. Use the scene's
+  own registry id, because a target filed under any other id is freed and made
+  again every frame. A new size starts empty. Throws an ex-info with :scene,
+  :key, :w and :h when the driver calls the framebuffer incomplete, and caches
+  nothing.
 
   The colour texture starts transparent black. GL stores it bottom-up, so draw
   it back with `quad!` and `:v0 1.0 :v1 0.0`."
@@ -552,7 +562,8 @@
       (throw (ex-info (str "texture " (pr-str k) ": the key holds a plain texture")
                       {:scene scene-id
                        :key key})))
-    (let [entry (if (and have (= w (:w have)) (= h (:h have)))
+    (let [entry (if (and have (= w (:w have)) (= h (:h have))
+                         (= (boolean depth?) (:depth? have)))
                   have
                   (do
                     (when have
@@ -597,7 +608,10 @@
   state and puts the scissor back, so the rest of the scene's draw sees what it
   saw before. `f` must not call BeginScissorMode (on Apple the y flips against
   the screen height, not the target's) or nest `with-target!` (the inner exit
-  binds the screen, not the outer target)."
+  binds the screen, not the outer target). It assumes modelview is identity on
+  entry, as the gallery leaves it (raylib runs at scale 1 here). Never draw
+  `rt`'s own texture inside its pass; reading and writing one texture at once
+  is undefined in GL."
   [{:keys [fbo w h]} safe f]
   (rl-draw-render-batch-active)
   (host/end-scissor-mode)
@@ -635,7 +649,9 @@
 (defn with-blend-factors!
   "Run `(f)` blended with source factor `src`, destination factor `dst` and
   blend equation `equation` (GL enums; see `RL-SRC-ALPHA`, `RL-MIN`, `RL-MAX`),
-  then put the default blend mode back, throw or not. Answers `f`'s result."
+  then put the default blend mode back, throw or not. Answers `f`'s result. It
+  doesn't nest: the exit puts the default blend mode back, not an enclosing
+  custom one."
   [src dst equation f]
   (rl-set-blend-factors src dst equation)
   (host/begin-blend-mode BLEND-CUSTOM)

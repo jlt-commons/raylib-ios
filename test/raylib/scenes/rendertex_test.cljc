@@ -21,7 +21,8 @@
 
 (deftest the-target-is-the-originals-size
   (is (= [320 240] [sc/rt-w sc/rt-h]))
-  (is (= [320 240] [(:w (sc/target-spec)) (:h (sc/target-spec))])))
+  (is (= [320 240] [(:w (sc/target-spec)) (:h (sc/target-spec))]))
+  (is (false? (:depth? (sc/target-spec))) "the passes are 2D, so no depth buffer"))
 
 (deftest the-copies-follow-the-original
   (testing "the original's table, as [x y scale label]"
@@ -40,6 +41,7 @@
       (testing (str screen)
         (is (pos? k))
         (is (= 4 (count (:copies dims))))
+        (is (seq (:copies dims)))
         (doseq [[[x y s _] c] (map vector sc/copies (:copies dims))]
           (is (near? (+ (:ox dims) (* k x)) (:x c)))
           (is (near? (+ (:oy dims) (* k y)) (:y c)))
@@ -71,16 +73,18 @@
                 [_ back-y _ back-h] gesture/back-region]]
     (testing (str screen)
       (testing "every copy lies on the screen, below Back"
+        (is (seq (:copies dims)))
         (doseq [{:keys [x y width height]} (:copies dims)]
           (is (>= x 0))
           (is (<= (+ x width) w))
           (is (>= y (+ back-y back-h)))
           (is (<= (+ y height) h))))
       (testing "the balls stay inside the target at every moment"
-        (doseq [t (range 0.0 60.0 0.37)
-                [x y] (sc/balls t)]
-          (is (<= sc/ball-radius x (- sc/rt-w sc/ball-radius)))
-          (is (<= sc/ball-radius y (- sc/rt-h sc/ball-radius))))))))
+        (doseq [t (range 0.0 60.0 0.37)]
+          (is (seq (sc/balls t)))
+          (doseq [[x y] (sc/balls t)]
+            (is (<= sc/ball-radius x (- sc/rt-w sc/ball-radius)))
+            (is (<= sc/ball-radius y (- sc/rt-h sc/ball-radius)))))))))
 
 (deftest text-lines-fit-the-safe-region
   (doseq [screen screens

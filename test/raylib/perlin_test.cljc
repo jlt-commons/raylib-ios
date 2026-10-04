@@ -1,6 +1,8 @@
 ;; The reference values below come from this program, built against raylib 6.0's
 ;; stb_perlin.h with -ffp-contract=off (strict IEEE float, no fused multiply-add):
 ;;
+;; Its body is transcribed from GenImagePerlinNoise in raylib 6.0's rtextures.c:992-1030, not linked against it.
+;;
 ;; /* cc -ffp-contract=off -I <raylib 6.0>/src/external ref.c -o ref -lm */
 ;; #include <stdio.h>
 ;; #define STB_PERLIN_IMPLEMENTATION

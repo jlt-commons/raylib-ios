@@ -62,7 +62,8 @@
   "What to ask `raylib.texture/target!` for."
   []
   {:w rt-w
-   :h rt-h})
+   :h rt-h
+   :depth? false})
 
 (defn balls
   "The six balls at `t` seconds, as `[x y [r g b a]]` with x and y truncated to

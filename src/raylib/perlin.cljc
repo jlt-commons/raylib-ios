@@ -78,11 +78,13 @@
   costs about 0.5 microseconds a call under jolt (`(float x)` leaves a double
   alone there), and noise3 rounds some sixty times per octave. Checked against
   the Float round trip on 1.6 million sums, products, quotients and differences
-  of random floats, ties included, with no mismatch (see the test).
+  of random floats, ties included, with no mismatch (checked offline; the test
+  runs a smaller sample).
 
   Not for a result below 2^-126 (floats go subnormal and keep fewer bits) or
-  above 2^100 (the multiply overflows). Neither occurs in noise at the
-  coordinates this is used for."
+  above the float range near 2^128 (a float overflows to infinity there, and
+  this does not); infinity and NaN in give NaN out. Noise values stay far
+  inside both limits."
   [x]
   (let [c (* x 536870913.0)]
     (- c (- c x))))

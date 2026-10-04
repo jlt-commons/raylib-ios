@@ -1104,3 +1104,38 @@
                          :depth? true})
      (is (= 2 (count (of calls :load-depth))))
      (is (= 4 (count (of calls :attach)))))))
+
+(deftest asking-for-a-different-depth-makes-a-new-target
+  (recording
+   (fn [calls]
+     (let [a (tex/target! :s :k {:w 8
+                                 :h 8
+                                 :depth? true})
+           _ (reset! calls [])
+           b (tex/target! :s :k {:w 8
+                                 :h 8
+                                 :depth? false})]
+       (is (= [[:unload-fbo (:fbo a)]] (of calls :unload-fbo)) "the first framebuffer is freed once")
+       (is (= 1 (count (of calls :load-fbo))) "a second one is made")
+       (is (not= (:fbo a) (:fbo b)))
+       (is (empty? (of calls :load-depth)) "with no depth buffer")
+       (is (= 1 (count (of calls :attach))) "and only the colour attachment")
+       (testing "the same depth again reuses it"
+         (reset! calls [])
+         (is (= b (tex/target! :s :k {:w 8
+                                      :h 8
+                                      :depth? false})))
+         (is (empty? (of calls :load-fbo))))))))
+
+(deftest band-refuses-a-render-target
+  (recording
+   (fn [calls]
+     (tex/target! :s :k {:w 4
+                         :h 6})
+     (let [e (try (tex/band! :s :k (band-spec) 0 2) nil (catch Exception e e))]
+       (is (some? e))
+       (is (= {:scene :s
+               :key :k}
+              (ex-data e)))
+       (is (re-find #"holds a render target" (str (ex-message e))))
+       (is (empty? (of calls :update)))))))
