@@ -5,11 +5,11 @@ bottom, and the dated detail lives in `CHANGELOG.md`.
 
 ## Port backlog
 
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 134 of
-them are in the gallery as of 2026-10-04, which leaves 53. That counts
-examples and not scenes: the gallery has 129 scenes ported from raylib-jlt, one
+[raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187 examples. 139 of
+them are in the gallery as of 2026-10-04, which leaves 48. That counts
+examples and not scenes: the gallery has 134 scenes ported from raylib-jlt, one
 of which (`easings`) covers three examples, and the three Android scenes are
-versions of `flappy_bird`, `eyes` and `mouse_trail`, so 129 + 2 + 3 = 134. They sort into
+versions of `flappy_bird`, `eyes` and `mouse_trail`, so 134 + 2 + 3 = 139. They sort into
 three groups by what a port would need. The grouping comes from reading each
 example's docstring and the raylib calls it makes, so a closer read may move a
 few of them.
@@ -18,14 +18,16 @@ few of them.
 
 **A few new scalar bindings (0).** The group is empty after batch 8.
 
-**Blocked for now (53).** The 2026-10-02 triage sorted the then 95 unported
+**Blocked for now (48).** The 2026-10-02 triage sorted the then 95 unported
 examples by what a port would need. About 32 could be rebuilt with what is
 already bound, and batches 9 to 13 ported 30 of them, so 2 remain. Two more
 needed only a pair of scalar blend-mode bindings, and batch 13 added them. The
-other 51 need something the project doesn't bind or the phone doesn't have:
+other 46 need something the project doesn't bind or the phone doesn't have:
 shaders, texture and image pipelines, 3D models and meshes, desktop windowing,
-the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 51 = 53. These
-remain rewrite-ready:
+the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 46 = 48. Five of
+the old 51 (`render_texture`, `framebuffer_rendering`, `mouse_painting`,
+`magnifying_glass` and `top_down_lights`) left the group on 2026-10-04, once
+`raylib.texture/target!` could make a framebuffer. These remain rewrite-ready:
 
 - 3D, projected in software: `dna_helix`. A faithful one built in 12.7 ms on
   the laptop, about 42 times the 0.30 ms a scene is sized to there, so it waits
@@ -33,12 +35,22 @@ remain rewrite-ready:
 - `reasings` is already ported: it is the easing header, and `raylib.easings`
   carries it, so no scene is left to add for it.
 
+Still blocked, and what each waits on:
+
+- **Shaders.** The examples that pair a render texture with a shader
+  (`postprocessing` and the rest) wait on shader bindings.
+- **The Image API.** `perlin-texture!` shows jolt can take raylib's `Image` by
+  value as a return, but the `Image*` calls that take one as an argument still
+  can't be called.
+
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 4235 lines and grows
+- **Split the drawing out of `raylib.gallery`.** It is 4934 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
-  could move to their own namespace. The file now has 47 `*-cache` atoms with
+  could move to their own namespace. The file now has 53 `*-cache` atoms with
   the same eight-line body, so a `memo-last` helper belongs in the same split.
+  The field-below-Back layout and the text `fit` lambdas also repeat across the
+  render-target scenes.
   The two newest caches hold a whole draw list (`geoshapes-cache` and
   `split3d-list-cache`), so under `DEV_BUILD=1` a redefined `scene-list` or
   soft3d builder does not show until the screen or a player changes. Clearing
@@ -49,7 +61,7 @@ remain rewrite-ready:
   would hold `window`, `handle`, `clamp`, the start geometry and `drag-step`,
   with Viewport Scaling passing its button claim in. It takes about an hour and
   is worth doing when a third scene would use it.
-- **Rebalance the categories.** Toys holds 108 of the 132 scenes, and Games has 11, so a scroll
+- **Rebalance the categories.** Toys holds 113 of the 137 scenes, and Games has 11, so a scroll
   through Toys is long. raylib-jlt's own groups (core, shapes, text) would be a
   starting point.
 - **Add a batch `soft3d/cubes` builder.** 3D Split Screen carries `flat-cubes`,
@@ -149,7 +161,7 @@ remain rewrite-ready:
   panel of Procedural Textures also still pack a vector per texel (`texel/pack`
   where `texel/pack4` would do), which is part of that fill cost. The
   catalog discloses the pauses for now.
-- **Audit the licence wording on the older scenes.** The 33 scenes that
+- **Audit the licence wording on the older scenes.** The scenes that
   predate the texture arc, and NOTICE's "Ported, and altered" section, call
   their raylib-jlt originals zlib. raylib-jlt relicensed to EPL 2.0 on
   2026-09-05, so an original added to it after that date is EPL 2.0. The ten
@@ -158,10 +170,39 @@ remain rewrite-ready:
   stops with `variable error is not bound` in the `jolt.socket.native` unit,
   and so do builds after that release. v0.8.15 builds it, and the 2026-10-04
   device pass ran on it. Pin the live build to v0.8.15 until jolt fixes it.
+- **Retexture four older scenes through `target!`.** Fog of War, Smooth
+  Pixel-Perfect, Viewport Scaling and Window Letterbox were ported before render
+  targets existed, and each original draws through a render texture.
+- **App lifecycle.** Nothing handles `SDL_APP_WILLENTERBACKGROUND` or
+  `SDL_APP_LOWMEMORY`. Top Down Lights with 16 lights keeps about 182 MB of
+  render targets resident (arithmetic, not measured), background included.
+  Stop drawing in the background and free targets on a memory warning. Locking
+  the phone and switching apps in that scene has not been tried.
+- **Top Down Lights' first open.** 119 ms on the phone, over the 100 ms line.
+  The ground packs a vector per texel, and `texel/pack4` should take most of it
+  (estimate 30 to 80 ms). If a target-heavy open still passes 100 ms, upload
+  NULL and clear in the first pass instead of zeroing on the CPU.
+- **`texture/release!`.** Top Down Lights shrinks a dropped light's mask to
+  1x1, which keeps a framebuffer and a texture until the scene is left. A
+  release that frees one key is the honest primitive.
+- **Put the depth-free build on the phone.** The device pass of the five
+  render-target scenes ran before Framebuffer Rendering, Mouse Painting, Render
+  Texture and Top Down Lights dropped their depth buffers. A colour-only
+  framebuffer should be complete on GLES2, but if a driver calls one
+  incomplete, `target!` throws and the scene is abandoned on its first frame.
+  Re-read the fps and the first-open pauses, and look for "framebuffer
+  incomplete" in the console.
 - **Move the CI jolt pin forward** from 0.8.6. The suite is green on 0.8.15.
 
 ## Done
 
+- 2026-10-04: the render-textures arc closed, with five Toys scenes, `rendertex`,
+  `fbrender`, `mousepaint`, `magnify` and `toplights`, which make a hundred and
+  thirty-seven scenes and give Toys a hundred and thirteen. They add
+  `raylib.texture/target!`, `with-target!`, `with-blend-factors!` and
+  `perlin-texture!`, which calls raylib's own `GenImagePerlinNoise`, and
+  `host/draw-circle-gradient`. A device pass read all five at 58 or 59 fps,
+  Top Down Lights included with 16 lights, and its first open pauses 0.12 s.
 - 2026-10-04: the texture arc closed, with ten Toys scenes, `textiling`,
   `srcrec`, `spritebutton`, `npatch`, `texpoly`, `texproc`, `spriteanim`,
   `texcurve`, `rawdata` and `screenbuf`, which make a hundred and thirty-two

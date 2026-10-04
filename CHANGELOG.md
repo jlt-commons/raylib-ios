@@ -6,6 +6,29 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Added
 
+- **Five render-target scenes, a hundred and thirty-seven in all.** Toys now
+  holds a hundred and thirteen. Render Texture, Framebuffer Rendering, Mouse
+  Painting, Magnifying Glass and Top Down Lights draw into off-screen
+  framebuffers and draw the result back. A device pass read all five at 58 or
+  59 fps, and Top Down Lights held 58 with 16 lights. Top Down Lights pauses
+  about 0.12 s on its first open, the other four under 35 ms.
+- **Render targets.** `raylib.texture/target!` makes a framebuffer with an
+  RGBA8 colour texture, and a depth buffer unless asked not to, from rlgl's
+  scalar calls, never raylib's by-value `RenderTexture2D`. `with-target!` draws
+  into one and gives everything back afterwards: SDL's framebuffer (on iOS the
+  screen is not framebuffer 0, and rlgl's framebuffer calls bind 0), the
+  viewport and projection, the gallery's translate, which rlgl keeps in its
+  `transform` matrix rather than modelview, and the scissor.
+  `with-blend-factors!` runs a draw under custom blend factors, which is how
+  Top Down Lights gets GL_MIN and GL_MAX. `:depth?` is part of a target's
+  identity, and `band!` refuses a render target.
+- **raylib's own Perlin image.** `perlin-texture!` calls `GenImagePerlinNoise`
+  through jolt's by-value struct return and uploads the pixels raylib made
+  (11.7 ms on the phone for 800 by 450). `raylib.perlin` is a pure port of
+  stb_perlin and `GenImagePerlinNoise`, bit-exact with the C, kept as the
+  tested model.
+- **`host/draw-circle-gradient`**, raylib's `DrawCircleGradient` rebuilt from
+  rlgl, since the C takes its centre by value.
 - **Ten texture scenes, a hundred and thirty-two in all.** Toys now holds a
   hundred and eight. Texture Tiling, Source and Destination Rects, Sprite
   Button, Npatch Drawing, Polygon Drawing, Procedural Textures, Sprite
@@ -41,6 +64,11 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Every count in the docs is derived from the code again.** The scene,
+  category, ported and blocked counts in the README, the guide, the catalog,
+  the site and the ROADMAP now read 137 scenes (Generative 9, Fractals 4, Toys
+  113, Games 11) and 139 of raylib-jlt's 187 examples. Test counts are no longer
+  quoted, since they change every batch.
 - **The ten docstrings give the licence of their raylib-jlt originals.** Eight
   were added to raylib-jlt after its 2026-09-05 relicence and are EPL 2.0; the
   other two, Texture Tiling and Procedural Textures, predate it and are zlib.

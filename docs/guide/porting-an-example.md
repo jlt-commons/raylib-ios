@@ -1,7 +1,7 @@
 # Porting an example from raylib-jlt
 
 [jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples, and 134 of them are in the gallery. Those count
+examples, and 139 of them are in the gallery. Those count
 examples and not scenes, because the `easings` scene covers three of them and
 the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
 The ones that need no input at all port almost mechanically. This is what "almost"
@@ -275,6 +275,66 @@ back each visit. `raylib.texture` keeps the filled buffer for a spec without a
 `:version`, and a reopen then costs about one frame instead of a refill. The
 catalog rows give each scene's first-open pause, which runs up to about a second
 for Sprite Animation, because the pixels are computed then.
+
+## Render textures
+
+Five of the ports draw into an off-screen framebuffer: Render Texture,
+Framebuffer Rendering, Mouse Painting, Magnifying Glass and Top Down Lights.
+raylib's `LoadRenderTexture` returns a `RenderTexture2D` by value and
+`BeginTextureMode` takes one, so neither can cross the FFI. `raylib.texture`
+rebuilds the pair from rlgl's scalar calls:
+
+- `target!` with `(scene-id key {:w :h :depth?})` makes the framebuffer on first
+  use and answers `{:fbo :texture :w :h}`. `:depth?` defaults to true; a pass
+  that draws only 2D should pass `false`, because rlgl keeps the depth test off
+  outside `BeginMode3D` and the buffer would cost 2 to 4 bytes a texel for
+  nothing. Call it every frame and don't keep the map, since a new size or
+  leaving the scene frees the framebuffer.
+- `with-target!` with `(rt safe f)` runs `f` with drawing redirected into the
+  target. `f` draws in the target's own pixels from (0, 0), and the scene's
+  translate, the scissor, the viewport and the projection are put back after it,
+  whether it returns or throws.
+- A target's colour texture is stored bottom-up, so draw it back with `quad!`
+  and `:v0 1.0 :v1 0.0`.
+
+Two things about iOS went wrong on the way, and each has a symptom worth
+recognising.
+
+**The screen is not framebuffer 0.** On iOS it is SDL's drawable framebuffer,
+and every rlgl framebuffer call (`rlLoadFramebuffer`, `rlFramebufferAttach`,
+`rlFramebufferComplete`, `rlUnloadFramebuffer`, `rlDisableFramebuffer`) binds 0.
+After a pass the rest of the frame then drew into nothing, and the screen stayed
+blank. `target!` and `with-target!` rebind SDL's framebuffer after each of them,
+so a scene never calls the rlgl functions itself.
+
+**The gallery's translate lives in `transform`, not modelview.** A push in
+MODELVIEW mode redirects to rlgl's `transform` matrix, so loading identity after
+a matrix-mode call leaves the safe-area translate in place. A pass drew offset by
+the safe inset, and the rest of the frame was translated twice. `with-target!`
+loads identity straight after its push and restores with a push and two pops.
+`test/raylib/rlgl_model.clj` models rlgl's matrix state for the same reason: a
+stub that skips it hides the whole split.
+
+A **persistent canvas** is a target whose picture stays on the GPU. Mouse
+Painting does this: the pure scene hands over the frame's marks as data, the
+draw method replays only those into the canvas, and a frame where nothing is
+touched draws none. A turn of the phone makes a canvas of the new size, which
+starts empty, and the scene says so.
+
+**Custom blending** is `with-blend-factors!` with `(src dst equation f)`. Top Down
+Lights needs `GL_MIN` and `GL_MAX` to merge its masks, and the equation is not a
+blend mode raylib offers. The call doesn't nest.
+
+**`perlin-texture!`** is the one native call with a struct return. Magnifying
+Glass's backdrop is raylib's own `GenImagePerlinNoise`, whose `Image` comes back
+by value; jolt passes a buffer first for that, and the pixels go straight to
+`rlLoadTexture`. The pure port `raylib.perlin` takes about 17 microseconds a
+texel under laptop jolt, so 6 seconds for 800 by 450, and stays as the tested
+reference. The C took 11.7 ms on the phone.
+
+On the phone all five read 58 or 59 fps. First opens pause 22 to 34 ms, except
+Top Down Lights at 119 ms, and 16 field-sized lights in Top Down Lights ran at
+58 fps. The catalog rows give each figure.
 
 ## Wiring it in
 

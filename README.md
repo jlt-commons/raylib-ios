@@ -9,11 +9,11 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of a hundred and thirty-two scenes, each one a pure `.cljc`
+What runs today: a gallery of a hundred and thirty-seven scenes, each one a pure `.cljc`
 simulation under an iOS owner loop of about thirty lines. Three of them,
 Following Eyes, Touch Trail and Flappy Bird, came byte for byte from
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-at `6d2b291`, and the other hundred and twenty-nine are ports from
+at `6d2b291`, and the other hundred and thirty-four are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Tap a card to
 open a scene, tap Back to leave it. The bird flaps on a press edge.
 
@@ -396,7 +396,10 @@ Two related things about iOS itself, both of which look like rendering bugs:
   correct at swap time whether or not `raylib.host` binds anything, because
   SDL's own swap path leaves the drawable bound and the binding survives
   between frames. `raylib.host` binds them anyway, which is a no-op today and
-  cheap insurance against an SDL or raylib that stops doing so. The full
+  cheap insurance against an SDL or raylib that stops doing so. That holds
+  only until something binds framebuffer 0, which every rlgl framebuffer call
+  does, so `raylib.texture` rebinds SDL's after each of them. The porting guide's
+  "Render textures" section has the detail. The full
   measurement, and why the wrong conclusion was so easy to reach, is in
   [`docs/upstream-findings.md`](docs/upstream-findings.md).
 - **The console is a leash.** `devicectl ... --console` streams stdout, and

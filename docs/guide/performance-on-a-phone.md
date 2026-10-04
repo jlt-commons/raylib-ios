@@ -338,6 +338,15 @@ fire, so it runs at about 8.6 steps a second (derived from 60 / 7) against the
 original's 60. Both show a moving seam between fresher and older rows, and both
 read 58 to 59 fps (measured).
 
+**Render targets are cheap to make.** A target is zeroed on the CPU and
+uploaded, and a field-sized one is large: Mouse Painting's 9.3 MB canvas opens
+in 22 ms (measured, largest single frame). Top Down Lights opens in 119 ms, and
+most of that is probably its ground texture, which packs a vector per texel
+(estimate: 30 to 80 ms at the figures above, which a reopen's 44 ms is
+consistent with, since the static ground is kept). Sixteen
+field-sized lights, 17 targets and about 182 MB of colour (arithmetic), ran at
+58 fps idle and while dragging a light (measured).
+
 ## How these were measured
 
 All of it live, over the nREPL, without a rebuild between readings. That is

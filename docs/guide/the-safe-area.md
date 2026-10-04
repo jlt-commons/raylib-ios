@@ -38,7 +38,7 @@ safe areas. Measured on a phone whose real inset is 62 points, SDL reported 0.
 
 The obvious approach is to pass the insets to every scene and have each one
 offset its own drawing. That was nineteen edits when this was written and is
-thirty-four now, which is the argument rather than a footnote to it: the count
+a hundred and thirty-seven now, which is the argument rather than a footnote to it: the count
 only ever grows, every one is a chance to get an offset wrong, and every future
 scene inherits the obligation.
 

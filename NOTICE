@@ -56,9 +56,11 @@ seeded LCG, and drawing moves to the caller. Every file names its original in
 its own docstring, as the zlib licence's "altered source versions must be
 plainly marked as such" asks.
 
-Two files outside the scenes are derived too. `src/raylib/texture.clj` lifts
+Some files outside the scenes are derived too. `src/raylib/texture.clj` lifts
 the rlgl declarations, the wrap and filter setters, the upload loop and the quad
-from raylib-jlt's `lib/src/net/b12n/raylib/textures.clj`, and adds the id
+from raylib-jlt's `lib/src/net/b12n/raylib/textures.clj`, along with the
+render-texture, with-render-texture and restore-screen-projection! bodies behind
+`target!` and `with-target!`, and adds the id
 table, the retained staging buffers, the power-of-two rule and `triangles!`.
 That source was added to raylib-jlt on 2026-09-19, after its 2026-09-05
 relicence, so it is EPL 2.0 (Copyright (c) 2026 Burin Choomnuan), not the zlib
@@ -66,15 +68,54 @@ licence of the block below, which describes the older scenes. The same holds for
 eight of the ten texture scenes (Source and Destination Rects, Sprite Button,
 Npatch Drawing, Polygon Drawing, Sprite Animation, Textured Curve, Raw Data and
 Screen Buffer); only Texture Tiling and Procedural Textures predate the
-relicence. Each of those docstrings gives its original's licence, and the raylib
+relicence. The same holds for four of the five render-target scenes
+(Framebuffer Rendering, Mouse Painting, Magnifying Glass and Top Down Lights);
+Render Texture (2026-08-23) predates the relicence and is zlib. Each of those
+docstrings gives its original's licence, and the raylib
 C examples behind them are zlib, so their altered-source marking stands.
 `src/raylib/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
-`rtextures.c`, and its tests are worked by hand from them. raylib's notice is
-under "Linked". Each file names its source in its own docstring.
+`rtextures.c`, and its tests are worked by hand from them.
+`host/draw-circle-gradient` follows `DrawCircleGradient` in raylib 6.0's
+`rshapes.c`, and `perlin-grey` in `src/raylib/perlin.cljc` follows
+`GenImagePerlinNoise` in `rtextures.c`. raylib's notice is under "Linked". Each
+file names its source in its own docstring.
 
     https://github.com/jlt-commons/raylib-jlt
     Copyright (c) 2026 Burin Choomnuan
     zlib License
+
+## Ported from stb_perlin, and altered
+
+`src/raylib/perlin.cljc` ports Sean Barrett's stb_perlin.h v0.5 as shipped in
+raylib 6.0's `src/external`, with its permutation and gradient tables copied. It
+is an altered version: it is written in Clojure, not C, and rounds every
+intermediate to a 32-bit float where the C does. stb_perlin.h offers MIT or
+public domain at the user's choice. This project takes it under the MIT
+alternative, as it does every other MIT source here, and reproduces the notice.
+The compiled stb_perlin inside libraylib.a is covered by raylib's notice under
+"Linked".
+
+    https://github.com/nothings/stb
+    Copyright (c) 2017 Sean Barrett
+    MIT License (alternative A; the file also offers the public domain)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
 
 ## Ported from babashka/ffi, and altered
 
@@ -191,7 +232,7 @@ reproduced here in full:
 ### What that leaves
 
 Nothing blocking. EPL 2.0 in `LICENSE` covers this project's own work, MIT
-covers what came from the demo and from jasalt, zlib covers what came from
+covers what came from the demo, from jasalt and from stb_perlin, zlib covers what came from
 raylib-jlt, and every one of those notices is in this file.
 
 The four files were also substantially rewritten on 2026-09-04, from the

@@ -7,7 +7,7 @@
   <div class="hero-inner">
     <h1>raylib on an iPhone, from Clojure</h1>
     <p class="tagline">
-      A gallery of a hundred and thirty-two scenes, all measured running at <strong>52 to 60 fps on an iPhone 17 Pro</strong> (one dips to 31 in its heaviest view),
+      A gallery of a hundred and thirty-seven scenes, all measured running at <strong>52 to 60 fps on an iPhone 17 Pro</strong> (one dips to 31 in its heaviest view),
       drawn by raylib 6.0 over SDL2, driven by <strong>Jolt</strong> (Clojure on
       Chez Scheme) as threaded portable bytecode. No JIT, nothing generated at
       run time, and no dependencies.
@@ -110,7 +110,7 @@ flowchart LR
       <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
       experiment</a>, sha256 verified, and were written for a different platform
       entirely, along with three more namespaces carrying the scene contract
-      itself. The other hundred and twenty-nine are ports from
+      itself. The other hundred and thirty-four are ports from
       <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
     </p>
     <div class="demo-grid">
@@ -400,7 +400,7 @@ flowchart LR
 <section id="quickstart" class="surface">
   <div class="inner">
     <h2>Quickstart</h2>
-    <pre><code class="sh">jolt test                                  # 23 tests on the host, no device needed
+    <pre><code class="sh">jolt test                                  # the host tests, no device needed
 SDK=device jolt deps                       # SDL 2.32.10 + raylib 6.0, static
 NS=raylib.gallery TARGET=device jolt build-app
 UDID=... CONSOLE=0 jolt deploy             # sign, install, launch detached

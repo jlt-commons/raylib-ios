@@ -7,7 +7,7 @@ not to be true.
 ## Before anything
 
 ```sh
-clojure -M:test     # no device needed; 1125 tests on 2026-10-04
+clojure -M:test     # no device needed; runs every scene and module test
 clj-kondo --lint src test
 ```
 
@@ -115,6 +115,52 @@ answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
 - A first open can pause, because the pixels are computed and uploaded then.
   Measure it on the phone and say so in the catalog row, and in the scene's
   docstring, when the largest frame is over 100 ms.
+
+**Render textures.** A scene that draws into an off-screen framebuffer stays
+pure too. The `draw-scene!` method asks `raylib.texture` for a target, draws
+into it, then draws the target back. `LoadRenderTexture` and `BeginTextureMode`
+can't be called, because they pass and return structs by value, so `raylib.texture`
+rebuilds them from rlgl's scalar calls.
+
+- `target!` takes `(scene-id key {:w :h :depth?})` and answers
+  `{:fbo :texture :w :h}`. Use the scene's own registry id. Ask for the target
+  every frame and don't keep the map: a new size or `enter!` frees the
+  framebuffer it names, and a new size starts empty. `:depth?` defaults to true
+  and is part of the target's identity. Pass `:depth? false` for any pass that
+  draws 2D, since rlgl keeps the depth test off outside `BeginMode3D`.
+- `with-target!` takes `(rt safe f)`, where `safe` is the scissor rectangle the
+  gallery has up. `f` draws untranslated in the target's own pixels, from (0, 0).
+  The batch is flushed on the way in and out, and everything is restored on every
+  path, throws included. Do the passes before drawing anything of the scene's own.
+- On iOS the screen is SDL's drawable framebuffer, not 0, and every rlgl
+  framebuffer call binds 0. A scene never calls them directly: `target!` and
+  `with-target!` rebind SDL's. The gallery's safe-area translate also lives in
+  rlgl's `transform` matrix, not modelview, and `with-target!` handles that too.
+- GL stores a target bottom-up, so draw it back with `quad!` and
+  `:v0 1.0 :v1 0.0`, or flip v yourself as Magnifying Glass's disc does.
+- Don't call `BeginScissorMode` inside `f`, nest `with-target!`, or draw `rt`'s
+  own texture inside its pass (reading and writing one texture at once is
+  undefined in GL). `f` can assume modelview is identity on entry.
+- A persistent canvas, such as Mouse Painting's, keeps its picture on the GPU
+  and replays only the frame's marks, which the pure scene hands over as data.
+  A resize or a turn of the phone gives an empty target, so the scene has to
+  say what that clears.
+- `with-blend-factors!` takes `(src dst equation f)` and runs `f` under those GL
+  enums, then puts the default blend mode back. It doesn't nest. Top Down Lights
+  uses it for GL_MIN and GL_MAX.
+- `perlin-texture!` answers the id of raylib's own `GenImagePerlinNoise` image.
+  The Image comes back by value, which jolt takes as a buffer passed first, so
+  it is the one native call here with a struct return. `raylib.perlin` is the
+  pure model that tests it.
+- A field-sized RGBA8 target is about 10.7 MB in portrait. Give the total in the
+  catalog row, and measure the first open on the phone.
+- Testing: the smoke test checks SDL's framebuffer, the scissor and the full
+  matrix snapshot after every frame. `test/raylib/rlgl_model.clj` models rlgl's
+  matrix state, so a pass can be tested for what it leaves behind, and a stub
+  that skips it would hide the transform and modelview split.
+- The native Perlin test needs libraylib. Plain `jolt -M:test` and CI skip it and
+  say so. To run it against Homebrew's raylib 6.0:
+  `jolt -Sdeps '{:jolt/native [{:name "raylib" :darwin ["/opt/homebrew/lib/libraylib.dylib"]}]}' -M:test`.
 
 **Thumb-sticks.** A scene that steers with a relative stick tracks it with
 `raylib.stick`, which follows one finger by its touch id and never adopts a
