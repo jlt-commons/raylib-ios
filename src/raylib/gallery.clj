@@ -128,6 +128,7 @@
             [raylib.scenes.tetris :as tet]
             [raylib.scenes.texcube :as texcube]
             [raylib.scenes.texpoly :as texpoly]
+            [raylib.scenes.texproc :as texproc]
             [raylib.scenes.textiling :as textiling]
             [raylib.scenes.touchball :as tball]
             [raylib.scenes.tree :as tree]
@@ -180,7 +181,7 @@
              (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
              (voxel/scene) (doom/scene)
              (textiling/scene) (srcrec/scene) (spritebutton/scene)
-             (npatch/scene) (texpoly/scene)])
+             (npatch/scene) (texpoly/scene) (texproc/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -218,7 +219,7 @@
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
-             :textiling :srcrec :spritebutton :npatch :texpoly]}
+             :textiling :srcrec :spritebutton :npatch :texpoly :texproc]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4347,6 +4348,54 @@
         [r g b a] texpoly/tint]
     (texture/triangles! id (texpoly/vertices state dims) (rl/rgba r g b a))
     (draw-caption! (first (:lines dims)) texpoly/title-colour)))
+
+(def ^:private texproc-cache
+  "The last `[screen dims]` for `:texproc`. Its text sizes need a measure, which
+  depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- texproc-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @texproc-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (texproc/dimensions m host-measure)]
+        (reset! texproc-cache [screen dims])
+        dims))))
+
+(def ^:private texproc-specs
+  {:checker (texproc/checker-spec)
+   :gradient (texproc/gradient-spec)
+   :rings (texproc/rings-spec)})
+
+(def ^:private texproc-noise
+  "The last `[version spec]` for the noise panel. Building the spec fills 16384
+  values, so it happens once per tap, not once per frame."
+  (atom nil))
+
+(defn- texproc-noise-spec [state]
+  (let [[version cached] @texproc-noise]
+    (if (and cached (= version (:version state)))
+      cached
+      (let [sp (texproc/noise-spec state)]
+        (reset! texproc-noise [(:version state) sp])
+        sp))))
+
+(defmethod draw-scene! :texproc [_ state {:keys [m]}]
+  (clear-to! texproc/background-colour)
+  (let [dims (texproc-dims m)
+        outline (color texproc/outline-colour)]
+    (doseq [k texproc/panel-keys
+            :let [sp (if (= :noise k) (texproc-noise-spec state) (texproc-specs k))
+                  id (texture/id! :texproc k sp)]]
+      (texture/quad! id (texproc/quad dims k))
+      (doseq [[x y w h] (texproc/outline-rects dims k)]
+        (rl/draw-rectangle (int x) (int y) (int w) (int h) outline))
+      (draw-caption! (get (:labels dims) k) texproc/label-colour))
+    (let [[head sub hint] (:lines dims)]
+      (draw-caption! head texproc/title-colour)
+      (draw-caption! sub texproc/subtitle-colour)
+      (draw-caption! hint texproc/hint-colour))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

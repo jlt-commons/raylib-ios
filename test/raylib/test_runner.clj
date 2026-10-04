@@ -157,6 +157,7 @@
                      raylib.scenes.spritebutton-test
                      raylib.scenes.npatch-test
                      raylib.scenes.texpoly-test
+                     raylib.scenes.texproc-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test
