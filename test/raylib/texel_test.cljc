@@ -1,0 +1,122 @@
+(ns raylib.texel-test
+  (:require [clojure.test :refer [deftest is testing]]
+            [raylib.texel :as tx]))
+
+(def ^:private on [255 0 0 255])
+(def ^:private off [0 0 0 0])
+
+(defn- lit
+  "The set of [x y] whose texel differs from the grid's blank fill."
+  [g]
+  (let [blank (tx/pack off)
+        px    (:px g)
+        w     (:w g)]
+    (set (for [i (range (count px))
+               :when (not= blank (nth px i))]
+           [(mod i w) (quot i w)]))))
+
+(defn- blank [w h] (tx/grid w h off))
+
+(deftest pack-is-rgba8-little-endian
+  (is (= 0x04030201 (tx/pack [1 2 3 4])))
+  (is (= 0xFFFFFFFF (tx/pack [255 255 255 255])))
+  (doseq [c [[0 0 0 0] [1 2 3 4] [255 0 0 255] [12 200 99 128] [255 255 255 255]]]
+    (is (= c (tx/unpack (tx/pack c))))))
+
+(deftest grid-shape
+  (let [g (tx/grid 3 2 [9 8 7 6])]
+    (is (= 3 (:w g)))
+    (is (= 2 (:h g)))
+    (is (= 6 (count (:px g))))
+    (is (every? #(= (tx/pack [9 8 7 6]) %) (:px g)))))
+
+(deftest draw-pixel-clips
+  (let [g (blank 3 3)]
+    (is (= #{[1 2]} (lit (tx/draw-pixel g 1 2 on))))
+    (is (= #{} (lit (tx/draw-pixel g -1 0 on))))
+    (is (= #{} (lit (tx/draw-pixel g 3 0 on))))
+    (is (= #{} (lit (tx/draw-pixel g 0 3 on))))))
+
+;; Hand-worked from ImageDrawLine (rtextures.c:3491). The loop runs
+;; i = 0 .. endVal exclusive, so the far endpoint is never lit.
+(deftest draw-line-matches-imagedrawline
+  (let [g (blank 8 8)]
+    (testing "horizontal (0,0)->(4,0): 4 texels, endpoint excluded"
+      (is (= #{[0 0] [1 0] [2 0] [3 0]}
+             (lit (tx/draw-line g 0 0 4 0 on)))))
+    (testing "vertical (1,0)->(1,3): shortLen/longLen swap, yLonger"
+      (is (= #{[1 0] [1 1] [1 2]}
+             (lit (tx/draw-line g 1 0 1 3 on)))))
+    (testing "shallow (0,0)->(5,2): decInc = (2<<16)/5 = 26214,
+              j>>16 over i=0..4 = 0 0 0 1 1"
+      (is (= #{[0 0] [1 0] [2 0] [3 1] [4 1]}
+             (lit (tx/draw-line g 0 0 5 2 on)))))
+    (testing "steep (0,0)->(2,5): swapped, decInc 26214 over i=0..4, x = 0 0 0 1 1"
+      (is (= #{[0 0] [0 1] [0 2] [1 3] [1 4]}
+             (lit (tx/draw-line g 0 0 2 5 on)))))
+    (testing "leftward (4,0)->(0,0): i = 0 -1 -2 -3, so x = 4 3 2 1"
+      (is (= #{[4 0] [3 0] [2 0] [1 0]}
+             (lit (tx/draw-line g 4 0 0 0 on)))))
+    (testing "up-left (5,2)->(0,0): decInc = trunc(-131072/5) = -26214,
+              j>>16 (arithmetic) over i=0..-4 = 0 -1 -1 -2 -2"
+      (is (= #{[5 2] [4 1] [3 1] [2 0] [1 0]}
+             (lit (tx/draw-line g 5 2 0 0 on)))))
+    (testing "a zero-length line lights nothing (endVal is 0)"
+      (is (= #{} (lit (tx/draw-line g 2 2 2 2 on)))))
+    (testing "clips at the edge without throwing"
+      (is (= #{[0 0] [1 0]}
+             (lit (tx/draw-line (blank 2 2) -2 0 4 0 on)))))))
+
+;; ImageDrawCircleV (rtextures.c:3635) calls ImageDrawCircle (3611), which
+;; FILLS in 6.0, using ImageDrawRectangle(x - x, y, 2x, 1) spans. A span of
+;; width 2x covers cx-x .. cx+x-1, so the disc is one texel short on the right.
+(deftest draw-circle-matches-imagedrawcirclev
+  (let [g (blank 9 9)
+        at (fn [cx cy rows]
+             (set (for [[dy xs] rows, dx xs] [(+ cx dx) (+ cy dy)])))]
+    (testing "radius 0: every span has width 0, which still lights its first texel"
+      (is (= #{[4 4]} (lit (tx/draw-circle g 4 4 0 on)))))
+    (testing "radius 1: (0,1), (0,-1) from the width-0 spans, and the row
+              dy=0 from the width-2 spans, dx -1..0"
+      (is (= (at 4 4 {-1 [0],
+                      0 [-1 0],
+                      1 [0]})
+             (lit (tx/draw-circle g 4 4 1 on)))))
+    (testing "radius 3, worked through d = 3-2r = -3, 7, 17: rows dy -3..3"
+      (is (= (at 4 4 {-3 [-1 0]
+                      -2 (range -2 2)
+                      -1 (range -3 3)
+                      0  (range -3 3)
+                      1  (range -3 3)
+                      2  (range -2 2)
+                      3  [-1 0]})
+             (lit (tx/draw-circle g 4 4 3 on)))))))
+
+;; ImageDrawRectangleRec (rtextures.c:3687). A rect clipped to width 0 still
+;; draws its first texel, as the C does.
+(deftest draw-rect-clips-at-the-edges
+  (let [g (blank 4 4)]
+    (testing "inside"
+      (is (= #{[1 1] [2 1] [1 2] [2 2]}
+             (lit (tx/draw-rect g 1 1 2 2 on)))))
+    (testing "half outside the left and top: x=-2,w=4 becomes x=0,w=2"
+      (is (= #{[0 0] [1 0] [0 1] [1 1]}
+             (lit (tx/draw-rect g -2 -2 4 4 on)))))
+    (testing "half outside the right and bottom: w clamps to 4-2"
+      (is (= #{[2 2] [3 2] [2 3] [3 3]}
+             (lit (tx/draw-rect g 2 2 4 4 on)))))
+    (testing "wholly outside lights nothing"
+      (is (= #{} (lit (tx/draw-rect g 4 0 2 2 on))))
+      (is (= #{} (lit (tx/draw-rect g -3 0 3 2 on))))
+      (is (= #{} (lit (tx/draw-rect g 0 -2 2 2 on)))))
+    (testing "zero width lights the first texel only"
+      (is (= #{[1 1]} (lit (tx/draw-rect g 1 1 0 3 on)))))))
+
+(deftest pixel-of-reads-the-grid
+  (let [g (-> (blank 3 2)
+              (tx/draw-pixel 2 1 [1 2 3 4])
+              (tx/draw-pixel 0 0 [5 6 7 8]))
+        f (tx/pixel-of g)]
+    (is (= (tx/pack [1 2 3 4]) (f 2 1)))
+    (is (= (tx/pack [5 6 7 8]) (f 0 0)))
+    (is (= (tx/pack off) (f 1 0)))))
