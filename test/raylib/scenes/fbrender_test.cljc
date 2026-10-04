@@ -1,7 +1,8 @@
 (ns raylib.scenes.fbrender-test
   (:require [clojure.test :refer [deftest is testing]]
             [raylib.gesture :as gesture]
-            [raylib.scenes.fbrender :as sc]))
+            [raylib.scenes.fbrender :as sc]
+            [raylib.soft3d :as s3]))
 
 (def screens [[1206 2334] [2334 1206] [800 450] [450 800]])
 (def metrics {:screen [1206 2334]})
@@ -187,3 +188,76 @@
           "the grid is 11 lines each way, fewer only where the camera drops one wholly behind it")
       (is (seq (filter #(and (= :line (nth % 0)) (= [255 109 194 255] (subvec % 5 9))) dl))
           "the pink wires"))))
+
+(def green [0 228 48 255])
+
+(defn- green-lines [dl] (filter #(and (= :line (nth % 0)) (= green (subvec % 5 9))) dl))
+
+(deftest the-views-are-wired-to-their-cameras
+  (let [dims (sc/dimensions metrics measure)
+        [_ _ hw hh] (first (:halves dims))
+        vp-of (fn [cam] (s3/view-proj cam [0 0 hw hh]))
+        at (fn [n] (assoc (fresh) :frame n))]
+    (doseq [n [0 37 800 2500]
+            :let [st (at n)
+                  svp (vp-of (sc/subject-camera st))
+                  ovp (vp-of (sc/observer-camera st))
+                  obs (sc/observer-list st dims)
+                  sub (sc/subject-list st dims)
+                  prism (sc/prism-for st dims)]]
+      (testing (str "frame " n)
+        (testing "the subject view is the world seen by the subject camera, with no prism"
+          (is (seq sub))
+          (is (= (s3/finish (sc/world [] svp)) sub))
+          (is (empty? (green-lines sub))))
+        (testing "the observer view is the world seen by the observer camera plus the prism"
+          (is (= (s3/finish (sc/world [] ovp)) (remove (set (green-lines obs)) obs)))
+          (is (not= (s3/finish (sc/world [] svp)) (remove (set (green-lines obs)) obs))
+              "and not by the subject camera"))
+        (testing "the prism is there: eight green segments"
+          (is (= 8 (count (green-lines obs))))
+          (is (= 8 (count prism))))
+        (testing "the prism's far rectangle fills the subject view's own target"
+          (let [[_ _ _ _ :as far] (map second (take 4 prism))
+                pts (map #(s3/project svp %) far)]
+            (is (every? some? pts))
+            (is (every? true? (map (fn [[x y] [ex ey]] (and (near? x ex) (< (abs (- y ey)) 1e-6)))
+                                   pts [[0 0] [hw 0] [hw hh] [0 hh]])))))
+        (testing "all four edges leave the subject camera's position"
+          (is (every? #(= (sc/subject-position n) (first %)) (take 4 prism))))))))
+
+(deftest the-prism-hides-behind-the-cube-by-midpoint
+  (let [dims (sc/dimensions metrics measure)
+        layers (fn [n] (let [st (assoc (fresh) :frame n)]
+                         (sc/prism-layers (sc/prism-for st dims) (sc/observer-position n))))
+        frames (range 0 3000 7)
+        mixed (first (filter #(let [l (layers %)] (and (seq (:under l)) (seq (:over l)))) frames))
+        all-over (first (filter #(empty? (:under (layers %))) frames))
+        all-under (first (filter #(empty? (:over (layers %))) frames))
+        d2 (fn [[ax ay az] [bx by bz]] (+ (* (- ax bx) (- ax bx)) (* (- ay by) (- ay by)) (* (- az bz) (- az bz))))
+        mid (fn [[a b _]] (mapv #(* 0.5 (+ %1 %2)) a b))]
+    (is (some? mixed) "some frame has segments both behind and in front of the cube")
+    (is (some? all-over) "some frame has the whole prism in front")
+    (is (some? all-under) "some frame has the whole prism behind")
+    (doseq [n [mixed all-over all-under]
+            :when n
+            :let [{:keys [under over]} (layers n)
+                  o (sc/observer-position n)
+                  limit (d2 o [0.0 0.0 0.0])
+                  obs (sc/observer-list (assoc (fresh) :frame n) dims)
+                  layer-of (fn [k] (count (filter #(= k (nth % 9)) (green-lines obs))))]]
+      (testing (str "frame " n)
+        (is (= 8 (+ (count under) (count over))))
+        (is (every? #(< (d2 o (mid %)) limit) over) "over: nearer the observer than the cube")
+        (is (every? #(>= (d2 o (mid %)) limit) under) "under: not nearer")
+        (is (= (count under) (layer-of :under)) "the under ones are painted under the faces")
+        (is (= (count over) (layer-of :over)))))
+    (testing "the under lines come before every face in the finished list, the over ones after"
+      (let [obs (sc/observer-list (assoc (fresh) :frame mixed) dims)
+            idx (fn [pred] (keep-indexed (fn [i it] (when (pred it) i)) obs))
+            tri-i (idx #(= :tri (nth % 0)))
+            under-i (idx #(and (= :line (nth % 0)) (= green (subvec % 5 9)) (= :under (nth % 9))))
+            over-i (idx #(and (= :line (nth % 0)) (= green (subvec % 5 9)) (= :over (nth % 9))))]
+        (is (seq tri-i))
+        (is (< (apply max under-i) (apply min tri-i)))
+        (is (> (apply min over-i) (apply max tri-i)))))))

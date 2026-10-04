@@ -44,9 +44,13 @@
   (the smaller of its width over 400 and height over 450), cut back until they
   fit. The frame counter is the original's `frame`, one a frame. The cameras
   are not fitted to the half's aspect (they keep the original's 45), and the
-  prism uses the half's aspect. The prism is drawn over the cube instead of
-  being depth tested against it, because the painter has no depth buffer. The
-  original's `fps!` is dropped.
+  prism uses the half's aspect. The painter has no depth buffer, so the prism
+  is not depth tested against the cube. Each of its 8 segments is instead
+  painted under the cube's faces when the segment's midpoint is farther from
+  the observer than the cube's centre, and over them otherwise (`prism-layers`).
+  That is an approximation, not a depth test: a long edge can cross the cube's
+  depth, so such a segment is wholly hidden or wholly drawn, where the
+  original would show part of it. The original's `fps!` is dropped.
 
   The state holds `:frame`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]
@@ -208,7 +212,7 @@
 
 ;; --- the picture ----------------------------------------------------------------
 
-(defn- world
+(defn world
   "The original's `draw-scene!`: the gold cube of side 2 with pink wires on it, and
   the grid."
   [dl vp]
@@ -224,15 +228,40 @@
         vp (s3/view-proj (subject-camera state) [0 0 hw hh])]
     (s3/finish (world [] vp))))
 
+(defn prism-for
+  "The subject camera's prism for `state`, as the observer draws it: the
+  subject's position at the frame, and the aspect of the subject view's own
+  target."
+  [state dims]
+  (let [[_ _ hw hh] (first (:halves dims))]
+    (prism-segments (subject-position (:frame state)) (/ (double hw) hh))))
+
+(defn prism-layers
+  "Split prism `segments` as `{:under [...] :over [...]}` for an observer at
+  `observer-pos`: a segment whose midpoint is nearer the observer than the
+  cube's centre (the origin) is `:over` the cube's faces, the rest `:under`
+  them. See the ns docstring: an approximation of a depth test."
+  [segments observer-pos]
+  (let [d2 (fn [[ax ay az] [bx by bz]]
+             (+ (* (- ax bx) (- ax bx)) (* (- ay by) (- ay by)) (* (- az bz) (- az bz))))
+        limit (d2 observer-pos origin)
+        near? (fn [[a b _]]
+                (let [mid (v* (v+ a b) 0.5)]
+                  (< (d2 observer-pos mid) limit)))]
+    {:over (filterv near? segments)
+     :under (filterv (complement near?) segments)}))
+
 (defn observer-list
   "The finished draw list of the observer view: the world and the subject
-  camera's prism."
+  camera's prism, split under and over the cube by `prism-layers`."
   [state dims]
   (let [[_ _ hw hh] (first (:halves dims))
-        vp (s3/view-proj (observer-camera state) [0 0 hw hh])]
-    (s3/finish (s3/lines (world [] vp) vp nil
-                         (prism-segments (subject-position (:frame state))
-                                         (/ (double hw) hh))))))
+        vp (s3/view-proj (observer-camera state) [0 0 hw hh])
+        {:keys [under over]} (prism-layers (prism-for state dims)
+                                           (observer-position (:frame state)))]
+    (s3/finish (-> (world [] vp)
+                   (s3/lines vp nil under :under)
+                   (s3/lines vp nil over :over)))))
 
 (defn advance
   "One frame: the counter moves on."

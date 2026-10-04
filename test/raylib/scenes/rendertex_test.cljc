@@ -25,7 +25,7 @@
 
 (deftest the-copies-follow-the-original
   (testing "the original's table, as [x y scale label]"
-    (is (= [[40 90 1.0 "1:1"] [400 90 0.6 "60%"] [400 260 0.35 "35%"] [610 260 0.5 "50% tinted"]]
+    (is (= [[40 90 1.0 "100%"] [400 90 0.6 "60%"] [400 260 0.35 "35%"] [610 260 0.5 "50% tinted"]]
            sc/copies)))
   (testing "each copy is the target at its scale, truncated to a whole pixel as the original does"
     (is (= [[320 240] [192 144] [112 84] [160 120]]

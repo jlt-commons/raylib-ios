@@ -26,7 +26,7 @@
   Deviations. The original's 800 by 450 window is drawn as one block, scaled by
   the largest factor of the screen that fits (`:scale`, the smaller of
   the width over 800 and the free height over 450) and centred below Back. So
-  the target is still 320 by 240 texels and a \"1:1\" copy is the target at that
+  the target is still 320 by 240 texels and a \"100%\" copy is the target at that
   block scale, not at one texel to a pixel. The text sizes scale with it and
   are cut back until the longest line fits the width. The seconds `t` come from
   `:delta-seconds`, so the balls move at the original's speed, and the first
@@ -44,7 +44,7 @@
 
 (def copies
   "The original's `copies`: `[x y scale label]` in its 800 by 450 window."
-  [[40 90 1.0 "1:1"] [400 90 0.6 "60%"] [400 260 0.35 "35%"] [610 260 0.5 "50% tinted"]])
+  [[40 90 1.0 "100%"] [400 90 0.6 "60%"] [400 260 0.35 "35%"] [610 260 0.5 "50% tinted"]])
 
 (def tint-colour "The last copy's tint." [255 180 180 255])
 
