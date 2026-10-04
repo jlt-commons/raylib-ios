@@ -55,26 +55,26 @@
                (reset! seed s)
                (+ lo (mod (quot s 65536) (inc (- hi lo))))))
         roots (mapv (fn [x v] (if (>= x 2) (min 255 (+ v (rv 0 2))) v))
-                    (range 200) roots)
-        base (* 111 200)
+                    (range 100) roots)
+        base (* 55 100)
         buf (as-> buf b
-              (reduce (fn [b x] (assoc b (+ x base) (nth roots x))) b (range 200))
-              (reduce (fn [b x] (assoc b x 0)) b (range 200)))
+              (reduce (fn [b x] (assoc b (+ x base) (nth roots x))) b (range 100))
+              (reduce (fn [b x] (assoc b x 0)) b (range 100)))
         buf (loop [y 1 b buf]
-              (if (< y 112)
+              (if (< y 56)
                 (recur (inc y)
                        (loop [x 0 b b]
-                         (if (>= x 200)
+                         (if (>= x 100)
                            b
-                           (let [i (+ x (* y 200))
+                           (let [i (+ x (* y 100))
                                  ci (nth b i)]
                              (if (zero? ci)
                                (recur (inc x) b)
                                (let [b (assoc b i 0)
                                      mv (dec (rv 0 2))
                                      nx (+ x mv)]
-                                 (if (and (> nx 0) (< nx 200))
-                                   (let [ia (+ (- i 200) mv)
+                                 (if (and (> nx 0) (< nx 100))
+                                   (let [ia (+ (- i 100) mv)
                                          d (rv 0 3)
                                          nc (- ci (min d ci))]
                                      (recur (inc x) (assoc b ia nc)))
@@ -106,7 +106,7 @@
             :seed (:seed s0)}
         ref (take 41 (iterate ref-step r0))
         mine (take 41 (iterate sweep s0))]
-    (is (= 2026 (:seed s0)))
+    (is (not= 2026 (:seed s0)) "the hot roots drew from the seed")
     (testing "after 1, 2, 5, 20 and 40 steps"
       (doseq [n [1 2 5 20 40]
               :let [a (nth ref n)
@@ -125,18 +125,39 @@
       (let [other (assoc (fresh) :seed 7)]
         (is (not= (:buf (nth mine 20)) (:buf (nth (iterate sweep other) 20))))))))
 
+(deftest the-fire-starts-hot
+  (let [s (fresh)
+        again (fresh)]
+    (is (= 100 (count (:roots s))))
+    (is (= [0 0] (take 2 (:roots s))) "columns 0 and 1 stay dark, as the original's do")
+    (is (every? #(<= 192 % 255) (drop 2 (:roots s))) "every other root starts at 192 to 255")
+    (is (< 20 (count (set (drop 2 (:roots s))))) "and they differ")
+    (is (every? zero? (:buf s)) "no cell is lit before the first step")
+    (is (= s again) "deterministic")
+    (is (= (sc/hot-roots 2026) [(:roots s) (:seed s)]))
+    (testing "the first sweep already has a flame: the roots' cells have risen one row"
+      (let [after (sweep s)
+            row (fn [y] (subvec (:buf after) (* y 100) (* (inc y) 100)))]
+        (is (every? #(<= 0 % 255) (:buf after)))
+        (is (< 50 (count (remove zero? (row 54)))) "most root cells lit one row up; drifts collide, so not all")
+        (is (every? zero? (row 55)) "the bottom row has been emptied by the rise")
+        (is (every? #(>= % 150) (remove zero? (row 54))) "hot, less one decay of at most 3")))))
+
 (deftest the-roots-grow-as-the-original-says
-  (let [s (nth (iterate sweep (fresh)) 3)]
+  (let [s0 (fresh)
+        s (nth (iterate sweep s0) 3)]
     (is (= [0 0] (take 2 (:roots s))) "columns 0 and 1 never grow")
-    (is (every? #(<= 0 % 6) (drop 2 (:roots s))) "0 to 2 a step")
-    (is (some pos? (drop 2 (:roots s))))))
+    (is (every? true? (map <= (drop 2 (:roots s0)) (drop 2 (:roots s)))) "roots never fall")
+    (is (every? true? (map #(<= (- %2 %1) 6) (drop 2 (:roots s0)) (drop 2 (:roots s)))) "0 to 2 a step, three steps")
+    (is (every? #(<= % 255) (:roots s)) "capped")
+    (is (some true? (map < (drop 2 (:roots s0)) (drop 2 (:roots s)))))))
 
 (deftest the-bands-tile-the-grid-once-a-sweep
-  (is (= 3 sc/band-rows))
-  (is (= 38 sc/period) "112 rows in bands of 3, the last one short")
+  (is (= 8 sc/band-rows))
+  (is (= 7 sc/period) "56 rows in bands of 8, which divide it exactly")
   (let [bands (map sc/band (range sc/period))]
-    (is (= (range 112) (mapcat (fn [[y0 y1]] (range y0 y1)) bands)))
-    (is (= [111 112] (last bands)))))
+    (is (= (range 56) (mapcat (fn [[y0 y1]] (range y0 y1)) bands)))
+    (is (= [48 56] (last bands)))))
 
 (deftest the-upload-follows-the-step-and-the-row-above
   (let [ups (map sc/upload-rows (range sc/period))]
@@ -147,7 +168,7 @@
     (testing "every later frame starts one row above its band"
       (is (= [(dec sc/band-rows) (inc sc/band-rows)] (second ups))))
     (testing "every row is refilled at least once a sweep, and the cover is gap-free"
-      (is (= (set (range 112)) (set (mapcat (fn [[y0 n]] (range y0 (+ y0 n))) ups)))))
+      (is (= (set (range 56)) (set (mapcat (fn [[y0 n]] (range y0 (+ y0 n))) ups)))))
     (testing "the schedule repeats each sweep: advance steps the same band a period later"
       (let [states (vec (take (+ 3 (* 2 sc/period)) (rest (iterate tick (fresh)))))
             stepped (mapv :stepped states)]
@@ -157,7 +178,7 @@
                     (range (+ 3 sc/period))))
         (is (= (set (range sc/period)) (set (take sc/period stepped))) "a sweep steps every band once")))
     (testing "never past the grid"
-      (is (every? (fn [[y0 n]] (and (<= 0 y0) (<= (+ y0 n) 112))) ups)))))
+      (is (every? (fn [[y0 n]] (and (<= 0 y0) (<= (+ y0 n) 56))) ups)))))
 
 ;; The gallery draws after the update, from the state `advance` returned, and
 ;; uploads `upload-rows` of the band that state says it stepped. A mock texture
@@ -165,21 +186,21 @@
 ;; sweep every band has stepped and been uploaded after its own step, so the
 ;; texture must be the buffer's palette image.
 (deftest the-rows-uploaded-are-the-rows-stepped
-  (let [tex (volatile! (vec (repeat (* 200 112) 0)))
+  (let [tex (volatile! (vec (repeat (* 100 56) 0)))
         run (fn [s]
               (let [s (tick s)
                     [y0 n] (sc/upload-rows (:stepped s))
                     px (:pixel (sc/spec (:buf s)))]
                 (doseq [y (range y0 (+ y0 n))
-                        x (range 200)]
-                  (vswap! tex assoc (+ x (* y 200)) (px x y)))
+                        x (range 100)]
+                  (vswap! tex assoc (+ x (* y 100)) (px x y)))
                 s))
         image (fn [state] (mapv #(nth sc/palette-texels %) (:buf state)))]
     (doseq [sweeps [2 3]
             :let [s (nth (iterate run (fresh)) (* sweeps sc/period))
                   img (image s)
-                  bad (distinct (for [y (range 112) x (range 200)
-                                      :when (not= (nth img (+ x (* y 200))) (nth @tex (+ x (* y 200))))]
+                  bad (distinct (for [y (range 56) x (range 100)
+                                      :when (not= (nth img (+ x (* y 100))) (nth @tex (+ x (* y 100))))]
                                   y))]]
       (testing (str "end of sweep " sweeps)
         (is (< 30 (count (remove zero? (:buf s)))) "something is lit")
@@ -188,12 +209,12 @@
 (deftest the-spec-reads-the-buffer-through-the-palette
   (let [s (nth (iterate tick (fresh)) 200)
         {:keys [w h pixel wrap filter]} (sc/spec (:buf s))]
-    (is (= [200 112] [w h]))
+    (is (= [100 56] [w h]))
     (is (nil? wrap))
     (is (nil? filter))
-    (is (every? true? (for [y (range 112)
-                            x (range 200)]
-                        (= (low32 (ref-palette (nth (:buf s) (+ x (* y 200)))))
+    (is (every? true? (for [y (range 56)
+                            x (range 100)]
+                        (= (low32 (ref-palette (nth (:buf s) (+ x (* y 100)))))
                            (low32 (pixel x y))))))))
 
 (deftest first-frame-draws
@@ -209,7 +230,7 @@
       (is (>= y 120) "below Back")
       (is (<= (+ y height) h))
       (testing "the grid's own shape, to within a pixel"
-        (is (< (abs (- (/ width height) (/ 200 112.0))) 0.05)))
+        (is (< (abs (- (/ width height) (/ 100 56.0))) 0.05)))
       (testing "as big as the free area allows"
         (is (or (>= width (- w 2)) (>= (+ height 120) (- h 2)))))
       (testing "centred across"

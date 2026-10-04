@@ -2,13 +2,13 @@
   "Screen Buffer, ported from raylib-jlt's `screen_buffer`
   (net/b12n/raylib_jlt/screen_buffer.clj, EPL 2.0), which is raylib's
   `textures_screen_buffer`: the classic DOS fire as a software screen buffer. A
-  200 by 112 grid of palette indices is simulated, blitted through a 256-colour
+  100 by 56 grid of palette indices is simulated, blitted through a 256-colour
   flame palette into a texture and drawn scaled up.
   The raylib C example it follows is zlib licensed, and this is an altered
   version of that too.
 
   Mirrored from screen_buffer.clj:
-  - The sizes (lines 21-26): IMG-W 200, IMG-H 112, MAX-COLORS 256.
+  - MAX-COLORS 256 (lines 21-26). The grid size is not mirrored, see below.
   - `hsv->color` and PALETTE (lines 28-53): `hsv->colour` and `palette`. Entry
     `i` has `t = i / 255` and hue `250 + 150 t^2`, with saturation and value both
     `t`, so the low indices stay dark.
@@ -28,37 +28,51 @@
   keeps the original's order and range, one for each root from column 2 and then
   one for the drift and one for the decay of each lit cell that stays inside.
 
-  The original runs the whole simulation and rewrites all 22400 texels every
-  frame. Under laptop jolt one simulation step alone is about 1.4 ms and a whole
-  upload about 2.4 ms, which the phone, about 33 times slower, cannot pay in a
-  frame. So both go a band at a time, on one schedule. Each frame steps and
-  uploads `band-rows` (3) rows, top to bottom, and a sweep of `period` (38)
-  frames is exactly one of the original's steps: the roots grow and the bottom
-  and top rows are set on the first band, then the rest rise in the original's
-  ascending order. So the fire follows the original's rules but runs `period`
-  times slower, about 1.6 steps a second at 60 frames a second against the
-  original's 60. A band's upload also takes the row above it, because that is
-  where the band's cells land. Rows below the band are older than rows above it
-  by up to `period` frames, so a moving seam between fresher and older rows
-  can show.
+  The grid. The original's is 200 by 112 (raylib's C example's is 400 by 225);
+  this one is 100 by 56, a quarter of the cells. The rules are the same, so the
+  flame is relatively taller (the decay per row is unchanged) and each cell is
+  twice as wide on the screen.
 
-  Entering the scene fills all 22400 texels once, a one-off cost.
+  The step rate. The original runs the whole simulation and rewrites every texel
+  each frame. Under laptop jolt one whole step on this grid is about 0.47 ms and
+  a whole upload about 0.7 ms, which the phone, about 33 times slower, cannot pay
+  in a frame. So both go a band at a time, on one schedule. Each frame steps and
+  uploads `band-rows` (8) rows, top to bottom, and a sweep of `period` (7) frames
+  is exactly one of the original's steps: the roots grow and the bottom and top
+  rows are set on the first band, then the rest rise in the original's ascending
+  order. So the fire follows the original's rules but runs `period` times slower,
+  60 / 7, about 8.6 steps a second at 60 frames a second against the original's
+  60. Measured on a laptop under jolt, a frame (the step of its band plus the
+  upload of the band and the row above) took 0.19 ms on average and 0.29 ms at
+  the 99th percentile, with an occasional 2 ms frame when the collector ran. A
+  band's upload also takes the row above it, because that is where the band's
+  cells land. Rows below the band are older than rows above it by up to `period`
+  frames, so a moving seam between fresher and older rows can show.
 
-  The picture is the 200 by 112 grid scaled to the widest size the free area
+  The hot start. The original's roots start at 0 and grow by 0 to 2 a step, so
+  at 60 steps a second the fire takes a few seconds to light. At 8.6 steps a
+  second it would take most of a minute and a half. So the roots start hot: from
+  column 2 on each is a random 192 to 255 (one LCG draw each), and columns 0 and
+  1 stay dark as they do in the original. The first sweep already has a flame.
+
+  Entering the scene fills all 5600 texels once, a one-off cost.
+
+  The picture is the 100 by 56 grid scaled to the widest size the free area
   allows, below Back, with nearest-neighbour filtering. The original's window
   title is the only text, so there is none. The state holds `:frame`, `:seed`,
   `:roots`, `:buf`, `:stepped` (the band the last frame stepped, which the draw uploads) and `:screen`."
   (:require [raylib.gesture :as gesture]
             [raylib.texel :as texel]))
 
-(def img-w "The original's IMG-W." 200)
-(def img-h "The original's IMG-H." 112)
+(def img-w "This grid's width: the original's IMG-W is 200, raylib's C is 400." 100)
+(def img-h "This grid's height: the original's IMG-H is 112, raylib's C is 225." 56)
 (def max-colours "The original's MAX-COLORS." 256)
-(def band-rows "How many rows one frame steps and uploads." 3)
+(def band-rows "How many rows one frame steps and uploads." 8)
 (def period
   "How many frames one sweep takes, which is one of the original's steps: the
   rows divided by the band, rounded up."
   (quot (+ img-h band-rows -1) band-rows))
+(def hot-low "The coolest a root can start: indices 192 to 255 are the palette's bright end." 192)
 (def default-seed "Where the first fire starts." 2026)
 
 (def background-colour "RAYWHITE." [245 245 245 255])
@@ -145,12 +159,28 @@
         (recur (inc y) b seed))
       [b seed])))
 
-(defn fresh
-  "The fire before its first step: every cell and root dark."
+(defn hot-roots
+  "The roots a fire starts from: columns 0 and 1 dark, as they stay in the
+  original, and every other root a random `hot-low` to 255, one LCG draw each.
+  The original starts every root at 0 and waits for them to grow. Answers
+  `[roots seed]`."
   [seed]
-  {:buf (vec (repeat (* img-w img-h) 0))
-   :roots (vec (repeat img-w 0))
-   :seed seed})
+  (loop [x 0 seed seed out (transient [])]
+    (if (< x img-w)
+      (if (>= x 2)
+        (let [s' (next-random seed)]
+          (recur (inc x) s' (conj! out (+ hot-low (mod (quot s' 65536) (- 256 hot-low))))))
+        (recur (inc x) seed (conj! out 0)))
+      [(persistent! out) seed])))
+
+(defn fresh
+  "The fire before its first step: every cell dark, and the roots hot (see
+  `hot-roots`), so the first sweep already has a flame."
+  [seed]
+  (let [[roots seed] (hot-roots seed)]
+    {:buf (vec (repeat (* img-w img-h) 0))
+     :roots roots
+     :seed seed}))
 
 (defn band
   "The rows of band `k` as `[y0 y1]`, `y1` exclusive and held to the grid."
@@ -191,7 +221,7 @@
   (nth palette-texels (nth buf (+ x (* y img-w)))))
 
 (defn spec
-  "The fire's texture for `raylib.texture/band!`: 200 by 112, clamped and
+  "The fire's texture for `raylib.texture/band!`: 100 by 56, clamped and
   unfiltered, each texel the palette colour of its cell in `buf`."
   [buf]
   {:w img-w
@@ -199,7 +229,7 @@
    :pixel (fn [x y] (palette-pixel buf x y))})
 
 (defn geometry
-  "The picture's destination quad on `metrics`' `:screen`: the 200 by 112 grid
+  "The picture's destination quad on `metrics`' `:screen`: the 100 by 56 grid
   scaled to the biggest size that fits below Back, centred. `:x :y :width
   :height`."
   [metrics]
