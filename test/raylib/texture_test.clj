@@ -959,11 +959,11 @@
 ;; phone), so it skips and says so unless it is run with the library declared:
 ;;   jolt -Sdeps '{:jolt/native [{:name "raylib" :darwin ["/opt/homebrew/lib/libraylib.dylib"]}]}' -M:test
 (defn- native-perlin
-  "The image GenImagePerlinNoise answers for `spec`, as `{:w :h :format :grey}`
-  where `:grey` is a fn from x y to the first byte of that texel; nil when
-  libraylib cannot be called here."
+  "The image GenImagePerlinNoise answers for `spec`, as `{:w :h :format :bytes}`
+  where `:bytes` is every byte of its pixels in order; nil when libraylib is
+  not loaded here (no GenImagePerlinNoise symbol). Any other failure throws."
   [{:keys [w h offset-x offset-y scale]}]
-  (try
+  (when (ffi/find-symbol "GenImagePerlinNoise")
     (let [img (ffi/alloc 24)]
       (try
         (tex/gen-image-perlin-noise img w h offset-x offset-y scale)
@@ -974,8 +974,7 @@
              :format (ffi/read-field img image-l :format)
              :bytes (mapv (fn [i] (ffi/read data :uint8 i)) (range (* 4 w h)))}
             (finally (tex/mem-free data))))
-        (finally (ffi/free img))))
-    (catch :default _ nil)))
+        (finally (ffi/free img))))))
 
 (deftest the-native-perlin-image-is-the-pure-models
   (let [spec {:w 64

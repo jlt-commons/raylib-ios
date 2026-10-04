@@ -104,17 +104,22 @@
     (is (every? (fn [i] (<= -1.0 (pn/noise3 (* i 0.37) (* i 0.91) 1.0) 1.0)) (range 200)))))
 
 ;; Float is a JVM class, so ClojureScript (which clj-kondo also reads this as) skips it.
+;; jolt 0.8.6, the CI pin, has no Float/floatToIntBits, so there the round trip
+;; is skipped and says so; the JVM job and a newer jolt still run it.
 #?(:cljs nil
    :default
    (deftest f32-rounds-like-a-float
      (let [f32 @#'pn/f32
-           round-trip (fn [x] (double (Float/intBitsToFloat (Float/floatToIntBits (float x)))))
-           rf (fn [i] (round-trip (* (- (mod (* i 0.6180339887) 1.0) 0.5) (Math/pow 2 (- (mod i 17) 8)))))]
-       (testing "sums, products and quotients of floats, which is every operation noise3 does"
-         (doseq [i (range 1 400)
-                 :let [a (rf i) b (rf (+ i 1000))]
-                 v [(+ a b) (- a b) (* a b) (/ a b)]]
-           (is (= (round-trip v) (f32 v)) (str a " op " b))))
+           float-bits? (try (Float/floatToIntBits (float 1.0)) true (catch Exception _ false))]
+       (if-not float-bits?
+         (println "SKIPPED f32-rounds-like-a-float's round trip: no Float/floatToIntBits on this runtime")
+         (let [round-trip (fn [x] (double (Float/intBitsToFloat (Float/floatToIntBits (float x)))))
+               rf (fn [i] (round-trip (* (- (mod (* i 0.6180339887) 1.0) 0.5) (Math/pow 2 (- (mod i 17) 8)))))]
+           (testing "sums, products and quotients of floats, which is every operation noise3 does"
+             (doseq [i (range 1 400)
+                     :let [a (rf i) b (rf (+ i 1000))]
+                     v [(+ a b) (- a b) (* a b) (/ a b)]]
+               (is (= (round-trip v) (f32 v)) (str a " op " b))))))
        (testing "a tie between two floats goes to the even one"
          (is (= 1.0 (f32 (+ 1.0 (Math/pow 2 -24)))))
          (is (= (+ 1.0 (Math/pow 2 -22)) (f32 (+ 1.0 (* 3 (Math/pow 2 -24))))))))))
