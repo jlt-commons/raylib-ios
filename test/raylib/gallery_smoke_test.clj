@@ -275,7 +275,12 @@
                   texture/rl-set-texture (stub :rl-set-texture [:uint] nil)
                   texture/rl-get-texture-id-default (stub :rl-get-texture-id-default [] 1)
                   texture/rl-tex-coord-2f (stub :rl-tex-coord-2f [:float :float] nil)]
-      (f probe))))
+      ;; A texture scene leaves its stub id in the table. Free it while the
+      ;; stubs are still bound, or the next test to call `texture/enter!` would
+      ;; unload it through the real FFI.
+      (try
+        (f probe)
+        (finally (texture/enter! nil))))))
 
 (defn- draw-args
   "The map `draw-scene!` is called with, for the phone's screen."

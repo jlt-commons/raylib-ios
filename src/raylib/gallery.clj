@@ -124,6 +124,7 @@
             [raylib.scenes.tesseract :as tess]
             [raylib.scenes.tetris :as tet]
             [raylib.scenes.texcube :as texcube]
+            [raylib.scenes.textiling :as textiling]
             [raylib.scenes.touchball :as tball]
             [raylib.scenes.tree :as tree]
             [raylib.scenes.undoredo :as undoredo]
@@ -173,7 +174,8 @@
              (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
              (blendmodes/scene) (blendparticles/scene)
              (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
-             (voxel/scene) (doom/scene)])
+             (voxel/scene) (doom/scene)
+             (textiling/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -210,7 +212,8 @@
              :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom]}
+             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
+             :textiling]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4191,6 +4194,41 @@
                           (rl/draw-circle (int sx) (int sy) (double (:r shape)) (color doom/stick-ring-colour))
                           (rl/draw-circle (int kx) (int ky) (* 0.4 (:r shape)) (color doom/stick-knob-colour))))))
     (draw-caption! (:caption dims) doom/caption-colour)))
+
+(def ^:private textiling-cache
+  "The last `[screen dims]` for `:textiling`. Its text sizes need a measure, which
+  depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- textiling-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @textiling-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (textiling/dimensions m host-measure)]
+        (reset! textiling-cache [screen dims])
+        dims))))
+
+(def ^:private textiling-spec (textiling/tile-spec))
+
+(defmethod draw-scene! :textiling [_ state {:keys [m]}]
+  (clear-to! textiling/background-colour)
+  (let [dims (textiling-dims m)
+        pack (fn [[r g b a]] (rl/rgba r g b a))
+        id (texture/id! :textiling :tile textiling-spec)
+        [bx by bw bh] (:band dims)
+        [title hint] (:lines dims)]
+    (texture/quad! id (textiling/quad state dims))
+    (rl/draw-rectangle (int bx) (int by) (int bw) (int bh) (pack textiling/band-colour))
+    (draw-caption! (assoc title :s (textiling/title-line (:tiles state) (:aspect dims))) textiling/title-colour)
+    (draw-caption! hint textiling/hint-colour)
+    (doseq [k [:up :down]
+            :let [[x y w h] (k dims)]]
+      (rl/draw-rectangle (int x) (int y) (int w) (int h)
+                         (pack (if (= k (:held state))
+                                 textiling/button-held-colour
+                                 textiling/button-colour)))
+      (draw-caption! (get (:labels dims) k) textiling/button-label-colour))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which

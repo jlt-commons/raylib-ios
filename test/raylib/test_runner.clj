@@ -152,6 +152,7 @@
                      raylib.scenes.dirbillboard-test
                      raylib.scenes.texcube-test
                      raylib.scenes.geoshapes-test
+                     raylib.scenes.textiling-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test
