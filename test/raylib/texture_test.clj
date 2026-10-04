@@ -230,6 +230,128 @@
      (tex/id! :a :k (spec 4 4))
      (is (= 2 (count (of calls :load)))))))
 
+(defn- counting-spec
+  "A 4 by 2 spec whose `:pixel` bumps `n` on every call."
+  [n & {:as more}]
+  (merge {:w 4
+          :h 2
+          :pixel (fn [x y]
+                   (swap! n inc)
+                   (texel/pack [(+ 1 x) (+ 2 y) 3 255]))}
+         more))
+
+(deftest re-entry-with-the-same-spec-does-not-refill
+  (let [n (atom 0)
+        loads (atom [])
+        shared (counting-spec n)]
+    (recording
+     (fn [[ptr]] (swap! loads conj [ptr (mapv #(ffi/read ptr :uint (* 4 %)) (range 8))]))
+     (fn [calls]
+       (let [a (tex/id! :s :k shared)]
+         (is (= 8 @n) "the first open fills every texel once")
+         (tex/enter! :other)
+         (is (empty? (tex/resident)) "the GL texture was freed")
+         (is (= 1 (count (of calls :unload))))
+         (let [b (tex/id! :s :k shared)]
+           (is (not= a b) "a fresh GL texture")
+           (is (= 8 @n) "no pixel fn calls on re-entry")
+           (is (= 2 (count (of calls :load))) "one rlLoadTexture per entry")
+           (is (= (second (first @loads)) (second (second @loads)))
+               "the same bytes were staged")
+           (is (= (first (first @loads)) (first (second @loads)))
+               "from the same kept buffer")))))))
+
+(deftest a-new-spec-object-for-the-same-key-refills
+  (let [n (atom 0)]
+    (recording
+     (fn [calls]
+       (tex/id! :s :k (counting-spec n))
+       (tex/enter! :other)
+       (tex/id! :s :k (counting-spec n))
+       (is (= 16 @n) "an equal but not identical spec is filled again")
+       (is (= 2 (count (of calls :load))))))))
+
+(deftest a-versioned-spec-is-never-retained
+  (let [n (atom 0)
+        shared (counting-spec n :version 1)]
+    (recording
+     (fn [_]
+       (tex/id! :s :k shared)
+       (tex/enter! :other)
+       (tex/id! :s :k shared)
+       (is (= 16 @n) "the identical versioned spec is refilled on re-entry")))))
+
+(deftest a-throwing-pixel-fn-keeps-nothing
+  (let [n (atom 0)
+        bad {:w 4
+             :h 2
+             :pixel (fn [x _]
+                      (swap! n inc)
+                      (when (= 2 x) (throw (ex-info "boom" {})))
+                      red)}]
+    (recording
+     (fn [calls]
+       (is (thrown? Exception (tex/id! :s :k bad)))
+       (is (empty? (tex/resident)))
+       (is (empty? (of calls :load)))
+       (let [before @n]
+         (is (thrown? Exception (tex/id! :s :k bad)))
+         (is (> @n before) "the second try fills again, so nothing was kept"))))))
+
+(deftest a-zero-id-from-the-load-keeps-nothing
+  (let [n (atom 0)
+        shared (counting-spec n)]
+    (recording
+     (fn [_]
+       (with-redefs [tex/rl-load-texture (fn [& _] 0)]
+         (is (thrown? Exception (tex/id! :s :k shared))))
+       (is (= 8 @n))
+       (tex/id! :s :k shared)
+       (is (= 16 @n) "the failed load left no kept buffer to reuse")))))
+
+(deftest a-changed-spec-replaces-the-kept-buffer
+  (let [n (atom 0)
+        a (counting-spec n)
+        b (counting-spec n)]
+    (recording
+     (fn [_]
+       (tex/id! :s :k a)
+       (tex/enter! :other)
+       (tex/id! :s :k b)
+       (tex/enter! :other)
+       (is (= 16 @n))
+       (tex/id! :s :k b)
+       (is (= 16 @n) "b is now the kept spec")
+       (tex/enter! :other)
+       (tex/id! :s :k a)
+       (is (= 24 @n) "a was replaced, so it fills again")))))
+
+(deftest the-size-of-a-key-cannot-change-under-a-version-refresh
+  (recording
+   (fn [calls]
+     (tex/id! :s :k (spec 8 4 :version 1))
+     (let [e (try (tex/id! :s :k (spec 16 4 :version 2)) nil (catch :default e e))]
+       (is (some? e))
+       (is (= {:scene :s
+               :key :k
+               :w 16
+               :h 4
+               :was-w 8
+               :was-h 4}
+              (ex-data e)))
+       (is (empty? (of calls :update)) "nothing was uploaded")
+       (is (= 1 (:version (get (tex/resident) [:s :k]))))
+       (is (= #{:gl-id :version} (set (keys (get (tex/resident) [:s :k])))))))))
+
+(deftest the-size-of-a-key-cannot-change-under-a-band
+  (recording
+   (fn [calls]
+     (tex/id! :s :k (band-spec))
+     (let [e (try (tex/band! :s :k (band-spec :w 8) 0 2) nil (catch :default e e))]
+       (is (some? e))
+       (is (= [4 6 8 6] [(:was-w (ex-data e)) (:was-h (ex-data e)) (:w (ex-data e)) (:h (ex-data e))]))
+       (is (empty? (of calls :update)))))))
+
 (defn- verts
   "The (x, y) of each :vertex call, in order."
   [calls]

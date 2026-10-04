@@ -87,7 +87,7 @@
        (* (- (g 1 1) (g 0 1)) (- (g 2 0) (g 0 0))))))
 
 (deftest the-wheel-is-the-originals
-  (let [{:keys [w h pixel]} (sc/wheel-spec texel/pack)]
+  (let [{:keys [w h pixel]} (sc/wheel-spec)]
     (is (= [256 256] [w h]))
     (is (= 65536 (count (for [y (range h)
                               x (range w)]
@@ -100,7 +100,7 @@
       (is (= (low32 (ref-rgba 255 128 0 255)) (texel/pack [255 128 0 255]))))))
 
 (deftest specs-obey-gles2
-  (let [{:keys [w h wrap filter]} (sc/wheel-spec texel/pack)]
+  (let [{:keys [w h wrap filter]} (sc/wheel-spec)]
     (testing "every uv is in 0..1, so the wheel clamps, and 256 could repeat anyway"
       (is (= :clamp wrap))
       (is (every? #(<= 0.0 % 1.0) (mapcat identity sc/texcoords))))
@@ -197,3 +197,9 @@
           (is (<= (+ x (measure s size)) w))
           (is (<= (+ y size) h))
           (is (>= y 120) "below Back"))))))
+
+(deftest the-allocation-free-wheel-equals-the-vector-one-on-every-texel
+  (is (= 65536 (count (for [y (range 256)
+                            x (range 256)]
+                        (is (= (texel/pack (sc/wheel-colour x y)) (sc/wheel-texel x y))
+                            (str [x y])))))))

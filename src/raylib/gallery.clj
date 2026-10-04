@@ -4317,7 +4317,7 @@
         (reset! npatch-cache [screen dims])
         dims))))
 
-(def ^:private npatch-spec (npatch/patch-spec (fn [[r g b a]] (rl/rgba r g b a))))
+(def ^:private npatch-spec (npatch/patch-spec))
 
 (defmethod draw-scene! :npatch [_ state {:keys [m]}]
   (clear-to! npatch/background-colour)
@@ -4346,7 +4346,7 @@
         (reset! texpoly-cache [screen dims])
         dims))))
 
-(def ^:private texpoly-spec (texpoly/wheel-spec (fn [[r g b a]] (rl/rgba r g b a))))
+(def ^:private texpoly-spec (texpoly/wheel-spec))
 
 (defmethod draw-scene! :texpoly [_ state {:keys [m]}]
   (clear-to! texpoly/background-colour)

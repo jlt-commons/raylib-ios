@@ -92,7 +92,7 @@
 (defn- low32 [n] (bit-and n 0xFFFFFFFF))
 
 (deftest the-source-is-the-originals
-  (let [{:keys [w h pixel]} (sc/patch-spec texel/pack)]
+  (let [{:keys [w h pixel]} (sc/patch-spec)]
     (is (= [64 64] [w h]))
     (is (= 4096 (count (for [y (range h)
                              x (range w)]
@@ -106,7 +106,7 @@
       (is (= (low32 (ref-rgba 90 150 230 255)) (texel/pack [90 150 230 255]))))))
 
 (deftest specs-obey-gles2
-  (let [{:keys [w h wrap filter]} (sc/patch-spec texel/pack)]
+  (let [{:keys [w h wrap filter]} (sc/patch-spec)]
     (testing "a stretched edge cell must not wrap the far side in: clamp"
       (is (= :clamp wrap)))
     (is (= :nearest filter))

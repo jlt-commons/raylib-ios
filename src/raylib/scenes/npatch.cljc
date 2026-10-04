@@ -36,7 +36,8 @@
 
   The state holds `:frame`, `:touch` (the last place a finger was, in canvas
   units, or nil) and `:screen`. Colours are `[r g b a]` vectors."
-  (:require [raylib.gesture :as gesture]))
+  (:require [raylib.gesture :as gesture]
+            [raylib.texel :as texel]))
 
 (def src-size "The original's SRC: the source is this many texels square." 64)
 (def border "The original's BORDER." 16)
@@ -99,12 +100,12 @@
   "The texture for `raylib.texture/id!`: 64 by 64, clamped (a stretched edge cell
   samples right up to its border and a repeat would wrap the far side in), and
   unfiltered."
-  [pack]
+  []
   {:w src-size
    :h src-size
    :wrap :clamp
    :filter :nearest
-   :pixel (fn [x y] (pack (patch-colour x y)))})
+   :pixel (fn [x y] (texel/pack (patch-colour x y)))})
 
 (defn cells
   "The original's `npatch!` (lines 49-83) as data: the cells to draw for a

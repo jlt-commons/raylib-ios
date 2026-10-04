@@ -12,7 +12,15 @@
   Textures are owned per scene. `id!` uploads on first use of a `[scene-id key]`
   pair and answers the cached id after that; `enter!` frees every texture that
   belongs to a scene other than the one now showing, so nothing outlives the
-  scene that built it.
+  scene that built it on the GPU.
+
+  The CPU side is kept. A static spec (no `:version`, and the same map object
+  each time, as a scene's `def` or `delay` gives) keeps its filled `w * h * 4`
+  byte staging buffer for the life of the app, so coming back to a scene costs
+  `rlLoadTexture` alone, with no pixel fn calls and no write loop. Specs are
+  pure, so the same object means the same pixels. A different spec object under
+  the same key refills and replaces the kept buffer. A versioned spec is never
+  kept, and `band!` and the version refresh use temporary buffers.
 
   Lifted from net.b12n.raylib.textures in jlt-commons/raylib-jlt (the rlgl
   declarations, the wrap and filter setters, the upload loop and the quad), with
@@ -45,6 +53,10 @@
 
 (defonce ^:private table (atom {}))
 
+;; {[scene-id key] {:spec spec :buf ptr}}: the filled staging buffer of the last
+;; static spec uploaded under each key. Never freed by `enter!`.
+(defonce ^:private kept (atom {}))
+
 (defn resident
   "The live textures, `{[scene-id key] {:gl-id :version}}`. For tests."
   []
@@ -67,6 +79,20 @@
     (dotimes [x w]
       (ffi/write buf :uint (pixel x y) (* 4 (+ x (* y w)))))))
 
+(defn- check-size!
+  "Throw unless `w` by `h` is the size `have` was uploaded at. rlUpdateTexture
+  past the texture's edge is a GL error that raises nothing."
+  [scene-id key have w h]
+  (when (or (not= w (:w have)) (not= h (:h have)))
+    (throw (ex-info (str "texture " (pr-str [scene-id key]) ": size changed from "
+                         (:w have) "x" (:h have) " to " w "x" h)
+                    {:scene scene-id
+                     :key key
+                     :w w
+                     :h h
+                     :was-w (:w have)
+                     :was-h (:h have)}))))
+
 (defn id!
   "The rlgl texture id for `key` in scene `scene-id`, uploading it on first use.
 
@@ -74,13 +100,20 @@
   packed colour, `:wrap` is :clamp (the default) or :repeat, `:filter` is
   :nearest (the default) or :linear. A later call with a different `:version`
   rewrites the pixels in place with rlUpdateTexture and keeps the id; the same
-  version is a table lookup.
+  version is a table lookup. A size that differs from the one uploaded under the
+  same key throws, since rlUpdateTexture would write outside the texture.
+
+  A spec without a `:version` is kept: its filled staging buffer stays for the
+  life of the app, and a later first-use of the same key (after `enter!` freed
+  the GL texture) with the identical spec object loads from that buffer without
+  calling `:pixel`. See the ns docstring.
 
   GLES2 only repeats a power-of-two texture, so :repeat on any other size throws
   an ex-info with :scene, :key, :w and :h."
   [scene-id key {:keys [w h pixel wrap filter version]
                  :or {wrap :clamp
-                      filter :nearest}}]
+                      filter :nearest}
+                 :as spec}]
   (let [k [scene-id key]
         have (get @table k)]
     (when (and (= :repeat wrap) (not (and (pow2? w) (pow2? h))))
@@ -92,9 +125,13 @@
                        :h h})))
     (cond
       (nil? have)
-      (let [buf (ffi/alloc (* w h 4))]
+      (let [old (get @kept k)
+            reuse? (and (nil? version) (identical? spec (:spec old)))
+            buf (if reuse? (:buf old) (ffi/alloc (* w h 4)))
+            owned? (atom (not reuse?))]
         (try
-          (fill! buf w h pixel)
+          (when-not reuse?
+            (fill! buf w h pixel))
           (let [id (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)]
             (when (zero? id)
               (throw (ex-info (str "texture " (pr-str k) ": rlLoadTexture failed for " w "x" h)
@@ -103,20 +140,31 @@
                                :w w
                                :h h})))
             (swap! table assoc k {:gl-id id
-                                  :version version})
+                                  :version version
+                                  :w w
+                                  :h h})
             (rl-texture-parameters id RL-TEXTURE-WRAP-S (RL-WRAP wrap))
             (rl-texture-parameters id RL-TEXTURE-WRAP-T (RL-WRAP wrap))
             (rl-texture-parameters id RL-TEXTURE-MIN-FILTER (RL-FILTER filter))
             (rl-texture-parameters id RL-TEXTURE-MAG-FILTER (RL-FILTER filter))
+            (when (and (nil? version) (not reuse?))
+              (when-let [prev (:buf old)]
+                (ffi/free prev))
+              (swap! kept assoc k {:spec spec
+                                   :buf buf})
+              (reset! owned? false))
             id)
-          (finally (ffi/free buf))))
+          (finally
+            (when @owned?
+              (ffi/free buf)))))
 
       (= version (:version have))
       (:gl-id have)
 
       :else
       (let [id (:gl-id have)
-            buf (ffi/alloc (* w h 4))]
+            buf (do (check-size! scene-id key have w h)
+                    (ffi/alloc (* w h 4)))]
         (try
           (fill! buf w h pixel)
           (rl-update-texture id 0 0 w h PIXELFORMAT-R8G8B8A8 buf)
@@ -142,8 +190,10 @@
   Answers the GL id."
   [scene-id key {:keys [w h pixel]
                  :as spec} y0 rows]
-  (if-let [{:keys [gl-id]} (get @table [scene-id key])]
-    (let [y0 (max 0 y0)
+  (if-let [{:keys [gl-id]
+            :as have} (get @table [scene-id key])]
+    (let [_ (check-size! scene-id key have w h)
+          y0 (max 0 y0)
           n (- (min h (+ y0 rows)) y0)]
       (when (pos? n)
         (let [buf (ffi/alloc (* w n 4))]

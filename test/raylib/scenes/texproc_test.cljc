@@ -212,3 +212,11 @@
             (is (<= (+ x (measure s size)) w))
             (is (>= y (+ py ph)))
             (is (<= (+ y size) h))))))))
+
+(deftest the-allocation-free-panels-equal-the-vector-ones-on-every-texel
+  (doseq [[nm colour {:keys [pixel]}] [[:checker sc/checker-colour (sc/checker-spec)]
+                                       [:gradient sc/gradient-colour (sc/gradient-spec)]
+                                       [:rings sc/rings-colour (sc/rings-spec)]]]
+    (is (every? true? (each-texel #(= (texel/pack (colour % %2)) (pixel % %2))))
+        (str nm))
+    (is (= 16384 (count (each-texel pixel))))))

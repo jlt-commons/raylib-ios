@@ -284,3 +284,14 @@
           (is (<= (+ x (measure s size)) (+ bx bw)))
           (is (>= y by))
           (is (<= (+ y size) (+ by bh))))))))
+
+(deftest the-transient-road-equals-the-persistent-replay
+  (let [white [235 235 235 255]
+        yellow [240 200 60 255]
+        persistent (as-> (texel/grid 64 128 [58 58 64 255]) g
+                     (texel/draw-rect g 4 0 5 128 white)
+                     (texel/draw-rect g (- 64 9) 0 5 128 white)
+                     (reduce (fn [g i] (texel/draw-rect g (- (quot 64 2) 3) (* i 32) 6 16 yellow))
+                             g
+                             (range 4)))]
+    (is (= persistent (sc/road-grid)))))

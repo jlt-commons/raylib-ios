@@ -167,3 +167,36 @@
     (is (= (tx/pack [1 2 3 4]) (f 2 1)))
     (is (= (tx/pack [5 6 7 8]) (f 0 0)))
     (is (= (tx/pack off) (f 1 0)))))
+
+(deftest pack4-is-pack-without-the-vector
+  (is (= 0x04030201 (tx/pack4 1 2 3 4)))
+  (doseq [c [[0 0 0 0] [255 255 255 255] [1 2 3 4] [255 0 128 7]]]
+    (is (= (tx/pack c) (apply tx/pack4 c)))))
+
+(deftest transient-twins-paint-what-the-persistent-fns-paint
+  (let [g0 (tx/grid 40 30 [1 2 3 4])
+        red [255 0 0 255]
+        blue [0 0 255 255]
+        persistent (-> g0
+                       (tx/draw-pixel 3 4 red)
+                       (tx/draw-pixel -1 4 red)
+                       (tx/draw-line 2 2 30 20 blue)
+                       (tx/draw-line 35 3 5 25 red)
+                       (tx/draw-rect -3 -2 12 9 blue)
+                       (tx/draw-rect 30 20 40 40 red)
+                       (tx/draw-circle 20 15 9 blue)
+                       (tx/draw-circle 2 2 6 red))
+        transient (-> (tx/transient-grid g0)
+                      (tx/draw-pixel! 3 4 red)
+                      (tx/draw-pixel! -1 4 red)
+                      (tx/draw-line! 2 2 30 20 blue)
+                      (tx/draw-line! 35 3 5 25 red)
+                      (tx/draw-rect! -3 -2 12 9 blue)
+                      (tx/draw-rect! 30 20 40 40 red)
+                      (tx/draw-circle! 20 15 9 blue)
+                      (tx/draw-circle! 2 2 6 red)
+                      tx/persistent-grid)]
+    (is (= persistent transient))
+    (is (not= (:px g0) (:px persistent)) "the sequence did paint something")
+    (testing "the persistent wrappers leave their argument alone"
+      (is (= (tx/grid 40 30 [1 2 3 4]) g0)))))

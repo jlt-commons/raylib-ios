@@ -31,7 +31,8 @@
   sampling the far side.
 
   The state holds `:angle` and `:screen`. Colours are `[r g b a]` vectors."
-  (:require [raylib.gesture :as gesture]))
+  (:require [raylib.gesture :as gesture]
+            [raylib.texel :as texel]))
 
 (def tex-size "The original's TEX: the wheel is this many texels square." 256)
 (def deg2rad "The original's DEG2RAD (line 24)." 0.0174532925)
@@ -82,15 +83,31 @@
   (let [c (/ tex-size 2.0)]
     (hsv->colour (Math/toDegrees (Math/atan2 (- y c) (- x c))))))
 
+(defn wheel-texel
+  "`wheel-colour` at `x`, `y` already packed, with no vector built: the same
+  arithmetic as `hsv->colour` and `wheel-colour`, which stay as the readable
+  reference and which a test checks this against on every texel. This is the
+  texture's pixel fn, which runs 65536 times when the scene opens."
+  [x y]
+  (let [c (/ tex-size 2.0)
+        h (Math/toDegrees (Math/atan2 (- y c) (- x c)))
+        h' (/ (mod h 360.0) 60.0)
+        i (int (Math/floor h'))
+        f (- h' i)
+        q (- 1.0 f)
+        r (case i 0 1.0 1 q 2 0.0 3 0.0 4 f 1.0)
+        g (case i 0 f 1 1.0 2 1.0 3 q 0.0)
+        b (case i 0 0.0 1 0.0 2 f 3 1.0 4 1.0 q)]
+    (texel/pack4 (int (* 255 r)) (int (* 255 g)) (int (* 255 b)) 255)))
+
 (defn wheel-spec
-  "The texture for `raylib.texture/id!`: 256 by 256, clamped, unfiltered. `pack`
-  turns an `[r g b a]` into a texel."
-  [pack]
+  "The texture for `raylib.texture/id!`: 256 by 256, clamped, unfiltered."
+  []
   {:w tex-size
    :h tex-size
    :wrap :clamp
    :filter :nearest
-   :pixel (fn [x y] (pack (wheel-colour x y)))})
+   :pixel wheel-texel})
 
 (defn rotate
   "The original's `rotate` (lines 61-64)."

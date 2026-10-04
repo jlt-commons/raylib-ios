@@ -66,16 +66,17 @@
 
 (defn road-grid
   "The original's `build-road!` (lines 45-62) as a `raylib.texel` grid: 64 by
-  128, asphalt, two edge lines and four dashes."
+  128, asphalt, two edge lines and four dashes. Painted into a transient grid."
   []
   (let [white [235 235 235 255]
         yellow [240 200 60 255]]
-    (as-> (texel/grid road-w road-h [58 58 64 255]) g
-      (texel/draw-rect g 4 0 5 road-h white)
-      (texel/draw-rect g (- road-w 9) 0 5 road-h white)
-      (reduce (fn [g i] (texel/draw-rect g (- (quot road-w 2) 3) (* i 32) 6 16 yellow))
+    (as-> (texel/transient-grid (texel/grid road-w road-h [58 58 64 255])) g
+      (texel/draw-rect! g 4 0 5 road-h white)
+      (texel/draw-rect! g (- road-w 9) 0 5 road-h white)
+      (reduce (fn [g i] (texel/draw-rect! g (- (quot road-w 2) 3) (* i 32) 6 16 yellow))
               g
-              (range 4)))))
+              (range 4))
+      (texel/persistent-grid g))))
 
 (defn road-spec
   "The texture for `raylib.texture/id!`: the road, repeating, linear."

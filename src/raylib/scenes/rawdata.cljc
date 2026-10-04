@@ -35,7 +35,8 @@
   drops from 65536 texels to 4096.
 
   The state holds `:frame` and `:screen`. Colours are `[r g b a]` vectors."
-  (:require [raylib.gesture :as gesture]))
+  (:require [raylib.gesture :as gesture]
+            [raylib.texel :as texel]))
 
 (def panel-size "The original's PANEL: the drawn checkerboard is this many texels square." 256)
 (def checker-size "The checkerboard texture's side: CHECK * 2, the pattern's period." 64)
@@ -90,11 +91,6 @@
         b (int (* 255 (Math/abs (Math/cos (+ (* (+ fx fy) 4.0) (* t 1.3))))))]
     [r g b 255]))
 
-(defn- pack
-  "`raylib.texel/pack` of `[r g b 255]`, without the vector."
-  [r g b]
-  (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left 255 24)))
-
 (defn checker-spec
   "The checkerboard for `raylib.texture/id!`: one 64 by 64 period, repeating,
   unfiltered. `quad` repeats it 4 times across, which is the original's 256 by
@@ -105,8 +101,8 @@
    :wrap :repeat
    :pixel (fn [x y]
             (if (even? (+ (quot x check) (quot y check)))
-              (pack 255 161 0)
-              (pack 255 203 0)))})
+              (texel/pack4 255 161 0 255)
+              (texel/pack4 255 203 0 255)))})
 
 (defn live-spec
   "The live panel at `frame` for `raylib.texture/band!`: 128 by 128, each texel
@@ -121,7 +117,7 @@
                     r (int (* 255 (Math/abs (Math/sin (+ (* fx 6.0) t)))))
                     g (int (* 255 (Math/abs (Math/sin (+ (* fy 6.0) (* t 0.7))))))
                     b (int (* 255 (Math/abs (Math/cos (+ (* (+ fx fy) 4.0) (* t 1.3))))))]
-                (pack r g b)))}))
+                (texel/pack4 r g b 255)))}))
 
 (defn band
   "The rows to refill on `frame`, as `[y0 rows]`: the band walks down the panel

@@ -102,9 +102,32 @@
           :pixel pixel}
          more))
 
-(defn checker-spec [] (spec (fn [x y] (texel/pack (checker-colour x y)))))
-(defn gradient-spec [] (spec (fn [x y] (texel/pack (gradient-colour x y)))))
-(defn rings-spec [] (spec (fn [x y] (texel/pack (rings-colour x y)))))
+;; The three static panels' pixel fns run 16384 times each when the scene opens,
+;; so they pack without building a vector. `checker-colour`, `gradient-colour`
+;; and `rings-colour` stay as the readable reference, and a test checks every
+;; texel of these against them.
+
+(defn checker-texel [x y]
+  (if (even? (+ (quot x 16) (quot y 16)))
+    (texel/pack4 40 44 52 255)
+    (texel/pack4 230 232 238 255)))
+
+(defn gradient-texel [x y]
+  (texel/pack4 (int (* 255 (/ x (double tex-size))))
+               (int (* 255 (/ y (double tex-size))))
+               140
+               255))
+
+(defn rings-texel [x y]
+  (let [c (/ tex-size 2.0)
+        d (Math/sqrt (+ (* (- x c) (- x c)) (* (- y c) (- y c))))
+        t (Math/sin (/ d 6.0))
+        v (int (* 127 (+ 1.0 t)))]
+    (texel/pack4 v (int (* 0.4 v)) (- 255 v) 255)))
+
+(defn checker-spec [] (spec checker-texel))
+(defn gradient-spec [] (spec gradient-texel))
+(defn rings-spec [] (spec rings-texel))
 
 (defn noise-spec
   "The noise panel's texture for `state`: grey from `noise-values`, with

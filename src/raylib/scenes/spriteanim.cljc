@@ -64,20 +64,22 @@
 (def ^:private black "BLACK." [0 0 0 255])
 
 (defn- thick-line
-  "The original's `thick-line!` (lines 37-48): fifteen circles of radius `r`
-  along (x1, y1) to (x2, y2), each centre truncated as `(int ...)` does."
+  "The original's `thick-line!` (lines 37-48), over a transient grid: fifteen
+  circles of radius `r` along (x1, y1) to (x2, y2), each centre truncated as
+  `(int ...)` does."
   [g x1 y1 x2 y2 r c]
   (reduce (fn [g i]
             (let [f (/ (double i) 14)]
-              (texel/draw-circle g
-                                 (int (+ x1 (* f (- x2 x1))))
-                                 (int (+ y1 (* f (- y2 y1))))
-                                 r c)))
+              (texel/draw-circle! g
+                                  (int (+ x1 (* f (- x2 x1))))
+                                  (int (+ y1 (* f (- y2 y1))))
+                                  r c)))
           g
           (range 15)))
 
 (defn- draw-pose
-  "The original's `draw-pose!` (lines 50-78): pose `i` painted into its frame."
+  "The original's `draw-pose!` (lines 50-78): pose `i` painted into its frame of
+  a transient grid."
   [g i]
   (let [x0 (* i frame-w)
         phase (* 2.0 Math/PI (/ (double i) frames))
@@ -92,14 +94,16 @@
         (thick-line cx (+ 38 bob) cx hip 9 red)
         (thick-line (- cx 8) shoulder (- cx 8 (int (* 20 swing))) (+ 76 bob) 5 [120 25 35 255])
         (thick-line (+ cx 8) shoulder (+ cx 8 (int (* 20 swing))) (+ 76 bob) 5 [245 130 120 255])
-        (texel/draw-circle cx (+ 22 bob) 15 [235 195 150 255])
-        (texel/draw-circle (+ cx 6) (+ 19 bob) 3 black))))
+        (texel/draw-circle! cx (+ 22 bob) 15 [235 195 150 255])
+        (texel/draw-circle! (+ cx 6) (+ 19 bob) 3 black))))
 
 (defn strip-grid
   "The original's `build-strip!` (lines 80-89) as a `raylib.texel` grid: 576 by
-  120, transparent, six poses. Slow, so build it once, not per frame."
+  120, transparent, six poses. Slow, so build it once, not per frame. It paints
+  into a transient grid."
   []
-  (reduce draw-pose (texel/grid sheet-w frame-h transparent) (range frames)))
+  (texel/persistent-grid
+   (reduce draw-pose (texel/transient-grid (texel/grid sheet-w frame-h transparent)) (range frames))))
 
 (defn strip-spec
   "The texture for `raylib.texture/id!`: the strip, clamped (576 is not a power
