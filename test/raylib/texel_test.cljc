@@ -92,6 +92,42 @@
                       3  [-1 0]})
              (lit (tx/draw-circle g 4 4 3 on)))))))
 
+;; Per-row [min max] of dx, hand-worked from the ImageDrawCircle walk (the
+;; spans are contiguous). Radius 6 exercises both branches of the d update more
+;; than r=3 does. Radius 21 is the smallest where a changed `+ 10` constant in
+;; the y-decrement branch moves the outline (checked against r=1..20).
+(def ^:private r6
+  {-6 [-1 0]
+   -5 [-3 2]
+   -4 [-4 3]
+   -3 [-5 4]
+   -2 [-5 4]
+   -1 [-6 5]
+   0 [-6 5]
+   1 [-6 5]
+   2 [-5 4]
+   3 [-5 4]
+   4 [-4 3]
+   5 [-3 2]
+   6 [-1 0]})
+
+(def ^:private r21
+  (into {}
+        (map vector (range -21 22)
+             [[-3 2] [-6 5] [-8 7] [-10 9] [-11 10] [-12 11] [-13 12] [-14 13]
+              [-15 14] [-16 15] [-17 16] [-18 17] [-18 17] [-19 18] [-19 18]
+              [-20 19] [-20 19] [-20 19] [-21 20] [-21 20] [-21 20] [-21 20]
+              [-21 20] [-21 20] [-21 20] [-20 19] [-20 19] [-20 19] [-19 18]
+              [-19 18] [-18 17] [-18 17] [-17 16] [-16 15] [-15 14] [-14 13]
+              [-13 12] [-12 11] [-11 10] [-10 9] [-8 7] [-6 5] [-3 2]])))
+
+(defn- disc [cx cy rows]
+  (set (for [[dy [lo hi]] rows, dx (range lo (inc hi))] [(+ cx dx) (+ cy dy)])))
+
+(deftest draw-circle-larger-radii
+  (is (= (disc 8 8 r6) (lit (tx/draw-circle (blank 17 17) 8 8 6 on))))
+  (is (= (disc 24 24 r21) (lit (tx/draw-circle (blank 49 49) 24 24 21 on)))))
+
 ;; ImageDrawRectangleRec (rtextures.c:3687). A rect clipped to width 0 still
 ;; draws its first texel, as the C does.
 (deftest draw-rect-clips-at-the-edges
@@ -109,8 +145,19 @@
       (is (= #{} (lit (tx/draw-rect g 4 0 2 2 on))))
       (is (= #{} (lit (tx/draw-rect g -3 0 3 2 on))))
       (is (= #{} (lit (tx/draw-rect g 0 -2 2 2 on)))))
-    (testing "zero width lights the first texel only"
-      (is (= #{[1 1]} (lit (tx/draw-rect g 1 1 0 3 on)))))))
+    ;; rtextures.c:3708 draws the first texel, then 3719-3722 doubles it along
+    ;; the row to (int)rec.width texels regardless of height, and 3726-3729
+    ;; copies that row down for y = 1 .. height-1 (width texels each).
+    (testing "zero height still lights a width-wide row: (0,2,3,0) -> x 0..2"
+      (is (= #{[0 2] [1 2] [2 2]} (lit (tx/draw-rect g 0 2 3 0 on)))))
+    (testing "zero height clamped by the edge: (1,3,4,0), w 4 -> 3, row y=3"
+      (is (= #{[1 3] [2 3] [3 3]} (lit (tx/draw-rect g 1 3 4 0 on)))))
+    (testing "zero width lights the first texel only: row loop needs w>1 and
+              the row copy moves 0 bytes"
+      (is (= #{[1 1]} (lit (tx/draw-rect g 1 1 0 3 on)))))
+    (testing "the early return still fires: x+w <= 0 or y+h <= 0 lights nothing"
+      (is (= #{} (lit (tx/draw-rect g 0 1 0 2 on))))
+      (is (= #{} (lit (tx/draw-rect g 1 0 2 0 on)))))))
 
 (deftest pixel-of-reads-the-grid
   (let [g (-> (blank 3 2)

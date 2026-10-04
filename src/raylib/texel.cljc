@@ -80,9 +80,12 @@
 (defn draw-rect
   "`ImageDrawRectangle` via `ImageDrawRectangleRec` (rtextures.c:3675, 3687).
   A negative origin eats into the size, the size clamps to the grid, and a rect
-  wholly outside lights nothing. As in the C, the first texel is always drawn
-  once the rect passes those checks, so a rect clipped to zero width or height
-  still lights that one texel."
+  wholly outside lights nothing. Past those checks the C draws the first texel
+  (3708), doubles it along the row to `width` texels (3719-3722, whatever the
+  height), then copies that row down for rows 1 .. height-1 (3726-3729). So a
+  zero-height rect lights one row of `width` texels, and a zero-width rect
+  lights just its first texel. A rect with `x+w <= 0` or `y+h <= 0` after
+  clipping returns early and lights nothing, so a zero height at y=0 does too."
   [g x y w h c]
   (let [gw (:w g)
         gh (:h g)
@@ -95,14 +98,15 @@
     (if (or (>= x gw) (>= y gh) (<= (+ x w) 0) (<= (+ y h) 0))
       g
       (let [v (pack c)
-            px (:px g)
-            px (assoc px (+ (* y gw) x) v)]
+            row (max w 1)]
         (assoc g :px
                (reduce (fn [px idx] (assoc px idx v))
-                       px
-                       (for [yy (range y (+ y h))
-                             xx (range x (+ x w))]
-                         (+ (* yy gw) xx))))))))
+                       (:px g)
+                       (concat
+                        (for [xx (range x (+ x row))] (+ (* y gw) xx))
+                        (for [yy (range (inc y) (+ y h))
+                              xx (range x (+ x w))]
+                          (+ (* yy gw) xx)))))))))
 
 (defn draw-circle
   "`ImageDrawCircleV` (rtextures.c:3635), which calls `ImageDrawCircle`
