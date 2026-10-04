@@ -314,7 +314,12 @@ holds `rlLoadTexture`. On the laptop the same loop is 0.071 us a texel
 **The pixel function adds to that.** A scene that computes each texel pays 5 to
 17 us more a texel on the phone for Srcrec Dstrec and Polygon Drawing (derived
 from their first-open pauses, so rough). Allocating a vector per texel is the
-part worth cutting, and the ten scenes' pixel functions avoid it.
+part worth cutting. Polygon Drawing, three of Procedural Textures' panels and
+Raw Data pack with `texel/pack4`, which builds no vector; Sprite Animation,
+Textured Curve and Screen Buffer look a texel up in a grid or palette built
+once. Texture Tiling, Srcrec Dstrec, Sprite Button, Npatch Drawing and the
+noise panel of Procedural Textures still call `texel/pack` on a vector per
+texel.
 
 **First opens pause, reopens do not** (all measured, largest single frame, with
 the median frame at 17 ms). The first open after launch holds a frame for about

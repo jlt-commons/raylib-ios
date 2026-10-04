@@ -144,7 +144,10 @@ remain rewrite-ready:
   single frame at about 1.0 s for Sprite Animation, 0.8 s for Polygon Drawing,
   0.5 s for Procedural Textures, 0.2 s for Srcrec Dstrec and Sprite Button, and
   0.17 s for Raw Data (phone measurements, 2026-10-04). The cost is the pixel fn
-  and the per-texel write, so the cure is a faster fill or a cached upload. The
+  and the per-texel write, so the cure is a faster fill or a cached upload.
+  Texture Tiling, Srcrec Dstrec, Sprite Button, Npatch Drawing and the noise
+  panel of Procedural Textures also still pack a vector per texel (`texel/pack`
+  where `texel/pack4` would do), which is part of that fill cost. The
   catalog discloses the pauses for now.
 - **Audit the licence wording on the older scenes.** The 33 scenes that
   predate the texture arc, and NOTICE's "Ported, and altered" section, call
