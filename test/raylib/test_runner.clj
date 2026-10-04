@@ -162,6 +162,8 @@
                      raylib.scenes.screenbuf-test
                      raylib.scenes.spriteanim-test
                      raylib.scenes.texcurve-test
+                     raylib.scenes.rendertex-test
+                     raylib.scenes.fbrender-test
                      raylib.stick-test
                      raylib.easings-test
                      raylib.texel-test

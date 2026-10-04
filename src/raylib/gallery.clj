@@ -54,6 +54,7 @@
             [raylib.scenes.ellipses :as ell]
             [raylib.scenes.epicycles :as epi]
             [raylib.scenes.fan :as fan]
+            [raylib.scenes.fbrender :as fbrender]
             [raylib.scenes.fireworks :as fw]
             [raylib.scenes.flowfield :as flow]
             [raylib.scenes.fogofwar :as fogofwar]
@@ -100,6 +101,7 @@
             [raylib.scenes.randomvalues :as rv]
             [raylib.scenes.rawdata :as rawdata]
             [raylib.scenes.rectbounds :as rbounds]
+            [raylib.scenes.rendertex :as rendertex]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rlgltriangle :as rlgl]
@@ -186,7 +188,7 @@
              (voxel/scene) (doom/scene)
              (textiling/scene) (srcrec/scene) (spritebutton/scene)
              (npatch/scene) (texpoly/scene) (texproc/scene)
-             (spriteanim/scene) (texcurve/scene)
+             (spriteanim/scene) (texcurve/scene) (rendertex/scene) (fbrender/scene)
              (rawdata/scene) (screenbuf/scene)])
 
 (def registry (gallery/make-registry scenes))
@@ -226,7 +228,7 @@
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
              :textiling :srcrec :spritebutton :npatch :texpoly :texproc
-             :spriteanim :texcurve :rawdata :screenbuf]}
+             :spriteanim :texcurve :rendertex :fbrender :rawdata :screenbuf]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4528,6 +4530,127 @@
   (let [[y0 rows] (screenbuf/upload-rows (:stepped state))
         id (texture/band! :screenbuf :fire (screenbuf/spec (:buf state)) y0 rows)]
     (texture/quad! id (screenbuf/geometry m))))
+
+;; --- render targets ------------------------------------------------------------
+;; A scene here draws into `raylib.texture/target!`'s off-screen framebuffer with
+;; `with-target!`, which draws untranslated in the target's own pixels and gives
+;; the screen, the scissor and the gallery's translate back afterwards, then
+;; draws the target with `quad!` and `:v0 1.0 :v1 0.0` (GL stores it bottom-up).
+
+(defn- outline!
+  "A one pixel rectangle outline, the way DrawRectangleLines draws it. There is
+  no rectangle-lines call bound, so it is four thin rectangles."
+  [x y w h colour]
+  (let [x (int x)
+        y (int y)
+        w (int w)
+        h (int h)
+        c (color colour)]
+    (rl/draw-rectangle x y w 1 c)
+    (rl/draw-rectangle x (+ y h -1) w 1 c)
+    (rl/draw-rectangle x (inc y) 1 (- h 2) c)
+    (rl/draw-rectangle (+ x w -1) (inc y) 1 (- h 2) c)))
+
+(def ^:private rendertex-cache
+  "The last `[screen dims]` for `:rendertex`. Its text sizes need a measure, which
+  depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- rendertex-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @rendertex-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (rendertex/dimensions m host-measure)]
+        (reset! rendertex-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :rendertex [_ state {:keys [m safe]}]
+  (let [dims (rendertex-dims m)
+        rt (texture/target! :rendertex :rt (rendertex/target-spec))]
+    ;; The scene is drawn once, before anything of the screen's own.
+    (texture/with-target! rt safe
+      (fn []
+        (clear-to! rendertex/target-clear-colour)
+        (doseq [[x y c] (rendertex/balls (:t state))]
+          (rl/draw-circle x y (double rendertex/ball-radius) (color c)))
+        (rl/draw-text rendertex/target-text 10 10 20 (color rendertex/target-text-colour))
+        (outline! 0 0 rendertex/rt-w rendertex/rt-h rendertex/target-outline-colour)))
+    (clear-to! rendertex/background-colour)
+    (draw-caption! (:title dims) rendertex/title-colour)
+    (doseq [{:keys [x y width height tint label]} (:copies dims)]
+      (texture/quad! (:texture rt) (cond-> {:x x
+                                            :y y
+                                            :width width
+                                            :height height
+                                            :v0 1.0
+                                            :v1 0.0}
+                                     tint (assoc :tint (color tint))))
+      (draw-caption! label rendertex/label-colour))))
+
+(def ^:private fbrender-cache
+  "The last `[screen dims]` for `:fbrender`. Its text sizes need a measure, which
+  depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- fbrender-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @fbrender-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (fbrender/dimensions m host-measure)]
+        (reset! fbrender-cache [screen dims])
+        dims))))
+
+(defmethod draw-scene! :fbrender [_ state {:keys [m safe]}]
+  (let [dims (fbrender-dims m)
+        [[ox oy hw hh] [sx sy]] (:halves dims)
+        spec {:w hw
+              :h hh}
+        observer (texture/target! :fbrender :observer spec)
+        subject (texture/target! :fbrender :subject spec)
+        [note label] (:observer-lines dims)
+        [sub-label] (:subject-lines dims)
+        [cx cy cw ch] (:crop-rect dims)
+        [ix iy iw ih] (:inset-rect dims)
+        [u0 v0 u1 v1] (:inset-uv dims)
+        [dx1 dy1 dx2 dy2] (:divider dims)]
+    (texture/with-target! observer safe
+      (fn []
+        (clear-to! fbrender/background-colour)
+        (rl/draw-3d! (fbrender/observer-list state dims))
+        (draw-caption! note fbrender/note-colour)
+        (draw-caption! label fbrender/label-colour)))
+    (texture/with-target! subject safe
+      (fn []
+        (clear-to! fbrender/background-colour)
+        (rl/draw-3d! (fbrender/subject-list state dims))
+        (outline! cx cy cw ch fbrender/crop-colour)
+        (draw-caption! sub-label fbrender/label-colour)))
+    (clear-to! fbrender/screen-colour)
+    (texture/quad! (:texture observer) {:x ox
+                                        :y oy
+                                        :width hw
+                                        :height hh
+                                        :v0 1.0
+                                        :v1 0.0})
+    (texture/quad! (:texture subject) {:x sx
+                                       :y sy
+                                       :width hw
+                                       :height hh
+                                       :v0 1.0
+                                       :v1 0.0})
+    ;; The inset is the SAME texture sampled through a narrower rectangle.
+    (texture/quad! (:texture subject) {:x (+ sx ix)
+                                       :y (+ sy iy)
+                                       :width iw
+                                       :height ih
+                                       :u0 u0
+                                       :v0 v0
+                                       :u1 u1
+                                       :v1 v1})
+    (outline! (+ sx ix) (+ sy iy) iw ih fbrender/crop-colour)
+    (rl/draw-line (int dx1) (int dy1) (int dx2) (int dy2) (color fbrender/divider-colour))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
