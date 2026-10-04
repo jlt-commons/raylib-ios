@@ -6,8 +6,8 @@
   gallery in net.b12n.raylib-ios.gallery.core, and draws whatever comes back. Every scene
   itself is pure and appears here only as a draw-scene! method.
 
-  That split is why three of the scenes run byte-identical to files written for
-  Android. Nothing in them knows what a platform is."
+  That split is why three of the scenes run as files written for
+  Android, apart from their names and whitespace. Nothing in them knows what a platform is."
   (:require [net.b12n.raylib-ios.easings :as ez]
             [net.b12n.raylib-ios.flappy :as flappy-draw]
             [net.b12n.raylib-ios.gallery.core :as gallery]
@@ -203,7 +203,7 @@
 ;; every card on one screen by dividing the height by the row count. That is
 ;; right for three scenes and unreadable for fifty: it never scrolls, it just
 ;; shrinks. So categories sit ABOVE that contract rather than inside it, and
-;; the pure file stays byte-identical.
+;; the pure file stays identical to upstream apart from names and whitespace.
 ;;
 ;; The whole trick is that ui/gallery-layout takes the ids to lay out as an
 ;; argument. Hand it category ids and it lays out categories; hand it the ids
@@ -385,8 +385,8 @@
   `net.b12n.raylib-ios.gallery.diagnostics` reports `:all-coordinates-available? false` and gives
   coordinates for point zero only, which was honest on the platform it was
   written for: it has GetTouchX and GetTouchY and no binding for the by-value
-  Vector2 that GetTouchPosition returns. That file is one of the six verified
-  byte-identical against the notebooks, so the extra data goes in a key of our
+  Vector2 that GetTouchPosition returns. That file is one of the six checked
+  against the upstream original (identical apart from names and whitespace), so the extra data goes in a key of our
   own and the contract keeps its word.
 
   A synthetic tap reports itself as the one point, so `tap!` drives this the
@@ -959,7 +959,7 @@
                       ;; from: a sub-second fraction accumulated from frame
                       ;; deltas drifts out of phase with it and the hand jumps
                       ;; backward mid-second. Both go here rather than into
-                      ;; diag/normalize-input, which is verified byte-identical.
+                      ;; diag/normalize-input, which is checked against upstream (identical apart from names and whitespace).
                       :local-time (rl/local-time))
         m      (:metrics input)
         safe   (safe-region (:screen m) insets)

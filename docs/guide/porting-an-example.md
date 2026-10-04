@@ -39,7 +39,7 @@ model:
 
 Neither survives on a phone. The host owns the loop here, and there is no
 keyboard. The six namespaces this project carries from the Android experiment
-came across byte-identical precisely because they were written the other way
+came across identical apart from names and whitespace precisely because they were written the other way
 round, pure and touch-first, with input arriving as a data snapshot.
 
 ## The four changes

@@ -110,8 +110,9 @@ mistakes as well as the answers.
 This project is the same code as an ordinary source tree, so a build reads
 files rather than tangling them out of prose first. `tools/extract-from-notebooks`
 did the one-time extraction and is kept for provenance: it refuses to
-overwrite a file that has since been edited, and it checks the six pure
-namespaces against the sha256 of their upstream files.
+extract without an explicit scratch destination, and it checks that the six
+pure namespaces are still their upstream files apart from namespace names and
+whitespace.
 
 ```
 $ ./tools/extract-from-notebooks
@@ -435,9 +436,10 @@ ports satisfy it in their docstrings.
 
 Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces
 began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),
-which is MIT, and three scenes plus the scene contract come byte-identical from
+which is MIT, and three scenes plus the scene contract come from
 [jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment),
-also MIT. Both notices are reproduced there.
+also MIT, identical to the originals apart from namespace names and
+whitespace. Both notices are reproduced there.
 
 ## Attribution
 

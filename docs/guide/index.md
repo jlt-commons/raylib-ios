@@ -72,9 +72,10 @@ test on a build host with no raylib, no SDL and no device.
 
 That separation is not tidiness. Three of the scenes came from the
 [Jolt Android experiment](https://github.com/jasalt/jolt-android-experiment)
-byte-identical, sha256 verified, along with three more namespaces carrying the
-contract itself. They were written for a different platform and run here
-untouched. The other hundred and thirty-four are ports from
+identical apart from namespace names and whitespace (a test checks the sha256
+under that rule), along with three more namespaces carrying the contract
+itself. They were written for a different platform and run here with their
+logic untouched. The other hundred and thirty-four are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 ## The guides

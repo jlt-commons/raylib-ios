@@ -5,8 +5,9 @@
   `net.b12n.raylib-ios.gallery.ui/gallery-layout` sizes cards to FIT: it divides the
   height it is given by the number of rows, so more scenes means shorter cards
   rather than a taller list. At twenty-seven scenes each card is about 140
-  pixels tall and the grid is unreadable. That file is one of the six verified
-  byte-identical against the notebooks and does not change.
+  pixels tall and the grid is unreadable. That file is one of the six checked
+  against the upstream original (identical apart from names and whitespace) and
+  does not change.
 
   It does not need to. `below-the-safe-area` already hands it a screen SHORTER
   than the real one and shifts the result down; this hands it a screen TALLER

@@ -26,8 +26,8 @@ Six namespaces under `src/net/b12n/raylib_ios/` (`gallery/core.cljc`,
 `scenes/following_eyes.cljc`, `scenes/touch_trail.cljc`) and their tests are
 the originals from jasalt/jolt-android-experiment at 6d2b291, with two
 differences: the namespace names, and whitespace, because clojure-lsp's
-formatter has been over them since. Put the upstream names back and drop the
-whitespace and the sha256 matches the upstream file. The test
+formatter has been over them since. Put the upstream names back and collapse
+the whitespace and the sha256 matches the upstream file. The test
 `net.b12n.raylib-ios.jasalt-identity-test` checks that, and
 `tools/extract-from-notebooks` does too.
 

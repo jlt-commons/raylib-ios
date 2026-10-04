@@ -106,10 +106,10 @@ flowchart LR
     <p>
       Every scene is pure <code>.cljc</code> that runs on a build host with no
       raylib, no SDL and no device, which is how they are tested. Three come
-      byte-identical from the
+      from the
       <a href="https://github.com/jasalt/jolt-android-experiment">Jolt Android
-      experiment</a>, sha256 verified, and were written for a different platform
-      entirely, along with three more namespaces carrying the scene contract
+      experiment</a>, identical apart from namespace names and whitespace, and
+      written for a different platform entirely, along with three more namespaces carrying the scene contract
       itself. The other hundred and thirty-four are ports from
       <a href="https://github.com/jlt-commons/raylib-jlt">raylib-jlt</a>.
     </p>
@@ -376,8 +376,8 @@ flowchart LR
       </a>
     </div>
     <p>
-      generative 6 &middot; fractals 3 &middot; toys 5 &middot; games 1 &middot; three of them byte-identical to the
-      Android originals. <em>Every one came off the phone unattended, the moving
+      generative 6 &middot; fractals 3 &middot; toys 5 &middot; games 1 &middot; three of them identical to the
+      Android originals apart from names and whitespace. <em>Every one came off the phone unattended, the moving
       ones recorded from a live iPhone Mirroring window. Nobody touched the
       device for any of them: Flappy Bird is flapped by a loop running inside
       the app, started from the nREPL. The bezel is the mirror's own.</em>
@@ -391,7 +391,7 @@ flowchart LR
         <tr><td>Penrose</td><td>340 triangles, ~2400 FFI calls</td><td>57</td></tr>
         <tr><td>Spirograph</td><td>~1000 lines</td><td>55</td></tr>
         <tr><td>Boids</td><td>2025 distance tests</td><td>52</td></tr>
-        <tr><td>Flappy Bird, Following Eyes, Touch Trail</td><td>byte-identical from Android</td><td>58</td></tr>
+        <tr><td>Flappy Bird, Following Eyes, Touch Trail</td><td>identical to Android apart from names and whitespace</td><td>58</td></tr>
       </tbody>
     </table>
   </div>

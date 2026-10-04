@@ -1,5 +1,6 @@
 #!/usr/bin/env bb
-;; tools/extract-from-notebooks SRC-REPO [DEST]
+;; tools/extract-from-notebooks SRC-REPO DEST
+;; tools/extract-from-notebooks            (no arguments: verify this tree only)
 ;;
 ;; One-shot provenance tool. Pulls the tangled sources out of the
 ;; glimmer-ios-demo notebooks (org-mode literate files) into plain .clj/.cljc
@@ -24,11 +25,18 @@
 ;;
 ;; Two things changed since the notebooks, and neither is the extraction's
 ;; fault. The files were renamed into net.b12n.raylib-ios.*, and five of them
-;; went through clojure-lsp format, which only moves whitespace. So the check
-;; here puts the upstream names back, drops whitespace, and compares with the
-;; table's :sha. A fresh extraction writes raw upstream bytes at the paths the
-;; notebooks give, which this tree no longer uses: check those against the
-;; table's :notebook-sha, then move them to :file by hand.
+;; went through clojure-lsp format, which only moves layout. So the check
+;; here puts the upstream names back, normalises layout and compares with the
+;; table's :sha, using the same function as the identity test
+;; (tools/jasalt_identity.clj).
+;;
+;; The extraction half still writes the PRE-RENAME upstream paths
+;; (the old directory names, which the notebooks still tangle to), so it
+;; refuses to run without an
+;; explicit DEST and never defaults to this tree: pointed at it, it would
+;; recreate the old-namespace files beside the renamed ones. Extract into a
+;; scratch directory, check the six against the table's :notebook-sha, and map
+;; names by hand. With no arguments only the verify half runs, on this tree.
 (require '[babashka.fs :as fs]
          '[clojure.edn :as edn]
          '[clojure.string :as str])
@@ -37,11 +45,7 @@
   "The six pure namespaces: see tools/jasalt-identity.edn."
   (edn/read-string (slurp (str (fs/path (fs/parent (fs/real-path *file*)) "jasalt-identity.edn")))))
 
-(defn sha256-of [^String s]
-  (let [d (java.security.MessageDigest/getInstance "SHA-256")]
-    (->> (.digest d (.getBytes s "UTF-8"))
-         (map #(format "%02x" %))
-         (apply str))))
+(load-file (str (fs/path (fs/parent (fs/real-path *file*)) "jasalt_identity.clj")))
 
 (defn blocks
   "Every #+begin_src block in `org` carrying a :tangle path, as
@@ -65,12 +69,14 @@
 (let [[src dest] *command-line-args*
       src   (or src (str (fs/expand-home "~/dev/github--statonjr--glimmer-ios-demo")))
       ;; this repo, found from the script rather than named: the tree moved
-      ;; once already (to ~/dev/jlt-commons/raylib-ios) and a hardcoded path
-      ;; would have quietly written the extraction back to the old location
-      dest  (or dest (str (fs/parent (fs/parent (fs/parent (fs/real-path *file*))))))
+      ;; once already. Only the verify half reads it; extraction needs a DEST.
+      repo  (str (fs/parent (fs/parent (fs/real-path *file*))))
       force (= "1" (System/getenv "FORCE"))
       orgs  ["examples/flappy/README.org" "examples/gallery/README.org"]]
-  (doseq [org orgs
+  (if-not dest
+    (println "No DEST given, so nothing is extracted: the extraction writes the pre-rename\nupstream paths and would recreate the old-namespace tree. Pass SRC-REPO and a scratch DEST to extract. Verifying this tree only.")
+    (println "Writing the PRE-RENAME upstream paths under" dest "(old namespace names)."))
+  (doseq [org (when dest orgs)
           {:keys [path body]} (blocks (fs/path src org))
           ;; the C probe and the shell scripts are milestone scaffolding this
           ;; project replaces with tools/ios; only Clojure sources come across
@@ -84,15 +90,21 @@
             (println "wrote" (str (fs/relativize (fs/path dest) out)))))))
   (println)
   (println "identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291),")
-  (println "upstream names put back and whitespace dropped, against the table's :sha:")
+  (println "upstream names put back and layout normalised, against the table's :sha:")
   (doseq [{:keys [file sha ns]} (sort-by :file identity-table)]
-    (let [f (fs/path dest file)]
+    (let [f (fs/path repo file)]
       (if-not (fs/exists? f)
         (println "  MISSING" file)
-        (let [text (reduce (fn [acc [ours theirs]]
-                             (str/replace acc
-                                          (re-pattern (str "(?<![\\w.-])" (java.util.regex.Pattern/quote (str ours)) "(?![\\w.-])"))
-                                          (java.util.regex.Matcher/quoteReplacement (str theirs))))
-                           (slurp (str f)) ns)
-              got  (sha256-of (str/replace text #"\s+" ""))]
-          (println (format "  %-52s %s  %s" file (if (= got sha) "ok" "MISMATCH") (subs got 0 16))))))))
+        (let [got (jasalt-identity/identity-sha (slurp (str f)) ns)]
+          (println (format "  %-52s %s  %s" file (if (= got sha) "ok" "MISMATCH") (subs got 0 16)))))))
+  (when dest
+    (println)
+    (println "what was just extracted, raw bytes against the notebooks' :notebook-sha:")
+    (doseq [{:keys [upstream notebook-sha]} (sort-by :upstream identity-table)]
+      (let [f (fs/path dest upstream)]
+        (if-not (fs/exists? f)
+          (println "  MISSING" upstream)
+          (let [got (jasalt-identity/sha256 (slurp (str f)))]
+            (println (format "  %-52s %s  %s" upstream
+                             (if (str/starts-with? got notebook-sha) "ok" "MISMATCH")
+                             (subs got 0 16)))))))))

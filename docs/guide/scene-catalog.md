@@ -1,8 +1,8 @@
 # The scenes
 
-A hundred and thirty-seven, in four categories. Three come byte-identical from
-[jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-with their sha256 verified, and the other hundred and thirty-four are ports from
+A hundred and thirty-seven, in four categories. Three come from
+[jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment),
+identical apart from namespace names and whitespace, and the other hundred and thirty-four are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
 
 Frame rates are measured on an iPhone 17 Pro running iOS 26.6.1, with the probe
@@ -48,8 +48,8 @@ while a player walks out of the grove and looks back at all of it.
 
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
-| Following Eyes | 6 circles | 59 | **byte-identical** from the Android experiment |
-| Touch Trail | ~40 circles | 59 | **byte-identical**; the first scene here that wanted a finger |
+| Following Eyes | 6 circles | 59 | identical to the Android experiment apart from names and whitespace |
+| Touch Trail | ~40 circles | 59 | identical to the Android original apart from names and whitespace; the first scene here that wanted a finger |
 | Boids | 2025 distance tests, 90 draws | 52 | the cheapest drawing and the dearest thinking |
 | Double Pendulum | ~200 trail points | 59 | chaotic, so it never repeats |
 | Starfield | ~300 points | 58 | seeded |
@@ -166,7 +166,7 @@ while a player walks out of the grove and looks back at all of it.
 
 | scene | per frame | fps | notes |
 | --- | --- | ---: | --- |
-| Flappy Bird | ~30 shapes | 59 | **byte-identical** from the Android experiment |
+| Flappy Bird | ~30 shapes | 59 | identical to the Android experiment apart from names and whitespace |
 | Breakout | up to 60 bricks, a paddle, a ball | 58 | the paddle follows the finger, and a tap restarts after game over or a win; frame-locked like the original, and a rotation starts a new game |
 | Snake | up to 576 cells, a board and a score line | 58 | a swipe steers and a tap restarts, in place of the arrow keys and SPACE; the 32 by 18 grid turns to 18 by 32 on a tall phone, and a rotation starts a new game |
 | 2048 | 16 tiles on a board, a score line | 58 | a swipe slides and a tap restarts once stuck or won, in place of the arrow keys and SPACE; reaching 2048 wins and stops play, which the original does not, and a rotation only re-lays out the board |
@@ -178,12 +178,12 @@ while a player walks out of the grove and looks back at all of it.
 | Vampire Survivors | up to ~50 enemies and gems (through the first 12 s) and 18 bullets, a hero, two bars, 3 counters, a thumb-stick ring while held | 58 | a relative thumb-stick moves the hero, in place of WASD and the arrows: the press point is its centre, a finger within the tap slop of it does nothing, and beyond it the hero goes that way at one fixed speed, so a diagonal is no faster; a tap on the field restarts after game over, in place of ENTER; the spawn rate and wave growth, speeds, radii, two-hit enemies, the auto-fire at the nearest enemy and its level-based cooldown, gem pickup, levelling, contact damage with its grace period and 100 HP are the original's, frame-locked like it; the speeds and radii are scaled by one factor, enemies appear on the field's edge one radius inside it and never touching the hero where the original starts them 20 px outside, gems drawn centred (the original draws from the top-left corner), the field is below Back, and a rotation starts a new game |
 | Pac-Man | 194 walls as two rectangles each, up to 197 dots, a 28-triangle Pac-Man, four ghosts of 9 shapes, a HUD row | 58 | a swipe sets the desired direction, in place of the arrow keys and WASD, and Pac-Man takes it at the next tile centre where that way is open, so a swipe into a wall is remembered and not dropped; a tap restarts after game over, outside Back, in place of ENTER; the maze, the four ghost personalities (Blinky, Pinky, Inky and Clyde), scatter for 7 s and chase for 20 s, 7 s of fright with the 200/400/800/1600 combo, scoring, three lives and the levels are the original's, in seconds from `:delta-seconds` like it (it calls `get-frame-time`); the level clear is fixed, because the original re-arms its two second timer every frame and never starts the next level, and the board freezes while LEVEL CLEARED shows; the ghosts' feet are spaced inside the body, where the original's third foot sticks out past it; the mouth is a 28-triangle fan, since `sector!` is not bound, the frightened ghosts' random turns come from the project's LCG, the maze is drawn with square tiles in the safe region below Back, and a rotation re-lays it out and keeps the game |
 
-## What byte-identical means
+## What identical means
 
 Three scenes and the three namespaces carrying the scene contract were copied
 from the Android experiment, and the only things that differ from the originals
-are the namespace names and whitespace. Put the upstream names back, drop the
-whitespace, and the sha256 matches; a test and `tools/extract-from-notebooks`
+are the namespace names and whitespace. Put the upstream names back, collapse
+the whitespace, and the sha256 matches; a test and `tools/extract-from-notebooks`
 both check it.
 
 They were written for Android. They run here untouched because the contract

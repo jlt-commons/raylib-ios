@@ -19,7 +19,7 @@ Notable changes, newest first. Dates are the day the work landed.
   written with.
 - **The six jasalt namespaces are checked as "identical apart from names".**
   `net.b12n.raylib-ios.jasalt-identity-test` puts the upstream names back,
-  drops whitespace and compares the sha256 with the upstream file's, using the
+  collapses whitespace (and drops the spaces beside brackets) and compares the sha256 with the upstream file's, using the
   table in `tools/jasalt-identity.edn`, which `tools/extract-from-notebooks`
   reads too. The whitespace step is there because five of the six had been
   through `clojure-lsp format` since 4c23d11, so their raw hashes stopped
