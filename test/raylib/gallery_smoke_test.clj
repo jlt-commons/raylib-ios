@@ -273,6 +273,7 @@
                   texture/rl-unload-texture (stub :rl-unload-texture [:uint] nil)
                   texture/rl-texture-parameters (stub :rl-texture-parameters [:uint :int :int] nil)
                   texture/rl-set-texture (stub :rl-set-texture [:uint] nil)
+                  texture/rl-get-texture-id-default (stub :rl-get-texture-id-default [] 1)
                   texture/rl-tex-coord-2f (stub :rl-tex-coord-2f [:float :float] nil)]
       (f probe))))
 

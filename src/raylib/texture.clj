@@ -26,6 +26,7 @@
 (ffi/defcfn rl-texture-parameters "rlTextureParameters" [:uint :int :int] :void)
 (ffi/defcfn rl-set-texture        "rlSetTexture"        [:uint] :void)
 (ffi/defcfn rl-tex-coord-2f       "rlTexCoord2f"        [:float :float] :void)
+(ffi/defcfn rl-get-texture-id-default "rlGetTextureIdDefault" [] :uint)
 
 ;; rlgl.h
 (def ^:private RL-QUADS 0x0007)
@@ -58,7 +59,8 @@
   "Write `(pixel x y)` for every texel of a `w` x `h` surface into `buf`, one
   :uint write each. A packed colour is r | g<<8 | b<<16 | a<<24, which is
   byte-for-byte what RGBA8 wants on a little-endian machine. Measured under
-  jolt v0.8.16 at 0.07 us per texel, against 0.15 for filling an int array and
+  jolt v0.8.16 with a 128x128 pixel fn that packs from x and y: 0.25 us per
+  texel (4.1 ms per surface), against 0.34 (5.6 ms) for filling an int array and
   copying it with one write-array."
   [buf w h pixel]
   (dotimes [y h]
@@ -94,6 +96,12 @@
         (try
           (fill! buf w h pixel)
           (let [id (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)]
+            (when (zero? id)
+              (throw (ex-info (str "texture " (pr-str k) ": rlLoadTexture failed for " w "x" h)
+                              {:scene scene-id
+                               :key key
+                               :w w
+                               :h h})))
             (swap! table assoc k {:gl-id id
                                   :version version})
             (rl-texture-parameters id RL-TEXTURE-WRAP-S (RL-WRAP wrap))
@@ -126,6 +134,15 @@
             :when (not= sid scene-id)]
       (swap! table dissoc k)
       (rl-unload-texture gl-id))))
+
+(defn- unbind!
+  "End a textured draw by binding rlgl's default texture. rlSetTexture 0 is not
+  enough: it only resets currentTextureId and leaves the open draw call
+  textured, so a following same-mode draw (draw-triangle, draw-ring) joins it
+  and samples this texture. A non-zero id makes rlSetTexture start a new draw
+  call, which is how the next shape gets the default white texel."
+  []
+  (rl-set-texture (rl-get-texture-id-default)))
 
 (defn- unpack
   [c]
@@ -187,7 +204,7 @@
       (corner u1 v1 rx by)
       (corner u1 v0 rx ty)
       (host/rl-end)
-      (finally (rl-set-texture 0)))))
+      (finally (unbind!)))))
 
 (defn triangles!
   "Draw texture `id` as triangles. `verts` is a flat `[x y u v ...]`, three
@@ -219,4 +236,4 @@
           (emit q2)
           (emit q3)))
       (host/rl-end)
-      (finally (rl-set-texture 0)))))
+      (finally (unbind!)))))

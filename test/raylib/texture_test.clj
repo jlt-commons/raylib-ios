@@ -13,6 +13,8 @@
             [raylib.texel :as texel]
             [raylib.texture :as tex]))
 
+(def ^:private default-id 1)
+
 (defn- recording
   "Call `(f calls)` with the texture and vertex defcfns redefined to record
   into `calls`, an atom of `[name & args]` vectors. `load-hook` is called with
@@ -32,6 +34,7 @@
                    tex/rl-unload-texture (rec :unload)
                    tex/rl-texture-parameters (rec :param)
                    tex/rl-set-texture (rec :set-texture)
+                   tex/rl-get-texture-id-default (fn [] default-id)
                    tex/rl-tex-coord-2f (rec :uv)
                    host/rl-begin (rec :begin)
                    host/rl-end (rec :end)
@@ -70,6 +73,20 @@
        (is (every? #(= a (second %)) (of calls :param)))
        (is (= {[:s :k] {:gl-id a
                         :version nil}} (tex/resident)))))))
+
+(deftest a-failed-upload-throws-and-caches-nothing
+  (recording
+   (fn [calls]
+     (with-redefs [tex/rl-load-texture (fn [& _] 0)]
+       (let [e (try (tex/id! :s :k (spec 8 4)) nil (catch :default e e))]
+         (is (some? e))
+         (is (= {:scene :s
+                 :key :k
+                 :w 8
+                 :h 4} (ex-data e)))
+         (is (empty? (tex/resident)))
+         (is (empty? (of calls :param)))))
+     (is (number? (tex/id! :s :k (spec 8 4)))))))
 
 (deftest repeat-and-linear-parameters
   (recording
@@ -175,7 +192,7 @@
      (is (= [[0.0 0.25] [0.0 0.75] [1.0 0.75] [1.0 0.25]]
             (mapv (fn [[_ u v]] [u v]) (of calls :uv))))
      (is (= [[:set-texture 5] [:begin 7]] (take 2 (filter (comp #{:set-texture :begin} first) @calls))))
-     (is (= [:set-texture 0] (last @calls)))
+     (is (= [:set-texture default-id] (last @calls)))
      (is (every? double? (mapcat rest (concat (of calls :vertex) (of calls :uv)))))
      (let [[a b c] (verts calls)
            cross (- (* (- (first b) (first a)) (- (second c) (second a)))
@@ -211,7 +228,7 @@
      (with-redefs [host/rl-vertex-2f (fn [& _] (throw (ex-info "boom" {})))]
        (is (thrown? Exception (tex/quad! 5 {:width 1
                                             :height 1}))))
-     (is (= [:set-texture 0] (last (of calls :set-texture)))))))
+     (is (= [:set-texture default-id] (last (of calls :set-texture)))))))
 
 (deftest triangles-unbinds-when-a-vertex-throws
   (recording
@@ -219,7 +236,7 @@
      (with-redefs [host/rl-vertex-2f (fn [& _] (throw (ex-info "boom" {})))]
        (is (thrown? Exception
                     (tex/triangles! 5 [0 0 0 0, 1 0 1 0, 0 1 0 1] red))))
-     (is (= [:set-texture 0] (last (of calls :set-texture)))))))
+     (is (= [:set-texture default-id] (last (of calls :set-texture)))))))
 
 (defn- cross-of [[a b c]]
   (- (* (- (first b) (first a)) (- (second c) (second a)))
@@ -248,4 +265,4 @@
                by-pos (into {} (map vector vs uvs))]
            (is (= [1.0 0.0] (get by-pos [10.0 0.0])))
            (is (= [0.0 1.0] (get by-pos [0.0 10.0])))))
-       (is (= [:set-texture 0] (last @calls)))))))
+       (is (= [:set-texture default-id] (last @calls)))))))
