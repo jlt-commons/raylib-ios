@@ -191,6 +191,20 @@ well.
 The first `jolt deps` takes a few minutes. After that both archives are
 cached under `~/dev/{sdl2,raylib}-ios-dev`.
 
+The build tools work on the project they are run from, so another repo can use
+them. `PROJECT_DIR` (default: the current directory) is the jolt project and
+holds `RaylibIOS.app` afterwards; `NS` is the namespace to build. `live.sh`
+takes `NS` too, for a live build of something other than the gallery.
+`DRY_RUN=1` on `build.sh` prints what it resolved and stops:
+
+```sh
+cd ~/dev/my-app && NS=my.app.main TARGET=device sh /path/to/raylib-ios/tools/ios/build.sh
+```
+
+A project that shows a single scene full screen calls
+`(net.b12n.raylib-ios.runner/run! (my-scene/scene))` from its `-main`. See the
+RUNBOOK.
+
 For live development against the running app, and for every failure worth
 recognising on sight, see [`tools/ios/RUNBOOK.md`](tools/ios/RUNBOOK.md):
 
@@ -222,6 +236,8 @@ default, 33 MB and three with it.
 | `net.b12n.raylib-ios.touch` | scalar touch polling, press edges, a marker under the finger |
 | `net.b12n.raylib-ios.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
 | `net.b12n.raylib-ios.gallery` | the scene contract: cards, hit testing, Back, every scene's drawing |
+| `net.b12n.raylib-ios.runner` | `run!` shows one scene full screen, with no menu and no Back (needs the scene's `.draw` namespace required by the app) |
+| `net.b12n.raylib-ios.runner.live` | `live-run!`: the same with an nREPL, for a one-scene app's dev build |
 | `net.b12n.raylib-ios.live` | the gallery plus an nREPL, so an editor can drive the running app |
 | `net.b12n.raylib-ios.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
@@ -262,6 +278,9 @@ src/net/b12n/raylib_ios/{link,touch,flappy,gallery}.clj   scenes for that host
 src/net/b12n/raylib_ios/scenes/*.cljc one pure namespace per ported scene
 src/net/b12n/raylib_ios/scroll.cljc   the card list's scrolling and its tap-versus-drag rule
 src/net/b12n/raylib_ios/easings.cljc  raylib's easing curves, shared by two scenes
+src/net/b12n/raylib_ios/frame.clj     the per-frame machinery the gallery and the runner share
+src/net/b12n/raylib_ios/runner.clj    one scene, full screen (runner/live.clj adds an nREPL)
+src/net/b12n/raylib_ios/nrepl.clj     starting the nREPL, shared by the live namespaces
 src/net/b12n/raylib_ios/live.clj      the gallery with an nREPL listening, dev builds only
 src/net/b12n/raylib_ios/gallery/*.cljc   the pure gallery (core, ui, diagnostics)
 src/net/b12n/raylib_ios/scenes/{flappy_bird,following_eyes,touch_trail}.cljc
@@ -271,6 +290,7 @@ tools/ios/build.sh       jolt build --target, with both archives on the link lin
 tools/ios/deploy.sh      sign, install, launch
 tools/ios/pack.sh        a target pack from scratch, if you need to build one
 tools/ios/devices.sh     what deploy can talk to, asked rather than cached
+tools/ios/test-paths.sh  checks the tools find their files from PROJECT_DIR, not the cwd
 ```
 
 `net.b12n.raylib-ios.host` takes a scene as `{:title :init :frame}` and calls `(frame

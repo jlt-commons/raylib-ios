@@ -48,6 +48,8 @@
  {;; the two static archives, per SDK. Slow the first time, cached after.
   deps    "sh tools/ios/deps.sh"
   ;; cross-compile NS into RaylibIOS.app. NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app
+  ;; Builds the project it is run from (PROJECT_DIR, default the cwd), so another
+  ;; repo can call tools/ios/build.sh by path. DRY_RUN=1 prints the paths only.
   build-app "sh tools/ios/build.sh"
   ;; sign, install and launch on the phone. UDID=<hardware udid> jolt deploy
   deploy  "sh tools/ios/deploy.sh"
@@ -56,6 +58,7 @@
   ;; the gallery plus an nREPL, for driving a running app from an editor.
   ;; Dev only: App Store rule 2.5.2 bans executing downloaded code, and a
   ;; shipped build carries no listener.
+  ;; NS=<ns> builds another entry point, such as a one-scene app's live ns.
   live    "sh tools/ios/live.sh"
   ;; jolt.nrepl binds loopback only, so reach it by forwarding the phone's
   ;; 7888 to this machine's 7888 over USB. Needs the cable: iproxy speaks
@@ -66,4 +69,6 @@
   proxy   "sh tools/ios/proxy.sh"
   ;; what deploy would talk to. devicectl's cached list lies about state, so
   ;; this asks each device for its tunnelState instead of trusting the summary.
-  devices "sh tools/ios/devices.sh"}}
+  devices "sh tools/ios/devices.sh"
+  ;; the tools find their files from PROJECT_DIR and their own location, not the cwd
+  test-paths "sh tools/ios/test-paths.sh"}}

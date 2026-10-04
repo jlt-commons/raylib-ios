@@ -46,10 +46,61 @@ CONSOLE=0 jolt deploy                    # launches detached, for actually playi
 Namespaces worth building: `net.b12n.raylib-ios.link` (does it link at all), `net.b12n.raylib-ios.touch`,
 `net.b12n.raylib-ios.flappy`, `net.b12n.raylib-ios.gallery`, `net.b12n.raylib-ios.live`.
 
+### Building another project's app
+
+The tools build the project they are run from. `PROJECT_DIR` (default: the
+current directory) is the jolt project, the one with the `deps.edn`, and
+`RaylibIOS.app` is written to `$PROJECT_DIR/RaylibIOS.app` unless `APP` names
+another path (a relative `APP` is relative to the project). `Info.plist`, the
+target pack and the two static archives belong to this repo and are found from
+where the scripts are, so none of that depends on the current directory.
+
+```sh
+cd ~/dev/my-app                          # any jolt project that requires raylib-ios
+NS=my.app.main TARGET=device sh /path/to/raylib-ios/tools/ios/build.sh
+UDID=... CONSOLE=0 sh /path/to/raylib-ios/tools/ios/deploy.sh
+```
+
+`deploy.sh`, `live.sh` and `proxy.sh` find the app the same way. `proxy.sh`
+reads no project files, so `PROJECT_DIR` does nothing there. `deps.sh`,
+`pack.sh` and `devices.sh` never depended on the current directory.
+
+`DRY_RUN=1` on `build.sh` prints what it resolved and stops before checking or
+writing anything, which is the quick way to see which project and which paths a
+build would use:
+
+```sh
+cd /tmp && DRY_RUN=1 PROJECT_DIR=~/dev/my-app NS=my.app.main sh /path/to/raylib-ios/tools/ios/build.sh
+```
+
+`sh tools/ios/test-paths.sh` checks this, with no device or SDK.
+
+### One scene, full screen
+
+`net.b12n.raylib-ios.runner/run!` takes what a scene's `(scene)` returns and
+shows it alone: the gallery's frame, safe area and texture lifecycle, with no
+menu and no Back. A scene that throws prints its message, draws it, and stays.
+The app namespace has to require the scene's own `...scenes.<id>.draw`
+namespace, since the runner loads no draw methods:
+
+```clojure
+(ns my.app.main
+  (:require [net.b12n.raylib-ios.runner :as runner]
+            [net.b12n.raylib-ios.scenes.hello :as hello]
+            [net.b12n.raylib-ios.scenes.hello.draw]))
+
+(defn -main [& _] (runner/run! (hello/scene)))
+```
+
+For an nREPL, use `net.b12n.raylib-ios.runner.live/live-run!` the same way, in
+a second namespace, and build that one with `NS=... sh tools/ios/live.sh`. It is
+a separate namespace so a release build never requires `jolt.nrepl`.
+
 ## Live development
 
 ```sh
 jolt live                                # builds net.b12n.raylib-ios.live, deploys it detached
+NS=my.app.live jolt live                 # or another entry namespace, for a one-scene app
 jolt proxy                               # in another terminal: forwards the port over USB
 tools/ios/nrepl-eval 7888 '(System/getenv "HOME")'
 tools/ios/nrepl-repl 127.0.0.1 7888      # or a prompt

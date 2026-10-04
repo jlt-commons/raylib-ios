@@ -5,6 +5,17 @@
 #   NS=net.b12n.raylib-ios.link    TARGET=device sh tools/ios/build.sh
 #   NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh
 #
+# It builds the jolt project it is run from, not the one it lives in, so another
+# repo can build its own app with these tools:
+#
+#   cd ~/dev/my-app && NS=my.app.main sh /path/to/raylib-ios/tools/ios/build.sh
+#
+# PROJECT_DIR (default: the current directory) holds deps.edn, and the app is
+# written to $PROJECT_DIR/RaylibIOS.app unless APP says otherwise. Info.plist
+# and the pack and archive paths belong to this repo and are found from where
+# this script is, whatever the current directory is. DRY_RUN=1 prints what was
+# resolved and stops, before anything is checked or written.
+#
 # Both targets are tpb64l: threaded portable bytecode. Native code (tarm64ios)
 # is not an option on a device -- iOS requires executable pages to come from a
 # signed, immutable source, so a native build dies on launch with `mprotect
@@ -12,21 +23,46 @@
 # simulator cannot display OpenGL ES at all, so there is nothing to see there.
 set -eu
 
+# This repo's tools directory, found from the script and not from $PWD.
+TOOLS_DIR=$(cd "$(dirname "$0")" && pwd)
+
 NS=${NS:-net.b12n.raylib-ios.link}
 TARGET=${TARGET:-device}
-APP=${APP:-RaylibIOS.app}
 ALIAS=${ALIAS:-}
 DEV=${DEV:-$HOME/dev}
 
+PROJECT_DIR=${PROJECT_DIR:-$PWD}
+[ -d "$PROJECT_DIR" ] || { echo "build.sh: PROJECT_DIR '$PROJECT_DIR' is not a directory" >&2; exit 2; }
+PROJECT_DIR=$(cd "$PROJECT_DIR" && pwd)
+APP=${APP:-$PROJECT_DIR/RaylibIOS.app}
+# A relative APP is relative to the project, which is where jolt runs.
+case "$APP" in /*) ;; *) APP="$PROJECT_DIR/$APP" ;; esac
+INFO_PLIST="$TOOLS_DIR/Info.plist"
+
 case "$TARGET" in
-  device) SUFFIX=dev; WANT=2
-          ARCH="-target arm64-apple-ios14.0 -isysroot $(xcrun -sdk iphoneos --show-sdk-path)" ;;
-  sim)    SUFFIX=sim; WANT=7
-          ARCH="-target arm64-apple-ios-simulator -isysroot $(xcrun -sdk iphonesimulator --show-sdk-path)"
-          echo "build.sh: NOTE the simulator has not displayed OpenGL ES since iOS 17.5." >&2
-          echo "build.sh: pixels reach the framebuffer and the screen stays black; test on the phone." >&2 ;;
+  device) SUFFIX=dev; WANT=2; SDK=iphoneos; TRIPLE=arm64-apple-ios14.0 ;;
+  sim)    SUFFIX=sim; WANT=7; SDK=iphonesimulator; TRIPLE=arm64-apple-ios-simulator ;;
   *) echo "build.sh: TARGET must be sim or device, got '$TARGET'" >&2; exit 2 ;;
 esac
+
+WORK=${WORK:-/tmp/raylib-ios}
+PACK="$WORK/pack/$([ "$TARGET" = device ] && echo device || echo sim)"
+SDL_A="$DEV/sdl2-ios-$SUFFIX/lib/libSDL2.a"
+RAYLIB_A="${RAYLIB_A:-$DEV/raylib-ios-$SUFFIX/lib/libraylib.a}"
+
+if [ "${DRY_RUN:-0}" = 1 ]; then
+  for v in PROJECT_DIR NS ALIAS TARGET APP INFO_PLIST PACK SDL_A RAYLIB_A; do
+    eval "echo \"dry-run: $v=\$$v\""
+  done
+  exit 0
+fi
+
+# Computed after the dry run so that a dry run needs no Xcode.
+ARCH="-target $TRIPLE -isysroot $(xcrun -sdk "$SDK" --show-sdk-path)"
+if [ "$TARGET" = sim ]; then
+  echo "build.sh: NOTE the simulator has not displayed OpenGL ES since iOS 17.5." >&2
+  echo "build.sh: pixels reach the framebuffer and the screen stays black; test on the phone." >&2
+fi
 
 # ---- the target pack
 # Gate on link-libs rather than the directory: pack.sh rm -rf's its output and
@@ -39,15 +75,13 @@ esac
 # back to them saves twenty minutes and a ChezScheme checkout; it is announced
 # rather than silent, because a pack you did not build is a pack you cannot
 # reason about when a link goes wrong.
-WORK=${WORK:-/tmp/raylib-ios}
-PACK="$WORK/pack/$([ "$TARGET" = device ] && echo device || echo sim)"
 if [ ! -f "$PACK/link-libs" ]; then
   BORROWED="/tmp/glimmer-ios/pack/$([ "$TARGET" = device ] && echo device || echo sim)"
   if [ -f "$BORROWED/link-libs" ]; then
     echo "build.sh: no pack at $PACK, borrowing the glimmer-ios one at $BORROWED"
     PACK="$BORROWED"
   else
-    echo "build.sh: no usable target pack at $PACK (link-libs missing), run tools/ios/pack.sh" >&2
+    echo "build.sh: no usable target pack at $PACK (link-libs missing), run $TOOLS_DIR/pack.sh" >&2
     exit 2
   fi
 fi
@@ -59,10 +93,8 @@ fi
 LINK_LIBS=$(cat "$PACK/link-libs")
 
 # ---- the two static archives
-SDL_A="$DEV/sdl2-ios-$SUFFIX/lib/libSDL2.a"
-RAYLIB_A="${RAYLIB_A:-$DEV/raylib-ios-$SUFFIX/lib/libraylib.a}"
 for a in "$SDL_A" "$RAYLIB_A"; do
-  [ -f "$a" ] || { echo "build.sh: no $a -- run: SDK=$([ "$TARGET" = device ] && echo device || echo sim) sh tools/ios/deps.sh" >&2; exit 2; }
+  [ -f "$a" ] || { echo "build.sh: no $a -- run: SDK=$([ "$TARGET" = device ] && echo device || echo sim) sh $TOOLS_DIR/deps.sh" >&2; exit 2; }
 done
 
 # -force_load, not -l. Nothing in C references either archive: Chez looks its
@@ -83,7 +115,10 @@ ARCHIVES="-Wl,-force_load,$SDL_A -Wl,-force_load,$RAYLIB_A -Wl,-export_dynamic"
 FRAMEWORKS="-framework CoreGraphics -framework QuartzCore -framework OpenGLES -framework Metal -framework CoreVideo -framework AVFoundation -framework CoreMotion -framework GameController -framework CoreHaptics -lobjc"
 
 mkdir -p "$APP"
-cp tools/ios/Info.plist "$APP/Info.plist"
+cp "$INFO_PLIST" "$APP/Info.plist"
+
+# jolt reads deps.edn from the directory it runs in, so run it in the project.
+cd "$PROJECT_DIR"
 
 JOLT_TARGET_CC=clang \
 JOLT_TARGET_ARCH_FLAG="$ARCH" \

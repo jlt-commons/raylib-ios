@@ -4,7 +4,30 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ## Unreleased
 
+### Added
+
+- **`net.b12n.raylib-ios.runner/run!` shows one scene full screen.** It takes what a
+  scene's `(scene)` returns and runs it with no menu and no Back, through the
+  same frame, safe area, texture lifecycle and `guard-scene` machinery as the
+  gallery. A scene that throws prints its message, draws it on screen, and stays.
+  `runner.live/live-run!` adds the nREPL, in its own namespace so a release build
+  never requires `jolt.nrepl`.
+- **The iOS build tools work from any project.** `PROJECT_DIR` (default: the
+  current directory) names the jolt project and where `RaylibIOS.app` goes,
+  and `live.sh` takes `NS`. `Info.plist`, the target pack and the archives are
+  found from the scripts' own location. `DRY_RUN=1` on `build.sh` prints what
+  it resolved, and `tools/ios/test-paths.sh` checks it.
+
 ### Changed
+
+- **The gallery shell's per-frame pieces are in `net.b12n.raylib-ios.frame`**:
+  touch sampling and the synthetic `tap!`/`drag!`, the safe-area resolution,
+  the input a scene receives, and drawing inside the clipped, translated safe
+  region. The shell calls them and `gallery/tap!` and `gallery/drag!` still
+  work. The nREPL start moved from `live` to `net.b12n.raylib-ios.nrepl` so a
+  live build of one scene does not pull in the gallery. The console lines for
+  synthetic events and the ignored close request now begin `frame:` instead of
+  `gallery:`.
 
 - **Each scene's `draw-scene!` method now lives beside the scene.** All 137 moved
   out of `net.b12n.raylib-ios.gallery` into `net.b12n.raylib-ios.scenes.<x>.draw`,

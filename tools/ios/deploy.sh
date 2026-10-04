@@ -5,10 +5,19 @@
 #   TARGET=device sh tools/ios/deploy.sh
 #
 # Build first: NS=<ns> TARGET=<t> sh tools/ios/build.sh
+#
+# Like build.sh, it works on the project it is run from: PROJECT_DIR (default:
+# the current directory) holds RaylibIOS.app unless APP names it. It reads
+# nothing else from this repo, since signing uses the keychain and the
+# provisioning profiles on this machine.
 set -eu
 
 TARGET=${TARGET:-device}
-APP=${APP:-RaylibIOS.app}
+PROJECT_DIR=${PROJECT_DIR:-$PWD}
+[ -d "$PROJECT_DIR" ] || { echo "deploy.sh: PROJECT_DIR '$PROJECT_DIR' is not a directory" >&2; exit 2; }
+PROJECT_DIR=$(cd "$PROJECT_DIR" && pwd)
+APP=${APP:-$PROJECT_DIR/RaylibIOS.app}
+case "$APP" in /*) ;; *) APP="$PROJECT_DIR/$APP" ;; esac
 BUNDLE_ID=$(plutil -extract CFBundleIdentifier raw "$APP/Info.plist")
 
 # Validate, do not just test for "sim". An unrecognised value used to fall

@@ -27,7 +27,7 @@
   answers, alongside the gallery running at 58.8 fps."
   (:require [cider.nrepl] ; see the docstring: not unused
             [net.b12n.raylib-ios.gallery :as gallery]
-            [net.b12n.raylib-ios.live :as live]
+            [net.b12n.raylib-ios.nrepl :as nrepl]
             [nrepl.middleware])) ; see the docstring: not unused
 
 (def middleware
@@ -36,7 +36,6 @@
    'cider.nrepl/cider-middleware])
 
 (defn -main [& _]
-  (println "live: os.name" (pr-str (System/getProperty "os.name"))
-           "os.arch" (pr-str (System/getProperty "os.arch")))
-  (live/start-nrepl! middleware)
+  (nrepl/announce-platform!)
+  (nrepl/start-nrepl! middleware)
   (gallery/-main))

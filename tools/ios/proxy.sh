@@ -7,7 +7,12 @@
 # jolt.nrepl binds loopback only, so the phone's listener is unreachable
 # without this. iproxy speaks usbmuxd, which needs the CABLE: a phone paired
 # to Xcode over Wi-Fi answers devicectl happily and iproxy not at all.
+#
+# It reads no project files, so PROJECT_DIR does not apply; the hints it prints
+# point at this script's own directory, so they work from any project.
 set -eu
+
+TOOLS_DIR=$(cd "$(dirname "$0")" && pwd)
 
 : "${UDID:?set UDID to the phone hardware udid, from: jolt devices}"
 LOCAL_PORT=${LOCAL_PORT:-7888}
@@ -29,11 +34,11 @@ if [ -n "$HOLDER" ]; then
   echo "$HOLDER" | sed 's/^/  /' >&2
   echo "proxy.sh: forwarding onto it would send your evals to THAT process, and" >&2
   echo "proxy.sh: its answers would look perfectly reasonable. Pick another:" >&2
-  echo "proxy.sh:   UDID=$UDID LOCAL_PORT=17888 sh tools/ios/proxy.sh" >&2
+  echo "proxy.sh:   UDID=$UDID LOCAL_PORT=17888 sh $TOOLS_DIR/proxy.sh" >&2
   exit 2
 fi
 
 echo "proxy.sh: localhost:$LOCAL_PORT -> phone 127.0.0.1:$DEVICE_PORT (ctrl-c to stop)"
-echo "proxy.sh: prove it is the phone:  tools/ios/nrepl-eval $LOCAL_PORT '(System/getenv \"HOME\")'"
+echo "proxy.sh: prove it is the phone:  $TOOLS_DIR/nrepl-eval $LOCAL_PORT '(System/getenv \"HOME\")'"
 echo "proxy.sh: an iOS sandbox answers /private/var/mobile/Containers/Data/Application/..."
 exec iproxy -u "$UDID" "$LOCAL_PORT:$DEVICE_PORT"

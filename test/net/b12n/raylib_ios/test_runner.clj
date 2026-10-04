@@ -43,6 +43,7 @@
   "Test namespaces that load jolt.ffi, directly or through net.b12n.raylib-ios.gallery, so
   only jolt can require them. The JVM run skips them and says so."
   '#{net.b12n.raylib-ios.gallery-smoke-test
+     net.b12n.raylib-ios.runner-smoke-test
      net.b12n.raylib-ios.texture-test})
 
 (def ^:private jolt?
