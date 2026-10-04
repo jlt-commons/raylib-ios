@@ -298,6 +298,41 @@ held 59 to 60 fps, while voxel at 0.38 ms read 57. A laptop
 figure within about 20% of the line, so from 0.24 to 0.36 ms, is a reason to
 measure on the phone and not a verdict either way.
 
+## Texture uploads
+
+A texture scene pays for its pixels in a place a shape scene never does: the
+loop that writes each texel into the buffer `rlLoadTexture` reads. Each figure
+below is marked measured (a reading on the phone) or derived (worked out from
+one).
+
+**The write loop is about 2.6 us a texel** (derived). Sprite Animation memoises
+its grid, so its 197 ms reopen of 69120 texels is nearly all write loop:
+(197 - 17) ms over 69120 texels. It is an upper bound, because the 197 ms also
+holds `rlLoadTexture`. On the laptop the same loop is 0.071 us a texel
+(measured), which is why the cost only shows on the phone.
+
+**The pixel function adds to that.** A scene that computes each texel pays 5 to
+17 us more a texel on the phone for Srcrec Dstrec and Polygon Drawing (derived
+from their first-open pauses, so rough). Allocating a vector per texel is the
+part worth cutting, and the ten scenes' pixel functions avoid it.
+
+**First opens pause, reopens do not** (all measured, largest single frame, with
+the median frame at 17 ms). The first open after launch holds a frame for about
+1.0 s in Sprite Animation, 0.8 s in Polygon Drawing, 0.5 s in Procedural
+Textures, 0.2 s in Srcrec Dstrec and Sprite Button, and 0.17 s in Raw Data; the
+other four are under 70 ms. Once the filled staging buffer is retained, a reopen
+costs about one frame (17 to 18 ms) in eight of the ten. The exceptions are
+Procedural Textures (139 ms), whose noise is versioned and not retained, and Raw
+Data (149 ms), whose live panel is banded and not retained.
+
+**Two scenes cannot afford a whole rewrite per frame**, so they refresh a band.
+Raw Data refills 3 rows of its 128 row live panel a frame, which is each row
+every 43 frames, about 1.4 times a second (derived from 60 / 43). Screen Buffer
+steps and uploads 8 rows a frame, and a sweep of 7 frames is one step of the
+fire, so it runs at about 8.6 steps a second (derived from 60 / 7) against the
+original's 60. Both show a moving seam between fresher and older rows, and both
+read 58 to 59 fps (measured).
+
 ## How these were measured
 
 All of it live, over the nREPL, without a rebuild between readings. That is
