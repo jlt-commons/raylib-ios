@@ -95,6 +95,12 @@ answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
   128 by 128 rewrite every frame stalls it; `band!` costs the band alone, at
   the price of a moving seam between fresher and older rows, which the scene
   should say.
+- `perlin-texture!` takes `(scene-id key {:w :h :offset-x :offset-y :scale})` and
+  answers the id of raylib's own `GenImagePerlinNoise` image, made in C and
+  uploaded straight from the buffer raylib allocated (which it then frees). Use
+  it for a whole image: `raylib.perlin/perlin-grey` is the tested model, a texel
+  at a time, and costs about 17 us a texel under laptop jolt. The same spec
+  values answer the same id with no work while the scene is open.
 - GLES2 repeats only a power-of-two texture. `:repeat` on any other size throws
   before anything is allocated, so a non-power-of-two sheet is `:clamp`.
 - Test the pixel fn texel by texel against the original, over the whole

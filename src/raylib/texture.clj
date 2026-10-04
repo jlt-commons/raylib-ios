@@ -33,6 +33,11 @@
   gallery's scissor. `with-blend-factors!` sets rlgl's custom blend factors for
   the length of a call.
 
+  `perlin-texture!` is the one place raylib's own image generator is called. The
+  Image comes back by value, which jolt takes as a buffer passed first, and its
+  pixels go straight to rlLoadTexture and are freed with MemFree, so no
+  by-value argument is ever needed to consume it.
+
   Lifted from net.b12n.raylib.textures in jlt-commons/raylib-jlt (the rlgl
   declarations, the wrap and filter setters, the upload loop and the quad, and
   the render-texture, with-render-texture and restore-screen-projection!
@@ -65,6 +70,20 @@
 (ffi/defcfn rl-ortho                  "rlOrtho"                 [:double :double :double :double :double :double] :void)
 (ffi/defcfn rl-draw-render-batch-active "rlDrawRenderBatchActive" [] :void)
 (ffi/defcfn rl-set-blend-factors      "rlSetBlendFactors"       [:int :int :int] :void)
+
+;; raylib's own perlin image. GenImagePerlinNoise returns the 24-byte Image by
+;; value, which jolt takes as a buffer passed first (the convention
+;; net.b12n.raylib.images documents). The Image is never handed to raylib again:
+;; its `data` goes straight to rlLoadTexture and is freed with MemFree, so no
+;; by-value argument is needed and LoadTextureFromImage and UnloadImage are not.
+(def ^:private image-layout
+  (ffi/layout [:struct [[:data :pointer] [:width :int] [:height :int]
+                        [:mipmaps :int] [:format :int]]]))
+
+(ffi/defcfn gen-image-perlin-noise "GenImagePerlinNoise" [:int :int :int :int :float]
+  [:by-value [:struct [[:data :pointer] [:width :int] [:height :int]
+                       [:mipmaps :int] [:format :int]]]])
+(ffi/defcfn mem-free "MemFree" [:pointer] :void)
 
 ;; rlgl.h
 (def ^:private RL-QUADS 0x0007)
@@ -260,6 +279,75 @@
             (finally (ffi/free buf)))))
       gl-id)
     (upload! scene-id key spec false)))
+
+(defn perlin-texture!
+  "The rlgl texture id of raylib's own Perlin image for `key` in scene
+  `scene-id`, generated and uploaded on first use. `spec` is `{:w :h :offset-x
+  :offset-y :scale}`, the arguments of GenImagePerlinNoise, and the image is the
+  one `raylib.perlin/perlin-grey` models texel by texel.
+
+  This runs the C because the pure model is too slow for a whole image: 800 by
+  450 is 360000 texels of fbm, and `perlin-grey` costs about 17 microseconds a
+  texel under laptop jolt (6 s for the image) and far more on the phone.
+  The image's pixels are uploaded straight from the buffer raylib allocated, in
+  the format it reports, and that buffer is freed with MemFree on every path.
+  The texture is clamped and linear, with no mipmaps.
+
+  It is filed in the same table as `id!`, so `enter!` frees it with the scene's
+  other textures, and the same `spec` values (compared by value) answer the same
+  id with no work, so asking every frame costs a lookup. A different spec under
+  the key replaces the texture. A key holding a render target throws, as `id!`
+  does. Throws an ex-info with :scene, :key, :w and :h when raylib answers no
+  pixels or the upload fails, and caches nothing."
+  [scene-id key {:keys [w h offset-x offset-y scale]
+                 :as spec}]
+  (let [k [scene-id key]
+        have (get @table k)
+        wanted (select-keys spec [:w :h :offset-x :offset-y :scale])
+        fail (fn [what]
+               (ex-info (str "texture " (pr-str k) ": " what " for " w "x" h)
+                        {:scene scene-id
+                         :key key
+                         :w w
+                         :h h}))]
+    (when (:fbo have)
+      (throw (ex-info (str "texture " (pr-str k) ": the key holds a render target")
+                      {:scene scene-id
+                       :key key})))
+    (if (and have (= wanted (:perlin have)))
+      (:gl-id have)
+      (let [img (ffi/alloc (ffi/layout-size image-layout))]
+        (try
+          (gen-image-perlin-noise img (int w) (int h) (int offset-x) (int offset-y) (float scale))
+          (let [data (ffi/read-field img image-layout :data)
+                iw (ffi/read-field img image-layout :width)
+                ih (ffi/read-field img image-layout :height)
+                fmt (ffi/read-field img image-layout :format)
+                ;; a NULL pointer reads back as 0
+                null? (or (nil? data) (and (number? data) (zero? data)))]
+            (try
+              (when null?
+                (throw (fail "GenImagePerlinNoise answered no pixels")))
+              (let [id (rl-load-texture data iw ih fmt 1)]
+                (when (zero? id)
+                  (throw (fail "rlLoadTexture failed")))
+                (when have
+                  (swap! table dissoc k)
+                  (rl-unload-texture (:gl-id have)))
+                (swap! table assoc k {:gl-id id
+                                      :version nil
+                                      :w iw
+                                      :h ih
+                                      :perlin wanted})
+                (rl-texture-parameters id RL-TEXTURE-WRAP-S (RL-WRAP :clamp))
+                (rl-texture-parameters id RL-TEXTURE-WRAP-T (RL-WRAP :clamp))
+                (rl-texture-parameters id RL-TEXTURE-MIN-FILTER (RL-FILTER :linear))
+                (rl-texture-parameters id RL-TEXTURE-MAG-FILTER (RL-FILTER :linear))
+                id)
+              (finally
+                (when-not null?
+                  (mem-free data)))))
+          (finally (ffi/free img)))))))
 
 (defn- bind-screen!
   "Bind the framebuffer the screen is: SDL's drawable on the phone, and the

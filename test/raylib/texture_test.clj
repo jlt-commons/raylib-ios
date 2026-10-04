@@ -10,6 +10,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [jolt.ffi :as ffi]
             [raylib.host :as host]
+            [raylib.perlin :as perlin]
             [raylib.probe :as probe]
             [raylib.rlgl-model :as gl]
             [raylib.texel :as texel]
@@ -817,3 +818,180 @@
        (is (= [:flush] (first @calls)))
        (is (= sdl-fbo @bound))
        (is (= [:bind-fbo 0x8D40 sdl-fbo] (peek @calls)))))))
+
+;; perlin-texture!: raylib's own GenImagePerlinNoise, uploaded straight from C.
+;; The generator is stubbed to fill the 24-byte Image the caller passes with a
+;; data pointer, width, height, mipmaps and format that differ from what was
+;; asked for, so a call that uploaded the REQUESTED size or format instead of
+;; the returned one is caught.
+(def ^:private image-l
+  (ffi/layout [:struct [[:data :pointer] [:width :int] [:height :int]
+                        [:mipmaps :int] [:format :int]]]))
+
+(def ^:private perlin-spec
+  {:w 800
+   :h 450
+   :offset-x 0
+   :offset-y 0
+   :scale 6.0})
+
+(defn- with-perlin
+  "Call `(f calls pixels)` with GenImagePerlinNoise and MemFree stubbed to
+  record into `calls` (`:gen` and `:mem-free`), on top of `recording`'s stubs.
+  `returned` is the `{:w :h :format :null?}` the stub writes into the Image.
+  `pixels` is the buffer the stub says raylib allocated."
+  [returned f]
+  (recording
+   (fn [calls]
+     (let [pixels (ffi/alloc 16)]
+       (try
+         (with-redefs [tex/gen-image-perlin-noise
+                       (fn [img & args]
+                         (swap! calls conj (into [:gen] args))
+                         (ffi/write-field img image-l :data (if (:null? returned) 0 pixels))
+                         (ffi/write-field img image-l :width (:w returned))
+                         (ffi/write-field img image-l :height (:h returned))
+                         (ffi/write-field img image-l :mipmaps 1)
+                         (ffi/write-field img image-l :format (:format returned)))
+                       tex/mem-free (fn [p] (swap! calls conj [:mem-free p]) nil)]
+           (f calls pixels))
+         (finally (ffi/free pixels)))))))
+
+(def ^:private returned {:w 10
+                         :h 6
+                         :format 4})
+
+(deftest perlin-uploads-what-raylib-returned
+  (with-perlin returned
+    (fn [calls pixels]
+      (let [id (tex/perlin-texture! :s :p perlin-spec)]
+        (testing "counts first: one generation, one upload, one free"
+          (is (= 1 (count (of calls :gen))))
+          (is (= 1 (count (of calls :load))))
+          (is (= 1 (count (of calls :mem-free)))))
+        (testing "the generator is asked for the spec's w h offsets and scale"
+          (is (= [[:gen 800 450 0 0 6.0]] (of calls :gen))))
+        (testing "the upload is the returned pointer, width, height and format, no mipmaps"
+          (is (= [[:load pixels 10 6 4 1]] (of calls :load))))
+        (testing "that pointer is the one freed, after the upload"
+          (is (= [[:mem-free pixels]] (of calls :mem-free)))
+          (is (< (.indexOf (mapv first @calls) :load) (.indexOf (mapv first @calls) :mem-free))))
+        (testing "clamped and linear"
+          (is (= #{[:param 0x2802 0x812F] [:param 0x2803 0x812F]
+                   [:param 0x2801 0x2601] [:param 0x2800 0x2601]}
+                 (into #{} (map (fn [[nm _ p v]] [nm p v])) (of calls :param))))
+          (is (every? #(= id (second %)) (of calls :param))))
+        (testing "the id lands in the table, under the scene"
+          (is (= {[:s :p] {:gl-id id
+                           :version nil}} (tex/resident))))))))
+
+(deftest perlin-is-cached-and-freed-with-its-scene
+  (with-perlin returned
+    (fn [calls _]
+      (let [a (tex/perlin-texture! :s :p perlin-spec)
+            b (tex/perlin-texture! :s :p (assoc perlin-spec :w 800))]
+        (is (= a b))
+        (is (= 1 (count (of calls :gen))) "the same values answer the same id with no work")
+        (is (= 1 (count (of calls :load))))
+        (is (= 1 (count (of calls :mem-free)))))
+      (let [id (:gl-id (get (tex/resident) [:s :p]))]
+        (tex/enter! :other)
+        (is (= [[:unload id]] (of calls :unload)) "enter! frees it with the scene")
+        (is (empty? (tex/resident)))
+        (let [c (tex/perlin-texture! :other :p perlin-spec)]
+          (is (not= id c))
+          (is (= 2 (count (of calls :gen)))))))))
+
+(deftest a-different-perlin-spec-replaces-the-texture
+  (with-perlin returned
+    (fn [calls _]
+      (let [a (tex/perlin-texture! :s :p perlin-spec)
+            b (tex/perlin-texture! :s :p (assoc perlin-spec :scale 3.0))]
+        (is (not= a b))
+        (is (= 2 (count (of calls :gen))))
+        (is (= 2 (count (of calls :mem-free))))
+        (is (= [[:unload a]] (of calls :unload)) "the old texture is freed")
+        (is (= {[:s :p] {:gl-id b
+                         :version nil}} (tex/resident)))))))
+
+(deftest perlin-frees-the-pixels-when-the-upload-fails
+  (with-perlin returned
+    (fn [calls pixels]
+      (with-redefs [tex/rl-load-texture (fn [& _] 0)]
+        (let [e (try (tex/perlin-texture! :s :p perlin-spec) nil (catch :default e e))]
+          (is (some? e))
+          (is (= {:scene :s
+                  :key :p
+                  :w 800
+                  :h 450} (ex-data e)))
+          (is (= [[:mem-free pixels]] (of calls :mem-free)) "freed on the failing path")
+          (is (empty? (tex/resident)))
+          (is (empty? (of calls :param))))))))
+
+(deftest perlin-frees-the-pixels-when-the-parameters-throw
+  (with-perlin returned
+    (fn [calls pixels]
+      (with-redefs [tex/rl-texture-parameters (fn [& _] (throw (ex-info "boom" {})))]
+        (is (thrown? Exception (tex/perlin-texture! :s :p perlin-spec)))
+        (is (= [[:mem-free pixels]] (of calls :mem-free)) "freed when a later call throws")))))
+
+(deftest perlin-with-no-pixels-throws-and-uploads-nothing
+  (with-perlin (assoc returned :null? true)
+    (fn [calls _]
+      (let [e (try (tex/perlin-texture! :s :p perlin-spec) nil (catch :default e e))]
+        (is (some? e))
+        (is (= 800 (:w (ex-data e))))
+        (is (= 1 (count (of calls :gen))))
+        (is (empty? (of calls :load)))
+        (is (empty? (of calls :mem-free)) "a NULL pointer is not freed")
+        (is (empty? (tex/resident)))))))
+
+(deftest perlin-refuses-a-render-target-key
+  (with-perlin returned
+    (fn [calls _]
+      (tex/target! :s :p {:w 8
+                          :h 8})
+      (is (thrown? Exception (tex/perlin-texture! :s :p perlin-spec)))
+      (is (empty? (of calls :gen))))))
+
+;; The native call against the pure model. This needs the real libraylib, which
+;; `jolt -M:test` does not load (the project links raylib statically on the
+;; phone), so it skips and says so unless it is run with the library declared:
+;;   jolt -Sdeps '{:jolt/native [{:name "raylib" :darwin ["/opt/homebrew/lib/libraylib.dylib"]}]}' -M:test
+(defn- native-perlin
+  "The image GenImagePerlinNoise answers for `spec`, as `{:w :h :format :grey}`
+  where `:grey` is a fn from x y to the first byte of that texel; nil when
+  libraylib cannot be called here."
+  [{:keys [w h offset-x offset-y scale]}]
+  (try
+    (let [img (ffi/alloc 24)]
+      (try
+        (tex/gen-image-perlin-noise img w h offset-x offset-y scale)
+        (let [data (ffi/read-field img image-l :data)]
+          (try
+            {:w (ffi/read-field img image-l :width)
+             :h (ffi/read-field img image-l :height)
+             :format (ffi/read-field img image-l :format)
+             :bytes (mapv (fn [i] (ffi/read data :uint8 i)) (range (* 4 w h)))}
+            (finally (tex/mem-free data))))
+        (finally (ffi/free img))))
+    (catch :default _ nil)))
+
+(deftest the-native-perlin-image-is-the-pure-models
+  (let [spec {:w 64
+              :h 36
+              :offset-x 5
+              :offset-y 9
+              :scale 6.0}
+        img (native-perlin spec)]
+    (if (nil? img)
+      (println "SKIPPED the-native-perlin-image-is-the-pure-models: libraylib is not loadable here")
+      (do
+        (is (= [64 36 7] [(:w img) (:h img) (:format img)]))
+        (testing "every texel is the model's grey in R, G and B, and opaque"
+          (is (= 0 (count (for [y (range 36) x (range 64)
+                                :let [o (* 4 (+ x (* y 64)))
+                                      g (perlin/perlin-grey 64 36 5 9 6.0 x y)
+                                      b (:bytes img)]
+                                :when (not= [g g g 255] [(nth b o) (nth b (+ o 1)) (nth b (+ o 2)) (nth b (+ o 3))])]
+                            [x y])))))))))
