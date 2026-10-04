@@ -303,7 +303,7 @@
     (testing (str screen)
       (is (= 20 (count (:boxes s))))
       (is (= [0] (:dirty s)))
-      (testing "the opening light walks out of the box at the centre and then casts, as the original's does"
+      (testing "the opening light walks out of the box that this seed puts at the centre and then casts"
         (is (some (fn [st] (and (:valid? (first (:lights st)))
                                 (pos? (count (:shadows (first (:lights st)))))))
                   (take 300 (iterate idle-step s)))))

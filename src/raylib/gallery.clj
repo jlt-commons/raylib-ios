@@ -4819,8 +4819,10 @@
          fy :y
          fw :w
          fh :h} field
+        ;; 2D passes run with the depth test off, so the masks carry no depth buffer
         spec {:w fw
-              :h fh}
+              :h fh
+              :depth? false}
         lights (:lights state)
         master (texture/target! :toplights :master spec)
         masks (mapv (fn [i] (texture/target! :toplights [:mask i] spec)) (range (count lights)))
@@ -4830,7 +4832,8 @@
     ;; shrinking the dropped masks to a pixel gives their memory back at once.
     (doseq [i (:release state)]
       (texture/target! :toplights [:mask i] {:w 1
-                                             :h 1}))
+                                             :h 1
+                                             :depth? false}))
     ;; The masks are rendered before anything of the screen's own, then merged.
     (doseq [i dirty]
       (texture/with-target! (nth masks i) safe

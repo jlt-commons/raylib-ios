@@ -495,27 +495,28 @@
 (defn- make-target
   "The GL objects of a `w` x `h` target: a framebuffer, an RGBA8 colour texture
   (linear, clamped, no mipmaps, transparent black from the zeroed upload buffer)
-  and a depth renderbuffer. Answers the table entry, or throws and frees what it
+  and, unless `depth?` is false, a depth renderbuffer. Answers the table entry, or throws and frees what it
   made when the framebuffer is incomplete.
 
   rlLoadFramebuffer, rlFramebufferAttach and rlFramebufferComplete each leave
   framebuffer 0 bound (rlgl.h, 6.0), which on iOS is not the screen. So the
   batch is flushed before the first of them, while the screen is still bound,
   and SDL's framebuffer is bound again on the way out, whichever way it goes."
-  [scene-id key w h]
+  [scene-id key w h depth?]
   (rl-draw-render-batch-active)
   (try
     (let [fbo (rl-load-framebuffer)
           buf (ffi/alloc (* w h 4))
           tex (try (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)
                    (finally (ffi/free buf)))
-          depth (rl-load-texture-depth w h 1)]
+          depth (when depth? (rl-load-texture-depth w h 1))]
       (rl-texture-parameters tex RL-TEXTURE-WRAP-S (RL-WRAP :clamp))
       (rl-texture-parameters tex RL-TEXTURE-WRAP-T (RL-WRAP :clamp))
       (rl-texture-parameters tex RL-TEXTURE-MIN-FILTER (RL-FILTER :linear))
       (rl-texture-parameters tex RL-TEXTURE-MAG-FILTER (RL-FILTER :linear))
       (rl-framebuffer-attach fbo tex RL-ATTACHMENT-COLOR-CHANNEL0 RL-ATTACHMENT-TEXTURE2D 0)
-      (rl-framebuffer-attach fbo depth RL-ATTACHMENT-DEPTH RL-ATTACHMENT-RENDERBUFFER 0)
+      (when depth
+        (rl-framebuffer-attach fbo depth RL-ATTACHMENT-DEPTH RL-ATTACHMENT-RENDERBUFFER 0))
       (when (zero? (bit-and (rl-framebuffer-complete fbo) 0xff))
         (unload-entry! tex fbo)
         (throw (ex-info (str "texture " (pr-str [scene-id key]) ": framebuffer incomplete for "
@@ -533,14 +534,18 @@
 
 (defn target!
   "The render target for `key` in scene `scene-id`, made on first use, as
-  `{:fbo :texture :w :h}`. `spec` is `{:w :h}`. The same size answers the same
+  `{:fbo :texture :w :h}`. `spec` is `{:w :h :depth?}`; `:depth?` defaults to
+  true, and false makes a target with no depth renderbuffer (rlgl runs 2D with
+  the depth test off, so a pass that draws only flat shapes loses nothing, and
+  saves 2 bytes a texel). The same size answers the same
   target, a new size frees the old pair and makes a new one, and `enter!` frees
   it with the scene's other textures. Throws an ex-info with :scene, :key, :w
   and :h when the driver calls the framebuffer incomplete, and caches nothing.
 
   The colour texture starts transparent black. GL stores it bottom-up, so draw
   it back with `quad!` and `:v0 1.0 :v1 0.0`."
-  [scene-id key {:keys [w h]}]
+  [scene-id key {:keys [w h depth?]
+                 :or {depth? true}}]
   (let [k [scene-id key]
         have (get @table k)]
     (when (and have (not (:fbo have)))
@@ -553,7 +558,7 @@
                     (when have
                       (swap! table dissoc k)
                       (unload-entry! (:gl-id have) (:fbo have)))
-                    (let [made (make-target scene-id key w h)]
+                    (let [made (make-target scene-id key w h depth?)]
                       (swap! table assoc k made)
                       made)))]
       {:fbo (:fbo entry)

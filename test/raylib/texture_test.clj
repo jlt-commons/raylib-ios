@@ -1030,3 +1030,78 @@
                              [cx cy] (nth verts (+ 2 (* 3 i)))]
                          (neg? (- (* (- bx ax) (- cy ay)) (* (- by ay) (- cx ax))))))
                      (range 36))))))))
+
+;; target! with :depth? false: a pass that draws only flat shapes needs no depth
+;; renderbuffer (rlgl runs 2D with the depth test off).
+(deftest a-target-without-depth-makes-and-attaches-none
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :flat {:w 256
+                                     :h 128
+                                     :depth? false})
+           fbo (:fbo rt)]
+       (testing "counts first: one framebuffer, one colour texture, no depth"
+         (is (= 1 (count (of calls :load-fbo))))
+         (is (= 1 (count (of calls :load))))
+         (is (= 0 (count (of calls :load-depth)))))
+       (testing "the only attach is the colour texture"
+         (is (= [[:attach fbo (:texture rt) 0 100 0]] (of calls :attach))))
+       (testing "it is completed and the screen bound again, like any target"
+         (is (= [[:complete fbo]] (of calls :complete)))
+         (is (= sdl-fbo @bound)))
+       (testing "the entry is the same shape, and the same size answers the same target"
+         (is (= {:fbo fbo
+                 :texture (:texture rt)
+                 :w 256
+                 :h 128} rt))
+         (is (= rt (tex/target! :s :flat {:w 256
+                                          :h 128
+                                          :depth? false})))
+         (is (= 1 (count (of calls :load-fbo)))))))))
+
+(deftest a-target-without-depth-binds-and-restores-like-any-target
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :flat {:w 256
+                                     :h 128
+                                     :depth? false})
+           _ (reset! calls [])]
+       (tex/with-target! rt safe (fn [] (swap! calls conj [:f])))
+       (is (= [[:flush] [:end-scissor] [:push] [:identity] [:enable-fbo (:fbo rt)]
+               [:viewport 0 0 256 128]]
+              (subvec @calls 0 6)))
+       (is (some #{[:f]} @calls))
+       (is (= sdl-fbo @bound))
+       (is (= [:begin-scissor 0 100 1206 2000] (peek @calls)))))))
+
+(deftest freeing-a-target-without-depth-unloads-its-framebuffer-and-colour-only
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :flat {:w 64
+                                     :h 64
+                                     :depth? false})
+           _ (reset! calls [])]
+       (tex/enter! :other)
+       (is (= [[:unload (:texture rt)]] (of calls :unload)))
+       (is (= [[:unload-fbo (:fbo rt)]] (of calls :unload-fbo)))
+       (is (= 0 (count (of calls :load-depth))))
+       (is (= sdl-fbo @bound))
+       (is (empty? (tex/resident))))))
+  (testing "a depth target is made and freed as before"
+    (recording
+     (fn [calls]
+       (tex/target! :s :deep {:w 64
+                              :h 64})
+       (is (= [[:load-depth 64 64 1]] (of calls :load-depth)))
+       (is (= 2 (count (of calls :attach))))))))
+
+(deftest depth-defaults-to-true-and-explicit-true-matches
+  (recording
+   (fn [calls]
+     (tex/target! :s :a {:w 8
+                         :h 8})
+     (tex/target! :s :b {:w 8
+                         :h 8
+                         :depth? true})
+     (is (= 2 (count (of calls :load-depth))))
+     (is (= 4 (count (of calls :attach)))))))
