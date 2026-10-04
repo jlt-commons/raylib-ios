@@ -184,7 +184,10 @@ before looking at anything.
 `(yours/scene)` to the `scenes` vector, and add its `:id` to a category's
 `:scenes` list. All three, or it will not appear.
 
-**4. A `draw-scene!` method**, also in `net.b12n.raylib-ios.gallery`. This is the only place
+**4. A `draw-scene!` method**, in its own namespace beside the scene,
+`net.b12n.raylib-ios.scenes.<name>.draw` at `scenes/<name>/draw.clj`. Add that
+namespace to the list in `net.b12n.raylib-ios.gallery.draws`, the one file that
+requires every draw namespace. This is the only place
 raylib gets called. Drawing reads the state the scene produced and calls
 `rl/draw-line` and friends. A texture scene also keeps its spec here, as a `def` or
 `delay` beside the method (see Textures above).

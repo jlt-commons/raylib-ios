@@ -45,10 +45,10 @@ Still blocked, and what each waits on:
 
 ## Infrastructure
 
-- **Split the drawing out of `net.b12n.raylib-ios.gallery`.** It is 4934 lines and grows
-  by about thirty a scene, so splitting it is due. The `draw-scene!` methods
-  could move to their own namespace. The file now has 53 `*-cache` atoms with
-  the same eight-line body, so a `memo-last` helper belongs in the same split.
+- **A `memo-last` helper for the draw caches.** The `draw-scene!` methods now sit
+  beside their scenes, each in its own `...scenes.<name>.draw` namespace. They
+  carry 53 `*-cache` atoms with the same eight-line body, so a `memo-last` helper
+  is still due.
   The field-below-Back layout and the text `fit` lambdas also repeat across the
   render-target scenes.
   The two newest caches hold a whole draw list (`geoshapes-cache` and

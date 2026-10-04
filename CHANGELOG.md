@@ -6,6 +6,14 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ### Changed
 
+- **Each scene's `draw-scene!` method now lives beside the scene.** All 137 moved
+  out of `net.b12n.raylib-ios.gallery` into `net.b12n.raylib-ios.scenes.<x>.draw`,
+  along with the helpers and caches only that method uses, and the gallery went
+  from 4934 lines to 808. `net.b12n.raylib-ios.gallery.draws` requires every draw
+  namespace. The multimethod itself, and the eight helpers more than one method
+  shares, are in `net.b12n.raylib-ios.gallery.draw-util`, because the gallery
+  loads the draw namespaces and so cannot own what they require. Method bodies
+  are unchanged.
 - **Every namespace is now `net.b12n.raylib-ios.*`.** `raylib.<x>` became
   `net.b12n.raylib-ios.<x>`, so `raylib.gallery` is
   `net.b12n.raylib-ios.gallery` and `raylib.scenes.<x>` is

@@ -201,4 +201,4 @@ See
 
 Four touchpoints, listed in `CONTRIBUTING.md`. The short version is a pure
 `.cljc` under `src/net/b12n/raylib_ios/scenes/`, a test beside it, a `draw-scene!` method in
-`net.b12n.raylib-ios.gallery`, and an entry in the category list.
+`scenes/<name>/draw.clj`, and an entry in the category list.

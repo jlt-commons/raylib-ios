@@ -21,11 +21,14 @@
             [net.b12n.raylib-ios.gallery :as rg]
             [net.b12n.raylib-ios.gallery.core :as gallery]
             [net.b12n.raylib-ios.gallery.diagnostics :as diag]
+            [net.b12n.raylib-ios.gallery.draw-util :as du]
             [net.b12n.raylib-ios.host :as host]
             [net.b12n.raylib-ios.probe :as probe]
             [net.b12n.raylib-ios.rlgl-model :as gl]
             [net.b12n.raylib-ios.scenes.doom :as doom]
+            [net.b12n.raylib-ios.scenes.geoshapes.draw :as geoshapes-draw]
             [net.b12n.raylib-ios.scenes.split3d :as split3d]
+            [net.b12n.raylib-ios.scenes.split3d.draw :as split3d-draw]
             [net.b12n.raylib-ios.scroll :as scroll]
             [net.b12n.raylib-ios.texture :as texture]))
 
@@ -163,8 +166,8 @@
 (deftest geoshapes-cache-is-keyed-on-the-screen
   ;; host-measure calls MeasureText, which needs a window; the layout under test
   ;; only needs a width.
-  (with-redefs [rg/host-measure (fn [s size] (* 0.6 size (count s)))]
-    (let [frame @#'rg/geoshapes-frame
+  (with-redefs [du/host-measure (fn [s size] (* 0.6 size (count s)))]
+    (let [frame @#'geoshapes-draw/geoshapes-frame
           a (frame {:frame 0} {:screen [1206 2334]})
           a2 (frame {:frame 7} {:screen [1206 2334]})
           b (frame {:frame 0} {:screen [2334 1206]})
@@ -185,7 +188,7 @@
   (let [m {:screen [1206 2334]}
         dims (split3d/dimensions m (fn [s size] (* 0.6 size (count s))))
         st (first ((:init (split3d/scene)) {:metrics m}))
-        lst @#'rg/split3d-list
+        lst @#'split3d-draw/split3d-list
         a0 (lst st dims 0)
         a1 (lst st dims 1)]
     (testing "nobody moved: both halves come back as the very same lists"
@@ -266,7 +269,7 @@
                  (chk nm types args)
                  (swap! probe update-in [:balance k] (fnil + 0) d)
                  nil))]
-    (with-redefs [rg/host-measure (fn [s size] (int (* 0.6 size (count s))))
+    (with-redefs [du/host-measure (fn [s size] (int (* 0.6 size (count s))))
                   host/clear-background (stub :clear-background [:uint] nil)
                   host/draw-text (stub :draw-text [:string :int :int :int :uint] nil)
                   host/draw-circle (stub :draw-circle [:int :int :float :uint] nil)
@@ -612,7 +615,7 @@
         states (reductions (fn [st input] (first ((:update (doom/scene)) st input)))
                            start (cons press (repeat 30 (hold -200.0))))
         per-frame (atom [])]
-    (with-redefs [rg/host-measure (fn [s size] (* 0.6 size (count s)))
+    (with-redefs [du/host-measure (fn [s size] (* 0.6 size (count s)))
                   host/draw-rectangle (bump :rect)
                   host/draw-text (bump :text)
                   host/draw-circle (bump :circle)

@@ -67,7 +67,7 @@ everywhere:
 ```
 
 **4. Leave drawing to the host.** The pure namespace computes; a
-`draw-scene!` method in `net.b12n.raylib-ios.gallery` draws. Colours come back as
+`draw-scene!` method in the scene's own `...scenes.<name>.draw` namespace draws. Colours come back as
 `[r g b a]` and the host packs them, so no raylib type reaches the scene.
 
 ## What it costs in bindings
@@ -242,7 +242,7 @@ that usually means the approach is finished rather than that the tuning is.
 
 Ten of the ports draw a real GPU texture rather than flat shapes. They keep
 the scene contract: the namespace stays pure and knows nothing of FFI, and the
-`draw-scene!` method in `net.b12n.raylib-ios.gallery` is the only place a texture is touched.
+`draw-scene!` method in the scene's `...scenes.<name>.draw` namespace is the only place a texture is touched.
 
 The scene describes the texture as a spec map, `{:w :h :wrap :filter :pixel
 :version}`. `:pixel` is `(f x y)` and answers a packed colour,
@@ -338,7 +338,7 @@ after launch), and 16 field-sized lights in Top Down Lights ran at 58 fps. The c
 
 ## Wiring it in
 
-Three edits, all in `net.b12n.raylib-ios.gallery`:
+Three edits in `net.b12n.raylib-ios.gallery`:
 
 ```clojure
 (:require ... [net.b12n.raylib-ios.scenes.spirograph :as spiro])
@@ -346,7 +346,7 @@ Three edits, all in `net.b12n.raylib-ios.gallery`:
 {:id :generative :title "Generative" :scenes [:spirograph ...]}
 ```
 
-plus a `draw-scene!` method. Then a test namespace beside the others, since the
+plus a `draw-scene!` method in `scenes/<name>/draw.clj`, listed in `net.b12n.raylib-ios.gallery.draws`. Then a test namespace beside the others, since the
 scene is pure and there is no excuse not to.
 
 Under jolt, `jolt -M:test` also runs a smoke test that fails if a scene is
