@@ -23,11 +23,23 @@
   kept, and `band!` and the version refresh use temporary buffers, and a texture first made by `band!`
   is never kept (it is dynamic).
 
+  Render targets live in the same table. `target!` makes an off-screen
+  framebuffer with an RGBA8 colour texture and a depth renderbuffer under a
+  `[scene-id key]` pair, and `enter!` frees it with the rest of that scene's
+  textures. A target is render output, so it is never kept on the CPU side, and
+  `id!` refuses a key that holds one (and `target!` a key that holds a plain
+  texture). `with-target!` draws into one and gives the screen back: SDL's
+  drawable framebuffer, the viewport, the projection, the matrix and the
+  gallery's scissor. `with-blend-factors!` sets rlgl's custom blend factors for
+  the length of a call.
+
   Lifted from net.b12n.raylib.textures in jlt-commons/raylib-jlt (the rlgl
-  declarations, the wrap and filter setters, the upload loop and the quad), with
-  the id table, the pow2 rule and `triangles!` added."
+  declarations, the wrap and filter setters, the upload loop and the quad, and
+  the render-texture, with-render-texture and restore-screen-projection!
+  bodies), with the id table, the pow2 rule and `triangles!` added."
   (:require [jolt.ffi :as ffi]
-            [raylib.host :as host]))
+            [raylib.host :as host]
+            [raylib.probe :as probe]))
 
 (ffi/defcfn rl-load-texture       "rlLoadTexture"       [:pointer :int :int :int :int] :uint)
 (ffi/defcfn rl-update-texture     "rlUpdateTexture"     [:uint :int :int :int :int :int :pointer] :void)
@@ -36,6 +48,23 @@
 (ffi/defcfn rl-set-texture        "rlSetTexture"        [:uint] :void)
 (ffi/defcfn rl-tex-coord-2f       "rlTexCoord2f"        [:float :float] :void)
 (ffi/defcfn rl-get-texture-id-default "rlGetTextureIdDefault" [] :uint)
+
+;; rlgl framebuffers (render targets), all scalar
+(ffi/defcfn rl-load-framebuffer       "rlLoadFramebuffer"       [] :uint)
+(ffi/defcfn rl-framebuffer-attach     "rlFramebufferAttach"     [:uint :uint :int :int :int] :void)
+(ffi/defcfn rl-framebuffer-complete   "rlFramebufferComplete"   [:uint] :uint8)
+(ffi/defcfn rl-enable-framebuffer     "rlEnableFramebuffer"     [:uint] :void)
+(ffi/defcfn rl-disable-framebuffer    "rlDisableFramebuffer"    [] :void)
+(ffi/defcfn rl-unload-framebuffer     "rlUnloadFramebuffer"     [:uint] :void)
+(ffi/defcfn rl-load-texture-depth     "rlLoadTextureDepth"      [:int :int :int] :uint)
+(ffi/defcfn rl-viewport               "rlViewport"              [:int :int :int :int] :void)
+(ffi/defcfn rl-set-framebuffer-width  "rlSetFramebufferWidth"   [:int] :void)
+(ffi/defcfn rl-set-framebuffer-height "rlSetFramebufferHeight"  [:int] :void)
+(ffi/defcfn rl-matrix-mode            "rlMatrixMode"            [:int] :void)
+(ffi/defcfn rl-load-identity          "rlLoadIdentity"          [] :void)
+(ffi/defcfn rl-ortho                  "rlOrtho"                 [:double :double :double :double :double :double] :void)
+(ffi/defcfn rl-draw-render-batch-active "rlDrawRenderBatchActive" [] :void)
+(ffi/defcfn rl-set-blend-factors      "rlSetBlendFactors"       [:int :int :int] :void)
 
 ;; rlgl.h
 (def ^:private RL-QUADS 0x0007)
@@ -51,6 +80,21 @@
 ;; RL_PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
 (def ^:private PIXELFORMAT-R8G8B8A8 7)
 (def ^:private WHITE (long 0xFFFFFFFF))
+
+(def ^:private RL-MODELVIEW 0x1700)
+(def ^:private RL-PROJECTION 0x1701)
+(def ^:private RL-ATTACHMENT-COLOR-CHANNEL0 0)
+(def ^:private RL-ATTACHMENT-DEPTH 100)
+(def ^:private RL-ATTACHMENT-TEXTURE2D 100)
+(def ^:private RL-ATTACHMENT-RENDERBUFFER 200)
+(def ^:private GL-FRAMEBUFFER 0x8D40)
+;; raylib.h BlendMode BLEND_CUSTOM
+(def ^:private BLEND-CUSTOM 6)
+
+;; rlgl.h blend factors and equations, for `with-blend-factors!`
+(def RL-SRC-ALPHA 0x0302)
+(def RL-MIN 0x8007)
+(def RL-MAX 0x8008)
 
 (defonce ^:private table (atom {}))
 
@@ -104,6 +148,10 @@
                  :as spec} retain?]
   (let [k [scene-id key]
         have (get @table k)]
+    (when (:fbo have)
+      (throw (ex-info (str "texture " (pr-str k) ": the key holds a render target")
+                      {:scene scene-id
+                       :key key})))
     (when (and (= :repeat wrap) (not (and (pow2? w) (pow2? h))))
       (throw (ex-info (str "texture " (pr-str k) ": :wrap :repeat needs power-of-two sizes, got "
                            w "x" h)
@@ -213,16 +261,24 @@
       gl-id)
     (upload! scene-id key spec false)))
 
+(defn- unload-entry!
+  "Free one table entry's GL objects. A target's framebuffer takes its depth
+  renderbuffer with it; the colour texture is ours to free."
+  [gl-id fbo]
+  (rl-unload-texture gl-id)
+  (when fbo
+    (rl-unload-framebuffer fbo)))
+
 (defn enter!
-  "Free every texture that does not belong to `scene-id`. Called every frame
+  "Free every texture and render target that does not belong to `scene-id`. Called every frame
   with the active scene's id, or nil when no scene is showing (which frees
   everything). A scene that comes back after a free uploads afresh."
   [scene-id]
   (when (seq @table)
-    (doseq [[[sid :as k] {:keys [gl-id]}] @table
+    (doseq [[[sid :as k] {:keys [gl-id fbo]}] @table
             :when (not= sid scene-id)]
       (swap! table dissoc k)
-      (rl-unload-texture gl-id))))
+      (unload-entry! gl-id fbo))))
 
 (defn- unbind!
   "End a textured draw by binding rlgl's default texture. rlSetTexture 0 is not
@@ -326,3 +382,136 @@
           (emit q3)))
       (host/rl-end)
       (finally (unbind!)))))
+
+;; --- render targets ----------------------------------------------------------
+
+(defn- make-target
+  "The GL objects of a `w` x `h` target: a framebuffer, an RGBA8 colour texture
+  (linear, clamped, no mipmaps, transparent black from the zeroed upload buffer)
+  and a depth renderbuffer. Answers the table entry, or throws and frees what it
+  made when the framebuffer is incomplete."
+  [scene-id key w h]
+  (let [fbo (rl-load-framebuffer)
+        buf (ffi/alloc (* w h 4))
+        tex (try (rl-load-texture buf w h PIXELFORMAT-R8G8B8A8 1)
+                 (finally (ffi/free buf)))
+        depth (rl-load-texture-depth w h 1)]
+    (rl-texture-parameters tex RL-TEXTURE-WRAP-S (RL-WRAP :clamp))
+    (rl-texture-parameters tex RL-TEXTURE-WRAP-T (RL-WRAP :clamp))
+    (rl-texture-parameters tex RL-TEXTURE-MIN-FILTER (RL-FILTER :linear))
+    (rl-texture-parameters tex RL-TEXTURE-MAG-FILTER (RL-FILTER :linear))
+    (rl-framebuffer-attach fbo tex RL-ATTACHMENT-COLOR-CHANNEL0 RL-ATTACHMENT-TEXTURE2D 0)
+    (rl-framebuffer-attach fbo depth RL-ATTACHMENT-DEPTH RL-ATTACHMENT-RENDERBUFFER 0)
+    (when (zero? (bit-and (rl-framebuffer-complete fbo) 0xff))
+      (unload-entry! tex fbo)
+      (throw (ex-info (str "texture " (pr-str [scene-id key]) ": framebuffer incomplete for "
+                           w "x" h)
+                      {:scene scene-id
+                       :key key
+                       :w w
+                       :h h})))
+    {:gl-id tex
+     :fbo fbo
+     :version nil
+     :w w
+     :h h}))
+
+(defn target!
+  "The render target for `key` in scene `scene-id`, made on first use, as
+  `{:fbo :texture :w :h}`. `spec` is `{:w :h}`. The same size answers the same
+  target, a new size frees the old pair and makes a new one, and `enter!` frees
+  it with the scene's other textures. Throws an ex-info with :scene, :key, :w
+  and :h when the driver calls the framebuffer incomplete, and caches nothing.
+
+  The colour texture starts transparent black. GL stores it bottom-up, so draw
+  it back with `quad!` and `:v0 1.0 :v1 0.0`."
+  [scene-id key {:keys [w h]}]
+  (let [k [scene-id key]
+        have (get @table k)]
+    (when (and have (not (:fbo have)))
+      (throw (ex-info (str "texture " (pr-str k) ": the key holds a plain texture")
+                      {:scene scene-id
+                       :key key})))
+    (let [entry (if (and have (= w (:w have)) (= h (:h have)))
+                  have
+                  (do
+                    (when have
+                      (swap! table dissoc k)
+                      (unload-entry! (:gl-id have) (:fbo have)))
+                    (let [made (make-target scene-id key w h)]
+                      (swap! table assoc k made)
+                      made)))]
+      {:fbo (:fbo entry)
+       :texture (:gl-id entry)
+       :w (:w entry)
+       :h (:h entry)})))
+
+(defn- bind-screen!
+  "Bind the framebuffer the screen is: SDL's drawable on the phone, and the
+  default framebuffer when the host recorded none."
+  []
+  (if-let [fbo (:framebuffer @probe/wm-info)]
+    (host/gl-bind-framebuffer GL-FRAMEBUFFER fbo)
+    (rl-disable-framebuffer)))
+
+(defn- restore-screen-view!
+  "The screen's viewport and projection, as EndTextureMode leaves them. This host
+  opens the window at the drawable's pixel size, so raylib runs at scale 1 and
+  GetScreenWidth is the render width, with no HiDPI modelview scale to put
+  back. Leaves the matrix mode on MODELVIEW, so the pop that follows restores
+  the modelview matrix."
+  []
+  (let [sw (host/get-screen-width)
+        sh (host/get-screen-height)]
+    (rl-viewport 0 0 sw sh)
+    (rl-set-framebuffer-width sw)
+    (rl-set-framebuffer-height sh)
+    (rl-matrix-mode RL-PROJECTION)
+    (rl-load-identity)
+    (rl-ortho 0.0 (double sw) (double sh) 0.0 0.0 1.0)
+    (rl-matrix-mode RL-MODELVIEW)))
+
+(defn with-target!
+  "Run `(f)` with drawing redirected into render target `rt` (from `target!`)
+  and answer its result. `safe` is the `{:x :y :width :height}` scissor the
+  gallery has up around the scene.
+
+  The batch is flushed on the way in and on the way out, because rlgl defers
+  geometry and would otherwise draw it into whichever framebuffer is bound
+  later. Inside, the scissor is down and the matrix is pushed and reset, so `f`
+  draws in the target's own pixels from (0, 0). On every path, throws included,
+  it then binds the screen, restores the screen viewport and projection, pops
+  the matrix and puts the scissor back, so the rest of the scene's draw sees
+  what it saw before."
+  [{:keys [fbo w h]} safe f]
+  (rl-draw-render-batch-active)
+  (host/end-scissor-mode)
+  (host/rl-push-matrix)
+  (try
+    (rl-enable-framebuffer fbo)
+    (rl-viewport 0 0 w h)
+    (rl-set-framebuffer-width w)
+    (rl-set-framebuffer-height h)
+    (rl-matrix-mode RL-PROJECTION)
+    (rl-load-identity)
+    (rl-ortho 0.0 (double w) (double h) 0.0 0.0 1.0)
+    (rl-matrix-mode RL-MODELVIEW)
+    (rl-load-identity)
+    (f)
+    (finally
+      (rl-draw-render-batch-active)
+      (bind-screen!)
+      (restore-screen-view!)
+      (host/rl-pop-matrix)
+      (host/begin-scissor-mode (:x safe) (:y safe) (:width safe) (:height safe)))))
+
+(defn with-blend-factors!
+  "Run `(f)` blended with source factor `src`, destination factor `dst` and
+  blend equation `equation` (GL enums; see `RL-SRC-ALPHA`, `RL-MIN`, `RL-MAX`),
+  then put the default blend mode back, throw or not. Answers `f`'s result."
+  [src dst equation f]
+  (rl-set-blend-factors src dst equation)
+  (host/begin-blend-mode BLEND-CUSTOM)
+  (try
+    (f)
+    (finally (host/end-blend-mode))))

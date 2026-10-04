@@ -10,10 +10,18 @@
   (:require [clojure.test :refer [deftest is testing]]
             [jolt.ffi :as ffi]
             [raylib.host :as host]
+            [raylib.probe :as probe]
             [raylib.texel :as texel]
             [raylib.texture :as tex]))
 
 (def ^:private default-id 1)
+
+(def ^:private complete-result
+  "What the stubbed `rlFramebufferComplete` answers."
+  (atom 1))
+
+(def ^:private sdl-fbo 77)
+(def ^:private screen-size [1206 2334])
 
 (defn- recording
   "Call `(f calls)` with the texture and vertex defcfns redefined to record
@@ -38,13 +46,49 @@
                    host/rl-begin (rec :begin)
                    host/rl-end (rec :end)
                    host/rl-color-4ub (rec :color)
-                   host/rl-vertex-2f (rec :vertex)]
+                   host/rl-vertex-2f (rec :vertex)
+                   tex/rl-load-framebuffer (fn []
+                                             (let [id (swap! next-id inc)]
+                                               (swap! calls conj [:load-fbo])
+                                               id))
+                   tex/rl-load-texture-depth (fn [& args]
+                                               (let [id (swap! next-id inc)]
+                                                 (swap! calls conj (into [:load-depth] args))
+                                                 id))
+                   tex/rl-framebuffer-attach (rec :attach)
+                   tex/rl-framebuffer-complete (fn [fbo]
+                                                 (swap! calls conj [:complete fbo])
+                                                 @complete-result)
+                   tex/rl-enable-framebuffer (rec :enable-fbo)
+                   tex/rl-disable-framebuffer (rec :disable-fbo)
+                   tex/rl-unload-framebuffer (rec :unload-fbo)
+                   tex/rl-viewport (rec :viewport)
+                   tex/rl-set-framebuffer-width (rec :fb-width)
+                   tex/rl-set-framebuffer-height (rec :fb-height)
+                   tex/rl-matrix-mode (rec :matrix-mode)
+                   tex/rl-load-identity (rec :identity)
+                   tex/rl-ortho (rec :ortho)
+                   tex/rl-draw-render-batch-active (rec :flush)
+                   tex/rl-set-blend-factors (rec :blend-factors)
+                   host/end-scissor-mode (rec :end-scissor)
+                   host/begin-scissor-mode (rec :begin-scissor)
+                   host/rl-push-matrix (rec :push)
+                   host/rl-pop-matrix (rec :pop)
+                   host/begin-blend-mode (rec :begin-blend)
+                   host/end-blend-mode (rec :end-blend)
+                   host/gl-bind-framebuffer (rec :bind-fbo)
+                   host/get-screen-width (fn [] (first screen-size))
+                   host/get-screen-height (fn [] (second screen-size))]
        ;; Inside the redefs: a table left dirty by an earlier failure would
        ;; otherwise reach the real rlUnloadTexture with no GL context.
        (tex/enter! nil)
+       (reset! complete-result 1)
+       (reset! probe/wm-info {:framebuffer sdl-fbo})
        (try
          (f calls)
-         (finally (tex/enter! nil)))))))
+         (finally
+           (tex/enter! nil)
+           (reset! probe/wm-info nil)))))))
 
 (defn- of [calls nm] (filterv #(= nm (first %)) @calls))
 
@@ -469,3 +513,193 @@
            (is (= [1.0 0.0] (get by-pos [10.0 0.0])))
            (is (= [0.0 1.0] (get by-pos [0.0 10.0])))))
        (is (= [:set-texture default-id] (last @calls)))))))
+
+;; --- render targets and blend factors ----------------------------------------
+
+(def ^:private not-param (remove #(= :param (first %))))
+
+(deftest target-creates-fbo-texture-and-depth
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :rt {:w 256
+                                   :h 128})
+           [load-fbo load-tex load-depth a1 a2 complete :as seq*] (into [] not-param @calls)
+           fbo (:fbo rt)]
+       (is (= 6 (count seq*)))
+       (is (= [:load-fbo] load-fbo))
+       (is (= [:load 7 1] [(first load-tex) (nth load-tex 4) (nth load-tex 5)]))
+       (is (= [256 128] [(nth load-tex 2) (nth load-tex 3)]))
+       (is (= [:load-depth 256 128 1] load-depth))
+       (is (= [:attach fbo (:texture rt) 0 100 0] a1))
+       (is (= [:attach fbo (+ 1 (:texture rt)) 100 200 0] a2))
+       (is (= [:complete fbo] complete))
+       (is (every? #(= (:texture rt) (second %)) (of calls :param)))
+       (is (= #{[0x2802 0x812F] [0x2803 0x812F] [0x2801 0x2601] [0x2800 0x2601]}
+              (into #{} (map (fn [[_ _ p v]] [p v])) (of calls :param))))
+       (is (= {:fbo fbo
+               :texture (:texture rt)
+               :w 256
+               :h 128} rt))
+       (is (= {[:s :rt] {:gl-id (:texture rt)
+                         :version nil}} (tex/resident)))
+       (is (= rt (tex/target! :s :rt {:w 256
+                                      :h 128})))
+       (is (= 1 (count (of calls :load-fbo))))))))
+
+(deftest an-incomplete-target-throws-with-the-size
+  (recording
+   (fn [calls]
+     (reset! complete-result 0)
+     (let [e (try (tex/target! :s :rt {:w 64
+                                       :h 32}) nil (catch :default e e))]
+       (is (some? e))
+       (is (= {:scene :s
+               :key :rt
+               :w 64
+               :h 32} (ex-data e)))
+       (is (empty? (tex/resident)))
+       (is (= 1 (count (of calls :unload-fbo))))
+       (is (= 1 (count (of calls :unload))))))))
+
+(deftest a-new-size-replaces-the-target
+  (recording
+   (fn [calls]
+     (let [a (tex/target! :s :rt {:w 64
+                                  :h 64})
+           b (tex/target! :s :rt {:w 128
+                                  :h 64})]
+       (is (not= (:fbo a) (:fbo b)))
+       (is (= [[:unload (:texture a)]] (of calls :unload)))
+       (is (= [[:unload-fbo (:fbo a)]] (of calls :unload-fbo)))
+       (is (= 2 (count (of calls :load-fbo))))
+       (is (= {[:s :rt] {:gl-id (:texture b)
+                         :version nil}} (tex/resident)))))))
+
+(deftest enter-frees-targets-and-their-textures
+  (recording
+   (fn [calls]
+     (let [a (tex/target! :old :rt {:w 8
+                                    :h 8})
+           b (tex/target! :new :rt {:w 8
+                                    :h 8})]
+       (tex/enter! :new)
+       (is (= [[:unload (:texture a)]] (of calls :unload)))
+       (is (= [[:unload-fbo (:fbo a)]] (of calls :unload-fbo)))
+       (is (= #{[:new :rt]} (set (keys (tex/resident)))))
+       (tex/enter! nil)
+       (is (= [[:unload-fbo (:fbo a)] [:unload-fbo (:fbo b)]] (of calls :unload-fbo)))
+       (is (empty? (tex/resident)))))))
+
+(deftest a-target-key-and-a-texture-key-do-not-mix
+  (recording
+   (fn [_]
+     (tex/target! :s :rt {:w 8
+                          :h 8})
+     (tex/id! :s :plain (spec 8 8))
+     (is (some? (try (tex/id! :s :rt (spec 8 8)) nil (catch :default e e))))
+     (is (some? (try (tex/target! :s :plain {:w 8
+                                             :h 8}) nil (catch :default e e)))))))
+
+(def ^:private safe {:x 0
+                     :y 100
+                     :width 1206
+                     :height 2000})
+
+(deftest with-target-binds-and-restores
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :rt {:w 256
+                                   :h 128})
+           _ (reset! calls [])
+           result (tex/with-target! rt safe (fn []
+                                              (swap! calls conj [:f])
+                                              :done))]
+       (is (= :done result))
+       (is (= [[:flush]
+               [:end-scissor]
+               [:push]
+               [:enable-fbo (:fbo rt)]
+               [:viewport 0 0 256 128]
+               [:fb-width 256]
+               [:fb-height 128]
+               [:matrix-mode 0x1701]
+               [:identity]
+               [:ortho 0.0 256.0 128.0 0.0 0.0 1.0]
+               [:matrix-mode 0x1700]
+               [:identity]
+               [:f]
+               [:flush]
+               [:bind-fbo 0x8D40 sdl-fbo]
+               [:viewport 0 0 1206 2334]
+               [:fb-width 1206]
+               [:fb-height 2334]
+               [:matrix-mode 0x1701]
+               [:identity]
+               [:ortho 0.0 1206.0 2334.0 0.0 0.0 1.0]
+               [:matrix-mode 0x1700]
+               [:pop]
+               [:begin-scissor 0 100 1206 2000]]
+              @calls))))))
+
+(deftest a-throw-inside-a-pass-restores-the-screen
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :rt {:w 256
+                                   :h 128})
+           _ (reset! calls [])
+           e (try (tex/with-target! rt safe (fn [] (throw (ex-info "boom" {}))))
+                  nil
+                  (catch :default e e))]
+       (is (= "boom" (ex-message e)))
+       (is (= [[:flush]
+               [:bind-fbo 0x8D40 sdl-fbo]
+               [:viewport 0 0 1206 2334]
+               [:fb-width 1206]
+               [:fb-height 2334]
+               [:matrix-mode 0x1701]
+               [:identity]
+               [:ortho 0.0 1206.0 2334.0 0.0 0.0 1.0]
+               [:matrix-mode 0x1700]
+               [:pop]
+               [:begin-scissor 0 100 1206 2000]]
+              (subvec @calls (- (count @calls) 11))))))))
+
+(deftest two-passes-flush-between-them
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :rt {:w 16
+                                   :h 16})]
+       (reset! calls [])
+       (tex/with-target! rt safe (fn [] nil))
+       (tex/with-target! rt safe (fn [] nil))
+       (let [n (count @calls)
+             half (quot n 2)]
+         (is (= (subvec @calls 0 half) (subvec @calls half)))
+         (is (= [:flush] (first @calls)))
+         (is (= [:begin-scissor 0 100 1206 2000] (nth @calls (dec half)))))))))
+
+(deftest no-sdl-fbo-falls-back-to-disable
+  (recording
+   (fn [calls]
+     (let [rt (tex/target! :s :rt {:w 16
+                                   :h 16})]
+       (reset! probe/wm-info {})
+       (reset! calls [])
+       (tex/with-target! rt safe (fn [] nil))
+       (is (empty? (of calls :bind-fbo)))
+       (is (= 1 (count (of calls :disable-fbo))))))))
+
+(deftest blend-factors-restore-the-default
+  (recording
+   (fn [calls]
+     (is (= :r (tex/with-blend-factors! tex/RL-SRC-ALPHA 1 tex/RL-MIN
+                 (fn [] (swap! calls conj [:f]) :r))))
+     (is (= [[:blend-factors 0x0302 1 0x8007] [:begin-blend 6] [:f] [:end-blend]] @calls))
+     (reset! calls [])
+     (let [e (try (tex/with-blend-factors! tex/RL-SRC-ALPHA 1 tex/RL-MAX
+                    (fn [] (throw (ex-info "boom" {}))))
+                  nil
+                  (catch :default e e))]
+       (is (= "boom" (ex-message e)))
+       (is (= [[:blend-factors 0x0302 1 0x8008] [:begin-blend 6] [:end-blend]] @calls)))
+     (is (= [0x0302 0x8007 0x8008] [tex/RL-SRC-ALPHA tex/RL-MIN tex/RL-MAX])))))
