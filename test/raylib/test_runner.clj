@@ -158,6 +158,8 @@
                      raylib.scenes.npatch-test
                      raylib.scenes.texpoly-test
                      raylib.scenes.texproc-test
+                     raylib.scenes.rawdata-test
+                     raylib.scenes.screenbuf-test
                      raylib.scenes.spriteanim-test
                      raylib.scenes.texcurve-test
                      raylib.stick-test

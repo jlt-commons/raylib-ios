@@ -98,12 +98,14 @@
             [raylib.scenes.pointcloud :as pointcloud]
             [raylib.scenes.pong :as pong]
             [raylib.scenes.randomvalues :as rv]
+            [raylib.scenes.rawdata :as rawdata]
             [raylib.scenes.rectbounds :as rbounds]
             [raylib.scenes.resize :as rsz]
             [raylib.scenes.ring :as ring]
             [raylib.scenes.rlgltriangle :as rlgl]
             [raylib.scenes.rotcube :as rotcube]
             [raylib.scenes.rounded :as rnd]
+            [raylib.scenes.screenbuf :as screenbuf]
             [raylib.scenes.screens :as screens]
             [raylib.scenes.sector :as sector]
             [raylib.scenes.sequence :as seqn]
@@ -4479,6 +4481,45 @@
                                   texcurve/button-held-colour
                                   texcurve/button-colour)))
       (draw-caption! (get (:labels dims) k) texcurve/button-label-colour))))
+
+(def ^:private rawdata-cache
+  "The last `[screen dims]` for `:rawdata`. Its text sizes need a measure, which
+  depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- rawdata-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @rawdata-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (rawdata/dimensions m host-measure)]
+        (reset! rawdata-cache [screen dims])
+        dims))))
+
+(def ^:private rawdata-checker (rawdata/checker-spec))
+
+(defmethod draw-scene! :rawdata [_ state {:keys [m]}]
+  (clear-to! rawdata/background-colour)
+  (let [dims (rawdata-dims m)
+        outline (color rawdata/outline-colour)
+        [y0 rows] (rawdata/band (:frame state))
+        ids {:checker (texture/id! :rawdata :checker rawdata-checker)
+             :live (texture/band! :rawdata :live (rawdata/live-spec (:frame state)) y0 rows)}]
+    (doseq [k rawdata/panel-keys]
+      (texture/quad! (ids k) (rawdata/quad dims k))
+      (doseq [[x y w h] (rawdata/outline-rects dims k)]
+        (rl/draw-rectangle (int x) (int y) (int w) (int h) outline))
+      (draw-caption! (get (:labels dims) k) rawdata/label-colour))
+    (let [[head sub caption] (:lines dims)]
+      (draw-caption! head rawdata/title-colour)
+      (draw-caption! sub rawdata/subtitle-colour)
+      (draw-caption! caption rawdata/caption-colour))))
+
+(defmethod draw-scene! :screenbuf [_ state {:keys [m]}]
+  (clear-to! screenbuf/background-colour)
+  (let [[y0 rows] (screenbuf/upload-rows (:frame state))
+        id (texture/band! :screenbuf :fire (screenbuf/spec (:buf state)) y0 rows)]
+    (texture/quad! id (screenbuf/geometry m))))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
