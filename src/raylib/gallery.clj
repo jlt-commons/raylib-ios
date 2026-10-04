@@ -138,7 +138,8 @@
             [raylib.scenes.worldscreen :as worldscreen]
             [raylib.scenes.writing :as writ]
             [raylib.scenes.yawpitchroll :as ypr]
-            [raylib.scroll :as scroll]))
+            [raylib.scroll :as scroll]
+            [raylib.texture :as texture]))
 
 (def scenes [(eyes/scene) (trail/scene) (flappy/scene)
              (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
@@ -850,6 +851,11 @@
   and was abandoned."
   [{:keys [mode active-scene-id scene-state]
     :as gstate} category layout k m top safe scroll]
+  ;; Every frame, so a scene's textures are freed the frame after it is left,
+  ;; however it was left: Back, or abandoned by guard-scene. An abandoned scene
+  ;; comes through here with :mode :gallery, either this frame (it threw in
+  ;; update) or the next (it threw in draw), so nil frees everything.
+  (texture/enter! (when (= :scene mode) active-scene-id))
   (let [p (ui/live-presentation)
         accent (color (:accent p))]
     (cond

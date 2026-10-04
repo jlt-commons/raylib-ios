@@ -22,7 +22,8 @@
             [raylib.host :as host]
             [raylib.scenes.doom :as doom]
             [raylib.scenes.split3d :as split3d]
-            [raylib.scroll :as scroll]))
+            [raylib.scroll :as scroll]
+            [raylib.texture :as texture]))
 
 (defn input
   "One frame's input, built the way raylib.gallery/frame builds it minus the
@@ -215,6 +216,7 @@
                 :float (when-not (double? a)
                          (if (integer? a) :float-got-integer :float-got-other))
                 (:int :uint :uint8) (when-not (integer? a) [t :got-other])
+                :pointer (when (nil? a) :pointer-got-nil)
                 :string (when-not (string? a) :string-got-other)))
             (map vector types args))))
 
@@ -230,6 +232,7 @@
                 (swap! probe update :violations conj [nm v])))
         stub (fn [nm types ret]
                (fn [& args] (chk nm types args) ret))
+        next-tex (atom 0)
         pair (fn [nm types k d]
                (fn [& args]
                  (chk nm types args)
@@ -261,7 +264,16 @@
                   host/begin-scissor-mode (stub :begin-scissor-mode [:int :int :int :int] nil)
                   host/end-scissor-mode (stub :end-scissor-mode [] nil)
                   host/begin-blend-mode (pair :begin-blend-mode [:int] :blend 1)
-                  host/end-blend-mode (pair :end-blend-mode [] :blend -1)]
+                  host/end-blend-mode (pair :end-blend-mode [] :blend -1)
+                  texture/rl-load-texture (fn [& args]
+                                            (chk :rl-load-texture [:pointer :int :int :int :int] args)
+                                            (swap! next-tex inc))
+                  texture/rl-update-texture (stub :rl-update-texture
+                                                  [:uint :int :int :int :int :int :pointer] nil)
+                  texture/rl-unload-texture (stub :rl-unload-texture [:uint] nil)
+                  texture/rl-texture-parameters (stub :rl-texture-parameters [:uint :int :int] nil)
+                  texture/rl-set-texture (stub :rl-set-texture [:uint] nil)
+                  texture/rl-tex-coord-2f (stub :rl-tex-coord-2f [:float :float] nil)]
       (f probe))))
 
 (defn- draw-args

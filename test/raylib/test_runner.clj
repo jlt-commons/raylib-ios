@@ -42,7 +42,8 @@
 (def ^:private jolt-only
   "Test namespaces that load jolt.ffi, directly or through raylib.gallery, so
   only jolt can require them. The JVM run skips them and says so."
-  '#{raylib.gallery-smoke-test})
+  '#{raylib.gallery-smoke-test
+     raylib.texture-test})
 
 (def ^:private jolt?
   "True under jolt, which sets the jolt.version system property (documented
