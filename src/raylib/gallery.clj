@@ -186,7 +186,8 @@
              (voxel/scene) (doom/scene)
              (textiling/scene) (srcrec/scene) (spritebutton/scene)
              (npatch/scene) (texpoly/scene) (texproc/scene)
-             (spriteanim/scene) (texcurve/scene)])
+             (spriteanim/scene) (texcurve/scene)
+             (rawdata/scene) (screenbuf/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -225,7 +226,7 @@
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
              :textiling :srcrec :spritebutton :npatch :texpoly :texproc
-             :spriteanim :texcurve]}
+             :spriteanim :texcurve :rawdata :screenbuf]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4517,7 +4518,7 @@
 
 (defmethod draw-scene! :screenbuf [_ state {:keys [m]}]
   (clear-to! screenbuf/background-colour)
-  (let [[y0 rows] (screenbuf/upload-rows (:frame state))
+  (let [[y0 rows] (screenbuf/upload-rows (:stepped state))
         id (texture/band! :screenbuf :fire (screenbuf/spec (:buf state)) y0 rows)]
     (texture/quad! id (screenbuf/geometry m))))
 

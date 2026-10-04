@@ -2,7 +2,7 @@
   "Raw Data, ported from raylib-jlt's `raw_data`
   (net/b12n/raylib_jlt/raw_data.clj, zlib licence), which is raylib's
   `textures_raw_data`: a texture is a flat block of bytes this program fills in
-  itself. Two panels, a 256 by 256 checkerboard uploaded once and a 128 by 128
+  itself. Two panels, a 256 by 256 checkerboard, uploaded once, and a 128 by 128
   panel whose colour is arithmetic on x, y and time.
 
   Mirrored from raw_data.clj:
@@ -18,20 +18,28 @@
 
   Deviations. The original rewrites all 16384 live texels every frame. That cost
   about 7 ms on a laptop and would be more than 200 ms on the phone, so the live
-  panel is refreshed a band at a time: each frame refills `band-rows` (4) rows,
-  walking down the panel, so every row is refreshed every `period` (32) frames,
-  which is twice a second at 60 frames a second. The rows of one frame share one
-  `t`, but a row refreshed this sweep and one refreshed the last are `period`
-  frames apart in time, so a moving seam shows between fresh and older rows, and
-  the picture drifts at a fraction of the original's rate. The live panel's name
-  says \"a band at a time\" in place of \"every frame\". The fps readout is left
-  out. The panels stack on a portrait screen and sit side by side on a landscape
-  one, whichever gives the bigger square, with each name above its panel.
+  panel is refreshed a band at a time: each frame refills `band-rows` (3) rows,
+  walking down the panel, so every row is refreshed every `period` (43) frames
+  (the last band is 2 rows), which is about 1.4 times a second at 60 frames a
+  second. The rows of one band share one `t`, but a row refreshed this sweep and
+  one refreshed the last are `period` frames apart in time, so a moving seam
+  shows between fresh and older rows, and the picture drifts at a fraction of the
+  original's rate. The live panel's name says \"a band at a time\" in place of
+  \"every frame\". The fps readout is left out. The panels stack on a portrait
+  screen and sit side by side on a landscape one, whichever gives the bigger
+  square, with each name above its panel.
+
+  The checkerboard is a 64 by 64 texture drawn with `:wrap :repeat` and texcoords
+  0 to 4, not the original's 256 by 256 upload. With CHECK 32 the pattern repeats
+  every 64 texels, so each drawn texel is the same colour, and the entry fill
+  drops from 65536 texels to 4096.
 
   The state holds `:frame` and `:screen`. Colours are `[r g b a]` vectors."
   (:require [raylib.gesture :as gesture]))
 
-(def panel-size "The original's PANEL: the checkerboard is this many texels square." 256)
+(def panel-size "The original's PANEL: the drawn checkerboard is this many texels square." 256)
+(def checker-size "The checkerboard texture's side: CHECK * 2, the pattern's period." 64)
+(def checker-repeat "How many times the checker texture repeats across the panel." (quot panel-size checker-size))
 (def live-size "The original's LIVE: the live panel is this many texels square." 128)
 (def check "The original's CHECK: a square of the checkerboard is this many texels." 32)
 (def time-step "The original's clock: `t` grows this much a frame." 0.03)
@@ -88,10 +96,13 @@
   (bit-or r (bit-shift-left g 8) (bit-shift-left b 16) (bit-shift-left 255 24)))
 
 (defn checker-spec
-  "The checkerboard for `raylib.texture/id!`: 256 by 256, clamped, unfiltered."
+  "The checkerboard for `raylib.texture/id!`: one 64 by 64 period, repeating,
+  unfiltered. `quad` repeats it 4 times across, which is the original's 256 by
+  256 panel."
   []
-  {:w panel-size
-   :h panel-size
+  {:w checker-size
+   :h checker-size
+   :wrap :repeat
    :pixel (fn [x y]
             (if (even? (+ (quot x check) (quot y check)))
               (pack 255 161 0)
@@ -203,13 +214,18 @@
                          panel-keys))))
 
 (defn quad
-  "The destination quad for panel `k` on the screen `geo` describes."
+  "The destination quad for panel `k` on the screen `geo` describes. The
+  checkerboard's texcoords run 0 to `checker-repeat`, so its 64 texel period
+  covers the panel as the original's 256 texels did."
   [geo k]
-  (let [[x y w h] (:rect (get (:panels geo) k))]
+  (let [[x y w h] (:rect (get (:panels geo) k))
+        uv (if (= :checker k) (double checker-repeat) 1.0)]
     {:x x
      :y y
      :width w
-     :height h}))
+     :height h
+     :u1 uv
+     :v1 uv}))
 
 (defn outline-rects
   "The outline of panel `k` as four `[x y w h]` rectangles, 2 pixels thick."

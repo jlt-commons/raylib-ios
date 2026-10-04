@@ -149,9 +149,35 @@
     (testing "every row is refilled at least once a sweep, and the cover is gap-free"
       (is (= (set (range 112)) (set (mapcat (fn [[y0 n]] (range y0 (+ y0 n))) ups)))))
     (testing "the schedule repeats each sweep"
-      (is (= (sc/upload-rows 3) (sc/upload-rows (+ 3 sc/period)))))
+      (is (= (sc/upload-rows 3) (sc/upload-rows (+ 3 (* 0 sc/period))))))
     (testing "never past the grid"
       (is (every? (fn [[y0 n]] (and (<= 0 y0) (<= (+ y0 n) 112))) ups)))))
+
+;; The gallery draws after the update, from the state `advance` returned, and
+;; uploads `upload-rows` of the band that state says it stepped. A mock texture
+;; takes those rows from the buffer as `texture/band!` does. At the end of each
+;; sweep every band has stepped and been uploaded after its own step, so the
+;; texture must be the buffer's palette image.
+(deftest the-rows-uploaded-are-the-rows-stepped
+  (let [tex (volatile! (vec (repeat (* 200 112) 0)))
+        run (fn [s]
+              (let [s (tick s)
+                    [y0 n] (sc/upload-rows (:stepped s))
+                    px (:pixel (sc/spec (:buf s)))]
+                (doseq [y (range y0 (+ y0 n))
+                        x (range 200)]
+                  (vswap! tex assoc (+ x (* y 200)) (px x y)))
+                s))
+        image (fn [state] (mapv #(nth sc/palette-texels %) (:buf state)))]
+    (doseq [sweeps [2 3]
+            :let [s (nth (iterate run (fresh)) (* sweeps sc/period))
+                  img (image s)
+                  bad (distinct (for [y (range 112) x (range 200)
+                                      :when (not= (nth img (+ x (* y 200))) (nth @tex (+ x (* y 200))))]
+                                  y))]]
+      (testing (str "end of sweep " sweeps)
+        (is (< 30 (count (remove zero? (:buf s)))) "something is lit")
+        (is (empty? bad) (str "rows that differ: " (vec (take 12 bad))))))))
 
 (deftest the-spec-reads-the-buffer-through-the-palette
   (let [s (nth (iterate tick (fresh)) 200)

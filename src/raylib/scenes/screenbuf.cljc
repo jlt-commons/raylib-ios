@@ -40,10 +40,12 @@
   by up to `period` frames, so a moving seam between fresher and older rows
   can show.
 
+  Entering the scene fills all 22400 texels once, a one-off cost.
+
   The picture is the 200 by 112 grid scaled to the widest size the free area
   allows, below Back, with nearest-neighbour filtering. The original's window
   title is the only text, so there is none. The state holds `:frame`, `:seed`,
-  `:roots`, `:buf` and `:screen`."
+  `:roots`, `:buf`, `:stepped` (the band the last frame stepped, which the draw uploads) and `:screen`."
   (:require [raylib.gesture :as gesture]
             [raylib.texel :as texel]))
 
@@ -172,11 +174,12 @@
      :seed seed}))
 
 (defn upload-rows
-  "The rows to refill on `frame`, as `[y0 rows]`: the rows band `k` just stepped
+  "The rows to refill after band `k` stepped, as `[y0 rows]`: the band's own rows
   and the row above them, which is where their cells landed (the first band has
-  no row above)."
-  [frame]
-  (let [[y0 y1] (band (mod frame period))
+  no row above). `k` is the band `advance` just stepped, kept in `:stepped`,
+  because the draw runs after the update."
+  [k]
+  (let [[y0 y1] (band k)
         top (max 0 (dec y0))]
     [top (- y1 top)]))
 
@@ -213,8 +216,10 @@
 (defn advance
   "One frame: band `frame mod period` of the fire steps."
   [state {:keys [metrics]}]
-  (let [sim (step-band state (mod (:frame state) period))]
+  (let [k (mod (:frame state) period)
+        sim (step-band state k)]
     (assoc state
+           :stepped k
            :buf (:buf sim)
            :roots (:roots sim)
            :seed (:seed sim)
@@ -224,6 +229,7 @@
 (defn- init [{:keys [metrics]}]
   [(assoc (fresh default-seed)
           :frame 0
+          :stepped 0
           :screen (:screen metrics))
    [[:scene/init :screenbuf]]])
 

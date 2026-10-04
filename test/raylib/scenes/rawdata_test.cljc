@@ -47,19 +47,39 @@
         x (range n)]
     (f x y)))
 
+(defn- drawn-checker
+  "The texel the GPU would sample for the original's texel `a`, `b` of its 256 by
+  256 panel, through `quad`'s texcoords over the 64 by 64 repeating texture:
+  nearest filtering at the texel's centre, with REPEAT wrapping."
+  [{:keys [w h pixel]} {:keys [u1 v1]} a b]
+  (let [u (* u1 (/ (+ a 0.5) 256.0))
+        v (* v1 (/ (+ b 0.5) 256.0))
+        frac (fn [n] (- n (Math/floor n)))]
+    (pixel (int (Math/floor (* (frac u) w))) (int (Math/floor (* (frac v) h))))))
+
 (deftest the-checker-is-the-originals
   (is (= 32 sc/check))
-  (let [{:keys [w h pixel wrap filter]} (sc/checker-spec)]
-    (is (= [256 256] [w h]))
-    (is (nil? wrap) "clamped, as the original's default")
+  (let [{:keys [w h wrap filter pixel]
+         :as spec} (sc/checker-spec)
+        geo (sc/dimensions {:screen [1206 2334]} (fn [s size] (* 0.6 size (count s))))
+        q (sc/quad geo :checker)]
+    (is (= [64 64] [w h]) "one period, 4096 texels in place of 65536")
+    (is (= :repeat wrap) "GLES2 repeats only a power of two, and 64 is one")
     (is (nil? filter))
-    (is (every? true? (each-texel 256 #(= (low32 (ref-checker % %2)) (low32 (pixel % %2))))))
+    (is (= [4.0 4.0] [(:u1 q) (:v1 q)]))
+    (is (every? nil? [(:u0 q) (:v0 q)]) "absent, so quad!'s default of 0")
+    (testing "every texel of the original's 256 by 256 panel is the colour drawn there"
+      (is (every? true? (each-texel 256 #(= (low32 (ref-checker % %2))
+                                            (low32 (drawn-checker spec q % %2)))))))
     (testing "two colours, squares 32 across"
-      (is (= 2 (count (set (each-texel 256 pixel)))))
+      (is (= 2 (count (set (each-texel 64 pixel)))))
       (is (= (pixel 0 0) (pixel 31 31)))
       (is (not= (pixel 0 0) (pixel 32 0)))
       (is (not= (pixel 0 0) (pixel 0 32)))
       (is (= (pixel 0 0) (pixel 32 32)))))
+  (testing "the live panel is not repeated"
+    (let [q (sc/quad (sc/dimensions {:screen [1206 2334]} (fn [s size] (* 0.6 size (count s)))) :live)]
+      (is (= [1.0 1.0] [(:u1 q) (:v1 q)]))))
   (testing "the colour fn agrees with the spec"
     (is (= [255 161 0 255] (sc/checker-colour 0 0)))
     (is (= [255 203 0 255] (sc/checker-colour 32 0)))))
@@ -97,6 +117,32 @@
       (is (= (sc/band 5) (sc/band (+ 5 (* 3 sc/period))))))
     (testing "the first band is the top rows"
       (is (= [0 sc/band-rows] (sc/band 0))))))
+
+;; The draw runs after the update, so it sees the state of the frame just
+;; stepped. A mock texture takes each frame's band the way `texture/band!` does
+;; and must end up holding, for every row, the pixels of the last frame whose
+;; band covered it.
+(deftest the-bands-uploaded-leave-each-row-as-its-own-frame-drew-it
+  (let [frames (* 2 sc/period)
+        tex (volatile! {})
+        last-frame (volatile! {})]
+    (reduce (fn [s _]
+              (let [s (tick s)
+                    [y0 n] (sc/band (:frame s))
+                    {:keys [pixel]} (sc/live-spec (:frame s))]
+                (doseq [y (range y0 (+ y0 n))]
+                  (vswap! tex assoc y (mapv #(pixel % y) (range 128)))
+                  (vswap! last-frame assoc y (:frame s)))
+                s))
+            (fresh) (range frames))
+    (is (= 128 (count @tex)) "every row was refreshed")
+    (is (= (:frame (nth (iterate tick (fresh)) frames)) (apply max (vals @last-frame))))
+    (is (every? (fn [y]
+                  (let [{:keys [pixel]} (sc/live-spec (@last-frame y))]
+                    (= (@tex y) (mapv #(pixel % y) (range 128)))))
+                (range 128)))
+    (testing "no row is older than one sweep"
+      (is (every? #(<= (- frames %) sc/period) (vals @last-frame))))))
 
 (deftest the-frame-counter-advances
   (let [s (fresh)]
