@@ -81,6 +81,7 @@
             [raylib.scenes.lsystem :as lsys]
             [raylib.scenes.minesweeper :as msw]
             [raylib.scenes.multitouch :as multi]
+            [raylib.scenes.npatch :as npatch]
             [raylib.scenes.nudge :as nudge]
             [raylib.scenes.ortho :as ortho]
             [raylib.scenes.outlines :as outl]
@@ -126,6 +127,7 @@
             [raylib.scenes.tesseract :as tess]
             [raylib.scenes.tetris :as tet]
             [raylib.scenes.texcube :as texcube]
+            [raylib.scenes.texpoly :as texpoly]
             [raylib.scenes.textiling :as textiling]
             [raylib.scenes.touchball :as tball]
             [raylib.scenes.tree :as tree]
@@ -177,7 +179,8 @@
              (blendmodes/scene) (blendparticles/scene)
              (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
              (voxel/scene) (doom/scene)
-             (textiling/scene) (srcrec/scene) (spritebutton/scene)])
+             (textiling/scene) (srcrec/scene) (spritebutton/scene)
+             (npatch/scene) (texpoly/scene)])
 
 (def registry (gallery/make-registry scenes))
 (def scene-ids (mapv :id scenes))
@@ -215,7 +218,7 @@
              :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
              :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
              :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
-             :textiling :srcrec :spritebutton]}
+             :textiling :srcrec :spritebutton :npatch :texpoly]}
    {:id :games
     :title "Games"
     :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
@@ -4291,6 +4294,59 @@
     (let [c (color spritebutton/outline-colour)]
       (doseq [[x y w h] (spritebutton/outline-rects state dims)]
         (rl/draw-rectangle (int x) (int y) (max 1 (int w)) (max 1 (int h)) c)))))
+
+(def ^:private npatch-cache
+  "The last `[screen dims]` for `:npatch`. Its text sizes need a measure, which
+  depends only on the screen, so they are not measured again each frame."
+  (atom nil))
+
+(defn- npatch-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @npatch-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (npatch/dimensions m host-measure)]
+        (reset! npatch-cache [screen dims])
+        dims))))
+
+(def ^:private npatch-spec (npatch/patch-spec (fn [[r g b a]] (rl/rgba r g b a))))
+
+(defmethod draw-scene! :npatch [_ state {:keys [m]}]
+  (clear-to! npatch/background-colour)
+  (let [dims (npatch-dims m)
+        id (texture/id! :npatch :patch npatch-spec)
+        [title _] (:lines dims)]
+    (doseq [q (npatch/quads state dims)]
+      (texture/quad! id q))
+    (draw-caption! title npatch/title-colour)
+    (draw-caption! (assoc (second (:lines dims)) :s (npatch/hint state)) npatch/hint-colour)
+    (doseq [label (:labels dims)]
+      (draw-caption! label npatch/hint-colour))
+    (texture/quad! id (npatch/source-quad dims))))
+
+(def ^:private texpoly-cache
+  "The last `[screen dims]` for `:texpoly`. Its caption size needs a measure,
+  which depends only on the screen, so it is not measured again each frame."
+  (atom nil))
+
+(defn- texpoly-dims [m]
+  (let [screen (:screen m)
+        [cached-screen cached] @texpoly-cache]
+    (if (= screen cached-screen)
+      cached
+      (let [dims (texpoly/dimensions m host-measure)]
+        (reset! texpoly-cache [screen dims])
+        dims))))
+
+(def ^:private texpoly-spec (texpoly/wheel-spec (fn [[r g b a]] (rl/rgba r g b a))))
+
+(defmethod draw-scene! :texpoly [_ state {:keys [m]}]
+  (clear-to! texpoly/background-colour)
+  (let [dims (texpoly-dims m)
+        id (texture/id! :texpoly :wheel texpoly-spec)
+        [r g b a] texpoly/tint]
+    (texture/triangles! id (texpoly/vertices state dims) (rl/rgba r g b a))
+    (draw-caption! (first (:lines dims)) texpoly/title-colour)))
 
 (def ^:private split3d-dims-cache
   "The last `[screen dims]` for `:split3d`. Its label sizes need a measure, which
