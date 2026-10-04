@@ -124,6 +124,36 @@
           id
           (finally (ffi/free buf)))))))
 
+(defn band!
+  "Refill rows [`y0`, `y0` + `rows`) of the texture for `key` in scene
+  `scene-id` from `spec`'s `:pixel`, and upload only those rows with
+  rlUpdateTexture's offset and size. For a continuous-update texture: a phone
+  cannot afford `id!`'s whole-texture rewrite every frame (about 0.25 us a texel
+  here, so a 128 by 128 surface is 4 ms on a laptop and over 100 ms on the
+  phone), but it can afford a few rows. A scene walks the band down the texture,
+  so every row refreshes every `h / rows` frames and no frame pays for more
+  than the band.
+
+  `:pixel` is called with the texture's own y, not the band's. The band is cut
+  off at the bottom (a `y0` and `rows` that run past the last row keep only the
+  rows that exist, and a band wholly below uploads nothing). If the texture does
+  not exist yet, `id!` makes it first, filling all of it. A band never changes
+  the texture's `:version`; that belongs to `id!`'s whole-texture refresh.
+  Answers the GL id."
+  [scene-id key {:keys [w h pixel]
+                 :as spec} y0 rows]
+  (if-let [{:keys [gl-id]} (get @table [scene-id key])]
+    (let [y0 (max 0 y0)
+          n (- (min h (+ y0 rows)) y0)]
+      (when (pos? n)
+        (let [buf (ffi/alloc (* w n 4))]
+          (try
+            (fill! buf w n (fn [x y] (pixel x (+ y0 y))))
+            (rl-update-texture gl-id 0 y0 w n PIXELFORMAT-R8G8B8A8 buf)
+            (finally (ffi/free buf)))))
+      gl-id)
+    (id! scene-id key spec)))
+
 (defn enter!
   "Free every texture that does not belong to `scene-id`. Called every frame
   with the active scene's id, or nil when no scene is showing (which frees

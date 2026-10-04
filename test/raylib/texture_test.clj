@@ -141,6 +141,67 @@
          (is (some? ptr)))
        (is (= 2 (:version (get (tex/resident) [:s :k]))))))))
 
+;; band!: the continuous-update path. A 4 wide by 6 high texture whose texel
+;; (x, y) packs x and y, so a staged row is recognisable by its y.
+(defn- band-pixel [x y] (texel/pack [(+ 10 x) (+ 20 y) 7 255]))
+
+(defn- band-spec [& {:as more}]
+  (merge {:w 4
+          :h 6
+          :pixel band-pixel} more))
+
+(defn- staged
+  "Call `(f)` with rlUpdateTexture redefined to record its args and, with them,
+  the first `n` texels of the staging buffer as `:uint`s, read before it is
+  freed. Answers the recorded `[args texels]` pairs."
+  [n f]
+  (let [seen (atom [])]
+    (with-redefs [tex/rl-update-texture
+                  (fn [& args]
+                    (swap! seen conj [(vec (butlast args))
+                                      (mapv #(ffi/read (last args) :uint (* 4 %)) (range n))]))]
+      (f))
+    @seen))
+
+(deftest band-updates-only-those-rows
+  (recording
+   (fn [calls]
+     (let [id (tex/id! :s :k (band-spec))
+           [[args texels]] (staged 8 #(tex/band! :s :k (band-spec) 2 2))]
+       (testing "the offset and size are the band's, at full width"
+         (is (= [id 0 2 4 2 7] args)))
+       (testing "the staging buffer holds exactly rows 2 and 3, in order"
+         (is (= (vec (for [y [2 3] x (range 4)] (band-pixel x y))) texels)))
+       (is (= 1 (count (of calls :load))) "no second texture")))))
+
+(deftest band-clamps-at-the-bottom
+  (recording
+   (fn [_]
+     (let [id (tex/id! :s :k (band-spec))
+           [[args texels] :as all] (staged 4 #(tex/band! :s :k (band-spec) 5 4))]
+       (is (= 1 (count all)))
+       (is (= [id 0 5 4 1 7] args) "y0 + rows past the bottom keeps only row 5")
+       (is (= (mapv #(band-pixel % 5) (range 4)) texels))
+       (testing "a band wholly below the texture uploads nothing"
+         (is (empty? (staged 4 #(tex/band! :s :k (band-spec) 6 2)))))))))
+
+(deftest band-creates-the-texture-first
+  (recording
+   (fn [calls]
+     (let [id (tex/band! :s :k (band-spec) 0 2)]
+       (is (= 1 (count (of calls :load))))
+       (is (= [:load 4 6 7 1] (into [:load] (drop 2) (first (of calls :load)))))
+       (is (= id (get-in (tex/resident) [[:s :k] :gl-id])))
+       (is (= id (tex/id! :s :k (band-spec))) "the same texture, not a second one")))))
+
+(deftest band-leaves-the-version-alone
+  (recording
+   (fn [_]
+     (tex/id! :s :k (band-spec :version 3))
+     (tex/band! :s :k (band-spec :version 4) 0 1)
+     (is (= 3 (:version (get (tex/resident) [:s :k])))
+         "a band is not a whole-texture refresh, so the version stays"))))
+
 (deftest enter-frees-the-previous-scene
   (recording
    (fn [calls]
