@@ -12,7 +12,7 @@
  ;; hard-fails when one is missing. There is no .dylib in an .ipa.
  ;;
  ;; The raylib surface this project calls -- some thirty-five functions -- is
- ;; declared inline in raylib.host, mirroring what the demo did. Taking
+ ;; declared inline in net.b12n.raylib-ios.host, mirroring what the demo did. Taking
  ;; jlt-commons/raylib-jlt as a real dependency would mean dealing with its own
  ;; :jolt/native declaration; jolt's `:process true` is the door if the other
  ;; four hundred functions are ever wanted.
@@ -30,9 +30,9 @@
 
  :aliases
  {:test {:extra-paths ["test"]
-         :main-opts ["-m" "raylib.test-runner"]}
+         :main-opts ["-m" "net.b12n.raylib-ios.test-runner"]}
 
-  ;; The cider-nrepl op set for raylib.live-cider: completions, info, eldoc,
+  ;; The cider-nrepl op set for net.b12n.raylib-ios.live-cider: completions, info, eldoc,
   ;; the namespace browser, macroexpansion, apropos, the test ops. Scoped to an
   ;; alias so the default build stays dependency-free; jolt-lang/nrepl brings
   ;; orchard, compliment and spec.alpha, and about six megabytes.
@@ -47,7 +47,7 @@
  :tasks
  {;; the two static archives, per SDK. Slow the first time, cached after.
   deps    "sh tools/ios/deps.sh"
-  ;; cross-compile NS into RaylibIOS.app. NS=raylib.gallery TARGET=device jolt build-app
+  ;; cross-compile NS into RaylibIOS.app. NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app
   build-app "sh tools/ios/build.sh"
   ;; sign, install and launch on the phone. UDID=<hardware udid> jolt deploy
   deploy  "sh tools/ios/deploy.sh"

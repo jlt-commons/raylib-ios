@@ -19,9 +19,9 @@ and no phone, which is the entire point of the scene contract.
 Four touchpoints. Miss one and the failure is quiet rather than loud, which is
 why they are listed rather than discovered.
 
-**1. A pure namespace** at `src/raylib/scenes/<name>.cljc`.
+**1. A pure namespace** at `src/net/b12n/raylib_ios/scenes/<name>.cljc`.
 
-It must not require `raylib.host` or call raylib. It is state and the functions
+It must not require `net.b12n.raylib-ios.host` or call raylib. It is state and the functions
 that advance it, and it returns:
 
 ```clojure
@@ -57,18 +57,18 @@ cache key has to hold every input to the computation, which here means the text,
 the box size, the font size and the wrap mode.
 
 **Camera examples.** A 2D camera example draws inside
-`raylib.host/with-camera-2d`, which pushes `rlTranslatef`, `rlRotatef` and
+`net.b12n.raylib-ios.host/with-camera-2d`, which pushes `rlTranslatef`, `rlRotatef` and
 `rlScalef` on top of the gallery's own translate in place of `BeginMode2D`,
 because `BeginMode2D` loads the identity matrix and would throw that translate
-away. The camera math itself stays pure, in `raylib.camera2d`.
+away. The camera math itself stays pure, in `net.b12n.raylib-ios.camera2d`.
 
 **3D examples.** A 3D example is projected in software, because the project
-binds no 3D mode. The pure part is `raylib.soft3d`: `field` lays out the caption
+binds no 3D mode. The pure part is `net.b12n.raylib-ios.soft3d`: `field` lays out the caption
 and the 3D view under Back, `fit-camera` widens the original's fovy for a
 portrait field, the builders (`cube`, `cube-wires`, `grid`, `lines`, `sphere`,
 `plane`, `billboard`, `cylinder`, `cylinder-wires`, `capsule`, `capsule-wires`)
 project as they go, and `finish` sorts the result far to near. The draw method
-hands that list to `raylib.host/draw-3d!`, scissored to the field. Nothing
+hands that list to `net.b12n.raylib-ios.host/draw-3d!`, scissored to the field. Nothing
 behind the near plane is drawn and every triangle keeps rlgl's front winding. A
 scene that draws many small boxes may bypass `finish` with its own paint order,
 as `wavecubes` and `pointcloud` do, if the order is provably right for that
@@ -76,9 +76,9 @@ scene.
 
 **Textures.** A scene that draws a texture stays pure and never touches FFI.
 It builds a spec map, `{:w :h :wrap :filter :pixel :version}`, and the
-`draw-scene!` method hands it to `raylib.texture`. `:pixel` is `(f x y)` and
+`draw-scene!` method hands it to `net.b12n.raylib-ios.texture`. `:pixel` is `(f x y)` and
 answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
-`raylib.texel/pack` builds. `:wrap` is `:clamp` (the default) or `:repeat`,
+`net.b12n.raylib-ios.texel/pack` builds. `:wrap` is `:clamp` (the default) or `:repeat`,
 `:filter` is `:nearest` (the default) or `:linear`, and `:version` is optional.
 
 - `id!` takes `(scene-id key spec)` and answers the texture's id, uploading on
@@ -98,28 +98,28 @@ answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
 - `perlin-texture!` takes `(scene-id key {:w :h :offset-x :offset-y :scale})` and
   answers the id of raylib's own `GenImagePerlinNoise` image, made in C and
   uploaded straight from the buffer raylib allocated (which it then frees). Use
-  it for a whole image: `raylib.perlin/perlin-grey` is the tested model, a texel
+  it for a whole image: `net.b12n.raylib-ios.perlin/perlin-grey` is the tested model, a texel
   at a time, and costs about 17 us a texel under laptop jolt. The same spec
   values answer the same id with no work while the scene is open.
 - GLES2 repeats only a power-of-two texture. `:repeat` on any other size throws
   before anything is allocated, so a non-power-of-two sheet is `:clamp`.
 - Test the pixel fn texel by texel against the original, over the whole
-  texture, using `raylib.texel` (which follows raylib 6.0's `ImageDraw*` loops,
+  texture, using `net.b12n.raylib-ios.texel` (which follows raylib 6.0's `ImageDraw*` loops,
   quirks included). Pixel fns that run on the phone should not allocate a vector
   per texel; `texel/pack4` takes the four channels as arguments.
-- Make a static spec a `def` or a `delay` in `raylib.gallery`, built once. A
+- Make a static spec a `def` or a `delay` in `net.b12n.raylib-ios.gallery`, built once. A
   spec without a `:version`, handed back as the identical object, is kept as a
   filled buffer, so a reopen costs about one frame instead of a refill. A spec
   built fresh each frame is refilled each time. Only one scene's textures are on
-  the GPU at once: `raylib.texture/enter!` frees the rest when a scene opens.
+  the GPU at once: `net.b12n.raylib-ios.texture/enter!` frees the rest when a scene opens.
 - A first open can pause, because the pixels are computed and uploaded then.
   Measure it on the phone and say so in the catalog row, and in the scene's
   docstring, when the largest frame is over 100 ms.
 
 **Render textures.** A scene that draws into an off-screen framebuffer stays
-pure too. The `draw-scene!` method asks `raylib.texture` for a target, draws
+pure too. The `draw-scene!` method asks `net.b12n.raylib-ios.texture` for a target, draws
 into it, then draws the target back. `LoadRenderTexture` and `BeginTextureMode`
-can't be called, because they pass and return structs by value, so `raylib.texture`
+can't be called, because they pass and return structs by value, so `net.b12n.raylib-ios.texture`
 rebuilds them from rlgl's scalar calls.
 
 - `target!` takes `(scene-id key {:w :h :depth?})` and answers
@@ -150,12 +150,12 @@ rebuilds them from rlgl's scalar calls.
   uses it for GL_MIN and GL_MAX.
 - `perlin-texture!` answers the id of raylib's own `GenImagePerlinNoise` image.
   The Image comes back by value, which jolt takes as a buffer passed first, so
-  it is the one native call here with a struct return. `raylib.perlin` is the
+  it is the one native call here with a struct return. `net.b12n.raylib-ios.perlin` is the
   pure model that tests it.
 - A field-sized RGBA8 target is about 10.7 MB in portrait. Give the total in the
   catalog row, and measure the first open on the phone.
 - Testing: the smoke test checks SDL's framebuffer, the scissor and the full
-  matrix snapshot after every frame. `test/raylib/rlgl_model.clj` models rlgl's
+  matrix snapshot after every frame. `test/net/b12n/raylib_ios/rlgl_model.clj` models rlgl's
   matrix state, so a pass can be tested for what it leaves behind, and a stub
   that skips it would hide the transform and modelview split.
 - The native Perlin test needs libraylib. Plain `jolt -M:test` and CI skip it and
@@ -163,14 +163,14 @@ rebuilds them from rlgl's scalar calls.
   `jolt -Sdeps '{:jolt/native [{:name "raylib" :darwin ["/opt/homebrew/lib/libraylib.dylib"]}]}' -M:test`.
 
 **Thumb-sticks.** A scene that steers with a relative stick tracks it with
-`raylib.stick`, which follows one finger by its touch id and never adopts a
+`net.b12n.raylib-ios.stick`, which follows one finger by its touch id and never adopts a
 finger that was already down. `freecam`, `yawpitchroll` and `boxcollide` use it.
 
 **Gestures.** A scene that wants raylib's own recogniser reads `:raylib-gesture`
 from its input, which is the code from `GetGestureDetected`, as `gestures` does.
 It only ever reports one finger, so pinch never appears there.
 
-**2. A test** at `test/raylib/scenes/<name>_test.cljc`.
+**2. A test** at `test/net/b12n/raylib_ios/scenes/<name>_test.cljc`.
 
 Prefer properties over golden values: that a rotation preserves length, that
 slices tile a circle exactly, that a trail stays bounded. Two of this project's
@@ -180,16 +180,16 @@ own tests shipped wrong expectations that a property would have caught.
 an empty buffer, past 1400 assertions, because every test called `advance`
 before looking at anything.
 
-**3. Register it** in `src/raylib/gallery.clj`: add the require, add
+**3. Register it** in `src/net/b12n/raylib_ios/gallery.clj`: add the require, add
 `(yours/scene)` to the `scenes` vector, and add its `:id` to a category's
 `:scenes` list. All three, or it will not appear.
 
-**4. A `draw-scene!` method**, also in `raylib.gallery`. This is the only place
+**4. A `draw-scene!` method**, also in `net.b12n.raylib-ios.gallery`. This is the only place
 raylib gets called. Drawing reads the state the scene produced and calls
 `rl/draw-line` and friends. A texture scene also keeps its spec here, as a `def` or
 `delay` beside the method (see Textures above).
 
-Then add it to `test/raylib/test_runner.clj`, which lists its namespaces
+Then add it to `test/net/b12n/raylib_ios/test_runner.clj`, which lists its namespaces
 explicitly. It also fails if a `*_test` file exists that it does not list, so
 forgetting is caught rather than silently skipped.
 

@@ -111,17 +111,18 @@ This project is the same code as an ordinary source tree, so a build reads
 files rather than tangling them out of prose first. `tools/extract-from-notebooks`
 did the one-time extraction and is kept for provenance: it refuses to
 overwrite a file that has since been edited, and it checks the six pure
-namespaces against the sha256 the notebooks record.
+namespaces against the sha256 of their upstream files.
 
 ```
 $ ./tools/extract-from-notebooks
-byte-identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291):
-  src/poc/raylib/diagnostics.cljc        ok  179b24736879fdf1
-  src/poc/raylib/flappy_bird.cljc        ok  4d9cf3ae1984613d
-  src/poc/raylib/following_eyes.cljc     ok  9dcd98e36aafcb78
-  src/poc/raylib/gallery.cljc            ok  6bfc1f12cb425b9b
-  src/poc/raylib/gallery_ui.cljc         ok  a2301b268d555504
-  src/poc/raylib/touch_trail.cljc        ok  242385a4855c083a
+identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291),
+upstream names put back and whitespace dropped, against the table's :sha:
+  src/net/b12n/raylib_ios/gallery/core.cljc            ok  77f56efceb5b352d
+  src/net/b12n/raylib_ios/gallery/diagnostics.cljc     ok  12b5581897602ef5
+  src/net/b12n/raylib_ios/gallery/ui.cljc              ok  c99574384682e1a5
+  src/net/b12n/raylib_ios/scenes/flappy_bird.cljc      ok  1d0239fb0b302f1b
+  src/net/b12n/raylib_ios/scenes/following_eyes.cljc   ok  2fe4417319b69603
+  src/net/b12n/raylib_ios/scenes/touch_trail.cljc      ok  6370604ab7d2c357
 ```
 
 ## raylib has no iOS backend, and does not need one
@@ -173,10 +174,10 @@ from a ChezScheme checkout, so nothing from a jolt tree ends up in a pack.
 jolt test                            # the pure namespaces, every scene, and the gallery smoke test
 
 SDK=device jolt deps                 # SDL 2.32.10 and raylib 6.0, static, iphoneos
-NS=raylib.link  TARGET=device jolt build-app     # does it link?
+NS=net.b12n.raylib-ios.link  TARGET=device jolt build-app     # does it link?
 UDID=<hardware udid> jolt deploy                # sign, install, launch, watch stdout
 
-NS=raylib.gallery TARGET=device jolt build-app
+NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app
 UDID=<hardware udid> CONSOLE=0 jolt deploy      # detached, for actually playing
 ```
 
@@ -199,13 +200,13 @@ tools/ios/nrepl-eval 7888 '(System/getenv "HOME")'   # prove it is the phone
 ```
 
 Reads are free. Anything touching raylib goes through
-`raylib.host/on-next-frame!`, which runs it on the main thread at the top of
+`net.b12n.raylib-ios.host/on-next-frame!`, which runs it on the main thread at the top of
 the next frame, because an eval lands on the nREPL thread and the toolkit is
 main-thread-affine.
 
 That gives you jolt's built-in ops: `clone`, `describe`, `eval`, `load-file`,
 `close`. Enough for a script or a prompt. For an editor, `CIDER=1 jolt live`
-builds `raylib.live-cider` under the `:cider` alias and adds completions,
+builds `net.b12n.raylib-ios.live-cider` under the `:cider` alias and adds completions,
 `info`, `eldoc`, the namespace browser, macroexpansion, apropos and the test
 ops, by composing [jolt-lang/nrepl](https://github.com/jolt-lang/nrepl) over
 the same handler. It is the project's only dependency and it is opt-in, which
@@ -216,16 +217,16 @@ default, 33 MB and three with it.
 
 | namespace | what it does |
 |---|---|
-| `raylib.link` | one call into each archive, no window. Proves the link, the frameworks and the export trie |
-| `raylib.touch` | scalar touch polling, press edges, a marker under the finger |
-| `raylib.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
-| `raylib.gallery` | the scene contract: cards, hit testing, Back, every scene's drawing |
-| `raylib.live` | the gallery plus an nREPL, so an editor can drive the running app |
-| `raylib.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
+| `net.b12n.raylib-ios.link` | one call into each archive, no window. Proves the link, the frameworks and the export trie |
+| `net.b12n.raylib-ios.touch` | scalar touch polling, press edges, a marker under the finger |
+| `net.b12n.raylib-ios.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
+| `net.b12n.raylib-ios.gallery` | the scene contract: cards, hit testing, Back, every scene's drawing |
+| `net.b12n.raylib-ios.live` | the gallery plus an nREPL, so an editor can drive the running app |
+| `net.b12n.raylib-ios.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
-Ported examples live in `src/raylib/scenes/`. They are pure `.cljc` in the same
+Ported examples live in `src/net/b12n/raylib_ios/scenes/`. They are pure `.cljc` in the same
 shape as the six from the Android experiment, so they test on the build host,
-and `raylib.gallery` owns their drawing. `spirograph` is the first, from
+and `net.b12n.raylib-ios.gallery` owns their drawing. `spirograph` is the first, from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt); porting one means
 turning a namespace that owns its own loop into a reducer over frames, and
 deriving geometry from the live screen instead of a fixed 800x450.
@@ -241,7 +242,7 @@ version of the second is that the FFI was never the problem.
 var redefined over the nREPL reaches the REPL and not the running loop. See the
 RUNBOOK.
 
-`raylib.link` and `raylib.touch` are bring-up tools, kept on purpose. Nothing
+`net.b12n.raylib-ios.link` and `net.b12n.raylib-ios.touch` are bring-up tools, kept on purpose. Nothing
 runs them and they are not dead code: they are the two rungs that isolate a
 failure when the gallery does not come up. `link` calls one function from each
 archive with no window at all, so it separates a broken link, a missing
@@ -253,16 +254,17 @@ layer moved rather than what the gallery is doing.
 ## Layout
 
 ```
-src/raylib/objc.clj      three Objective-C runtime calls, and nothing else
-src/raylib/probe.clj     the measuring apparatus, all of it off by default
-src/raylib/host.clj      the owner loop: SDL_UIKitRunApp, InitWindow, the frame
-src/raylib/{link,touch,flappy,gallery}.clj   scenes for that host
-src/raylib/scenes/*.cljc one pure namespace per ported scene
-src/raylib/scroll.cljc   the card list's scrolling and its tap-versus-drag rule
-src/raylib/easings.cljc  raylib's easing curves, shared by two scenes
-src/raylib/live.clj      the gallery with an nREPL listening, dev builds only
-src/poc/raylib/*.cljc    six pure namespaces, byte-identical to 6d2b291
-test/poc/raylib/*.cljc   their tests, likewise
+src/net/b12n/raylib_ios/objc.clj      three Objective-C runtime calls, and nothing else
+src/net/b12n/raylib_ios/probe.clj     the measuring apparatus, all of it off by default
+src/net/b12n/raylib_ios/host.clj      the owner loop: SDL_UIKitRunApp, InitWindow, the frame
+src/net/b12n/raylib_ios/{link,touch,flappy,gallery}.clj   scenes for that host
+src/net/b12n/raylib_ios/scenes/*.cljc one pure namespace per ported scene
+src/net/b12n/raylib_ios/scroll.cljc   the card list's scrolling and its tap-versus-drag rule
+src/net/b12n/raylib_ios/easings.cljc  raylib's easing curves, shared by two scenes
+src/net/b12n/raylib_ios/live.clj      the gallery with an nREPL listening, dev builds only
+src/net/b12n/raylib_ios/gallery/*.cljc   the pure gallery (core, ui, diagnostics)
+src/net/b12n/raylib_ios/scenes/{flappy_bird,following_eyes,touch_trail}.cljc
+                         with gallery/*, six namespaces that are 6d2b291's apart from their names
 tools/ios/deps.sh        SDL2 and raylib, cross-built static
 tools/ios/build.sh       jolt build --target, with both archives on the link line
 tools/ios/deploy.sh      sign, install, launch
@@ -270,7 +272,7 @@ tools/ios/pack.sh        a target pack from scratch, if you need to build one
 tools/ios/devices.sh     what deploy can talk to, asked rather than cached
 ```
 
-`raylib.host` takes a scene as `{:title :init :frame}` and calls `(frame
+`net.b12n.raylib-ios.host` takes a scene as `{:title :init :frame}` and calls `(frame
 state)` between `BeginDrawing` and `EndDrawing`. A scene is a reducer over
 frames, so nothing in it polls, draws or holds a native value. That contract
 is the Android experiment's, and it is the reason their `.cljc` files run here
@@ -309,7 +311,7 @@ trie without it.
 
 ## Numbers, measured
 
-An iPhone 17 Pro on iOS 26.6.1, running `raylib.gallery` with Flappy Bird
+An iPhone 17 Pro on iOS 26.6.1, running `net.b12n.raylib-ios.gallery` with Flappy Bird
 open, over portable bytecode with every draw call a libffi call. The host
 prints a summary every 300 frames:
 
@@ -349,13 +351,13 @@ instead and after n calls just n slots are filled, so it returns
 That model has no free parameters, since the slot size comes from the measured
 frame time and raylib's own `FPS_CAPTURE_FRAMES_COUNT`, and it fits all
 eighteen readings to within 0.76%. The controlled run settles it: the same
-binary running `raylib.flappy`, which draws `GetFPS` every frame, reported a
+binary running `net.b12n.raylib-ios.flappy`, which draws `GetFPS` every frame, reported a
 steady 59 from the first window through 5700 frames.
 
-So raylib is behaving as designed and the misuse was ours. `raylib.host` now
+So raylib is behaving as designed and the misuse was ours. `net.b12n.raylib-ios.host` now
 computes the window's rate from the frame times it already sums, which needs
 nothing from raylib and cannot drift. Scenes that draw `GetFPS` every frame,
-which is `raylib.flappy` and `raylib.touch`, were always fine.
+which is `net.b12n.raylib-ios.flappy` and `net.b12n.raylib-ios.touch`, were always fine.
 
 Before and after on the same phone, both readings taken on the gallery's card
 screen so the comparison holds one thing constant:
@@ -393,12 +395,12 @@ Two related things about iOS itself, both of which look like rendering bugs:
   The obvious conclusion, which the notebooks drew and this project believed
   for a day, is that raylib therefore draws into framebuffer 0 and a device
   shows nothing. It does not. Measured on hardware, both bindings are already
-  correct at swap time whether or not `raylib.host` binds anything, because
+  correct at swap time whether or not `net.b12n.raylib-ios.host` binds anything, because
   SDL's own swap path leaves the drawable bound and the binding survives
-  between frames. `raylib.host` binds them anyway, which is a no-op today and
+  between frames. `net.b12n.raylib-ios.host` binds them anyway, which is a no-op today and
   cheap insurance against an SDL or raylib that stops doing so. That holds
   only until something binds framebuffer 0, which every rlgl framebuffer call
-  does, so `raylib.texture` rebinds SDL's after each of them. The porting guide's
+  does, so `net.b12n.raylib-ios.texture` rebinds SDL's after each of them. The porting guide's
   "Render textures" section has the detail. The full
   measurement, and why the wrong conclusion was so easy to reach, is in
   [`docs/upstream-findings.md`](docs/upstream-findings.md).
@@ -450,6 +452,6 @@ also MIT. Both notices are reproduced there.
 - [raylib](https://github.com/raysan5/raylib) 6.0 and
   [SDL](https://github.com/libsdl-org/SDL) 2.32.10.
 - [raylib-jlt](https://github.com/jlt-commons/raylib-jlt) is not a dependency
-  here, but `raylib.host`'s binding subset follows the shapes its core example
+  here, but `net.b12n.raylib-ios.host`'s binding subset follows the shapes its core example
   established, including packed `:uint` colours and the `[:by-value ...]`
   form.

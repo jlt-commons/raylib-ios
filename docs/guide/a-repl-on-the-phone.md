@@ -13,7 +13,7 @@ UDID=<hardware udid> sh tools/ios/live.sh    # build with an nREPL, install, lau
 UDID=<hardware udid> sh tools/ios/proxy.sh   # forward its port over USB
 ```
 
-`live.sh` builds `raylib.live` rather than `raylib.gallery`: the same app plus
+`live.sh` builds `net.b12n.raylib-ios.live` rather than `net.b12n.raylib-ios.gallery`: the same app plus
 `jolt.nrepl`. The listener binds loopback only, so `proxy.sh` runs `iproxy` to
 forward the phone's port to the laptop. That needs the cable, since `iproxy`
 speaks usbmuxd and a Wi-Fi pairing does not answer it.
@@ -51,17 +51,17 @@ loop, so there is nothing global for an editor to look at either.
 
 Two small things fix both.
 
-**`raylib.host/state`** is refreshed every frame, so an eval can read what the
+**`net.b12n.raylib-ios.host/state`** is refreshed every frame, so an eval can read what the
 scene currently holds:
 
 ```clojure
-(let [g (:gstate @raylib.host/current-state)]
+(let [g (:gstate @net.b12n.raylib-ios.host/current-state)]
   {:scene (:active-scene-id g)
    :live  (count (get-in g [:scene-state :live]))})
 ;; {:scene :life, :live 1026}
 ```
 
-**`raylib.host/on-next-frame!`** queues a thunk the loop runs on the main
+**`net.b12n.raylib-ios.host/on-next-frame!`** queues a thunk the loop runs on the main
 thread, between `BeginDrawing` and the scene's own frame function, which is the
 only safe place to touch raylib from outside.
 
@@ -71,13 +71,13 @@ log line, which is the kind of bug that gets blamed on the phone.
 
 ## Driving the UI without a finger
 
-`raylib.gallery/tap!` queues a synthetic tap at a point in screen pixels. The
+`net.b12n.raylib-ios.gallery/tap!` queues a synthetic tap at a point in screen pixels. The
 next frame sees a press there and the frame after sees the release, which is the
 edge the gallery opens a card on.
 
 ```clojure
-(raylib.gallery/tap! 316 901)     ; a category card
-(raylib.gallery/tap! 316 2201)    ; a scene inside it
+(net.b12n.raylib-ios.gallery/tap! 316 901)     ; a category card
+(net.b12n.raylib-ios.gallery/tap! 316 2201)    ; a scene inside it
 ```
 
 Ask the running layout where a card is rather than hardcoding pixels. Card
@@ -91,13 +91,13 @@ GIF in these docs was taken by a script that navigated the app this way.
 
 ## Reading the frame rate
 
-`raylib.probe/fps-every-frame?` turns on a per-frame `GetFPS` call and parks the
+`net.b12n.raylib-ios.probe/fps-every-frame?` turns on a per-frame `GetFPS` call and parks the
 answer in `last-fps`, so the frame rate becomes a value to read rather than a
 console line to scrape:
 
 ```clojure
-(reset! raylib.probe/fps-every-frame? true)
-@raylib.probe/last-fps
+(reset! net.b12n.raylib-ios.probe/fps-every-frame? true)
+@net.b12n.raylib-ios.probe/last-fps
 ;; 58
 ```
 
@@ -135,12 +135,12 @@ Sitting next to each other in one session, that asymmetry is very hard to see:
 (defmethod draw-scene! :bullets [_ {:keys [bullets]} {:keys [m]}] ...)
 
 ;; this did not, on a release build
-(in-ns 'raylib.scenes.bullets)
+(in-ns 'net.b12n.raylib-ios.scenes.bullets)
 (def speed 8.0)
 
 ;; and here is the convincing wrong answer
-raylib.scenes.bullets/speed                        ;=> 8.0
-(mapv :vx (raylib.scenes.bullets/emit origin 0.0)) ;=> [4.0 -2.0 -2.0]
+net.b12n.raylib-ios.scenes.bullets/speed                        ;=> 8.0
+(mapv :vx (net.b12n.raylib-ios.scenes.bullets/emit origin 0.0)) ;=> [4.0 -2.0 -2.0]
 ```
 
 The var says 8.0. `emit` still uses 4.0. A sweep over four values of `speed`

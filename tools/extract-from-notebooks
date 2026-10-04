@@ -15,27 +15,31 @@
 ;; org file and line, which is exactly the coupling this extraction removes,
 ;; and which would break the byte-identity check below.
 ;;
-;; Byte-identity matters for src/poc/raylib/*.cljc: those six namespaces come
-;; from jasalt/jolt-android-experiment at 6d2b291 unchanged, and both notebooks
-;; record their sha256 to prove it. --verify checks the extracted files against
-;; the hashes recorded in expected-shas below.
+;; Identity matters for the six pure namespaces, which come from
+;; jasalt/jolt-android-experiment at 6d2b291. Both notebooks record their
+;; sha256 to prove it. The table in tools/jasalt-identity.edn holds those hashes
+;; and the names the files have in this repo, and is the same table the
+;; identity test reads (net.b12n.raylib-ios.jasalt-identity-test). --verify
+;; below applies it to the files in the tree.
+;;
+;; Two things changed since the notebooks, and neither is the extraction's
+;; fault. The files were renamed into net.b12n.raylib-ios.*, and five of them
+;; went through clojure-lsp format, which only moves whitespace. So the check
+;; here puts the upstream names back, drops whitespace, and compares with the
+;; table's :sha. A fresh extraction writes raw upstream bytes at the paths the
+;; notebooks give, which this tree no longer uses: check those against the
+;; table's :notebook-sha, then move them to :file by hand.
 (require '[babashka.fs :as fs]
+         '[clojure.edn :as edn]
          '[clojure.string :as str])
 
-(def expected-shas
-  "sha256 of the six pure poc.raylib namespaces, as recorded in the notebooks
-  (examples/flappy README milestone 4; examples/gallery 'What comes across').
-  The gallery records only the first 16 hex digits, so those are prefixes."
-  {"src/poc/raylib/flappy_bird.cljc"   "4d9cf3ae1984613d2e0a4fc25269e147d09e3562d57e12743233b38610a8c560"
-   "src/poc/raylib/gallery.cljc"       "6bfc1f12cb425b9b"
-   "src/poc/raylib/gallery_ui.cljc"    "a2301b268d555504"
-   "src/poc/raylib/diagnostics.cljc"   "179b24736879fdf1"
-   "src/poc/raylib/following_eyes.cljc" "9dcd98e36aafcb78"
-   "src/poc/raylib/touch_trail.cljc"   "242385a4855c083a"})
+(def identity-table
+  "The six pure namespaces: see tools/jasalt-identity.edn."
+  (edn/read-string (slurp (str (fs/path (fs/parent (fs/real-path *file*)) "jasalt-identity.edn")))))
 
-(defn sha256 [path]
+(defn sha256-of [^String s]
   (let [d (java.security.MessageDigest/getInstance "SHA-256")]
-    (->> (.digest d (fs/read-all-bytes path))
+    (->> (.digest d (.getBytes s "UTF-8"))
          (map #(format "%02x" %))
          (apply str))))
 
@@ -79,11 +83,16 @@
         (do (spit (str out) body)
             (println "wrote" (str (fs/relativize (fs/path dest) out)))))))
   (println)
-  (println "byte-identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291):")
-  (doseq [[rel want] (sort expected-shas)]
-    (let [f (fs/path dest rel)]
+  (println "identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291),")
+  (println "upstream names put back and whitespace dropped, against the table's :sha:")
+  (doseq [{:keys [file sha ns]} (sort-by :file identity-table)]
+    (let [f (fs/path dest file)]
       (if-not (fs/exists? f)
-        (println "  MISSING" rel)
-        (let [got (sha256 (str f))]
-          (println (format "  %-38s %s  %s" rel (if (str/starts-with? got want) "ok" "MISMATCH")
-                           (subs got 0 16))))))))
+        (println "  MISSING" file)
+        (let [text (reduce (fn [acc [ours theirs]]
+                             (str/replace acc
+                                          (re-pattern (str "(?<![\\w.-])" (java.util.regex.Pattern/quote (str ours)) "(?![\\w.-])"))
+                                          (java.util.regex.Matcher/quoteReplacement (str theirs))))
+                           (slurp (str f)) ns)
+              got  (sha256-of (str/replace text #"\s+" ""))]
+          (println (format "  %-52s %s  %s" file (if (= got sha) "ok" "MISMATCH") (subs got 0 16))))))))

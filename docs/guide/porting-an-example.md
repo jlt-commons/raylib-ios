@@ -45,20 +45,20 @@ round, pure and touch-first, with input arriving as a data snapshot.
 ## The four changes
 
 **1. Become a reducer over frames.** The scene contract in
-`poc.raylib.gallery` is `{:id :title :init :update :draw :dispose}`, where
+`net.b12n.raylib-ios.gallery.core` is `{:id :title :init :update :draw :dispose}`, where
 `update` takes state and an input snapshot and returns the next state. So the
 body of the original's `loop` becomes `advance`, and `-main` disappears.
 
 **2. Derive geometry from the live screen.** The originals draw at a fixed
 800x450 with constants to match: a ring at radius 170 about (400, 225). A phone
 is 1206x2622. Give the namespace a `dimensions` function taking the metrics, the
-way `poc.raylib.flappy-bird` does, and scale everything off the smaller
+way `net.b12n.raylib-ios.scenes.flappy-bird` does, and scale everything off the smaller
 dimension so a tall phone and a wide desktop both get something that fits.
 
 **3. Replace `GetRandomValue` with a seeded LCG.** Not for purity as an
 aesthetic, but because it makes the scene runnable and testable on a build host
 with no raylib, no SDL and no device, and reproducible from a seed. The
-constants are `poc.raylib.flappy-bird`'s, so a seed means the same thing
+constants are `net.b12n.raylib-ios.scenes.flappy-bird`'s, so a seed means the same thing
 everywhere:
 
 ```clojure
@@ -67,7 +67,7 @@ everywhere:
 ```
 
 **4. Leave drawing to the host.** The pure namespace computes; a
-`draw-scene!` method in `raylib.gallery` draws. Colours come back as
+`draw-scene!` method in `net.b12n.raylib-ios.gallery` draws. Colours come back as
 `[r g b a]` and the host packs them, so no raylib type reaches the scene.
 
 ## What it costs in bindings
@@ -97,23 +97,23 @@ and `update`, with a fallback so tests can run without the FFI. A scene that
 lays text out only in `dimensions`, as `rectbounds` does, still gets `measure`
 from its draw method.
 
-An example that sets a `Camera2D` draws inside `raylib.host/with-camera-2d`,
+An example that sets a `Camera2D` draws inside `net.b12n.raylib-ios.host/with-camera-2d`,
 which pushes `rlTranslatef`, `rlRotatef` and `rlScalef` on top of the gallery's
 own translate, because `BeginMode2D` would load the identity matrix and drop it.
-The pure part is `raylib.camera2d`, which also holds the pinch rule shared by
+The pure part is `net.b12n.raylib-ios.camera2d`, which also holds the pinch rule shared by
 the three scenes that zoom. An example that reads gestures finds raylib's own
 code in the scene input as `:raylib-gesture`. On the phone that code fires for
 one finger only, so pinch cannot appear.
 
 An example that draws in 3D is projected in software, since no 3D mode is bound.
-`raylib.soft3d` holds the camera, the transforms and the builders (`cube`,
+`net.b12n.raylib-ios.soft3d` holds the camera, the transforms and the builders (`cube`,
 `cube-wires`, `grid`, `lines`, `sphere`, `plane`). `field` lays out the caption and the 3D view
 under Back, `fit-camera` widens the original's fovy so a portrait field still
 shows the original's width, `finish` sorts the draw list, and
-`raylib.host/draw-3d!` emits it. A scene that draws many small boxes may bypass
+`net.b12n.raylib-ios.host/draw-3d!` emits it. A scene that draws many small boxes may bypass
 `finish` with its own paint order, as `wavecubes` and `pointcloud` do, if the
 order is provably right for that scene. A scene that steers with a relative thumb-stick
-tracks it with `raylib.stick`, which follows one touch id and never adopts a
+tracks it with `net.b12n.raylib-ios.stick`, which follows one touch id and never adopts a
 finger that was already down. The next guide page covers the drawing itself.
 
 <img src="../images/kaleidoscope.gif" width="220" alt="Kaleidoscope">
@@ -174,7 +174,7 @@ a real phone.
 - Only `:press` and `:down` with a non-nil point mean a finger is on the glass.
 - Never read the position on `:release`. raylib keeps the last hardware value,
   and on the device it isn't the touch that just ended. The comment in
-  `raylib.gallery/frame` has the details, and `touchball` stays put when the
+  `net.b12n.raylib-ios.gallery/frame` has the details, and `touchball` stays put when the
   finger lifts for that reason.
 - A button fires on `:press` inside its rect, as the two in `rlgltriangle` do
   where the original read keys.
@@ -187,7 +187,7 @@ a real phone.
   rotation. `rlgltriangle` clamps its corners into the new screen and `breakout`
   starts a new game.
 
-`raylib.gesture` does the reading for scenes that need to know what a touch
+`net.b12n.raylib-ios.gesture` does the reading for scenes that need to know what a touch
 meant. `track` takes a gesture value and the frame's input, which carries the pointer
 and the metrics, and returns
 `[g' event]` once per frame. The event is a tap at the gesture's start point, a
@@ -242,13 +242,13 @@ that usually means the approach is finished rather than that the tuning is.
 
 Ten of the ports draw a real GPU texture rather than flat shapes. They keep
 the scene contract: the namespace stays pure and knows nothing of FFI, and the
-`draw-scene!` method in `raylib.gallery` is the only place a texture is touched.
+`draw-scene!` method in `net.b12n.raylib-ios.gallery` is the only place a texture is touched.
 
 The scene describes the texture as a spec map, `{:w :h :wrap :filter :pixel
 :version}`. `:pixel` is `(f x y)` and answers a packed colour,
-`r | g<<8 | b<<16 | a<<24`, which `raylib.texel/pack` builds, and `raylib.texel`
+`r | g<<8 | b<<16 | a<<24`, which `net.b12n.raylib-ios.texel/pack` builds, and `net.b12n.raylib-ios.texel`
 also carries the `ImageDraw*` rasterisers (lines, rects, circles) following
-raylib 6.0's own loops. The draw method then calls into `raylib.texture`:
+raylib 6.0's own loops. The draw method then calls into `net.b12n.raylib-ios.texture`:
 
 - `id!` with `(scene-id key spec)` uploads on first use and answers the id.
   Pass the scene's own registry id, because a texture filed under any other id
@@ -271,7 +271,7 @@ avoid allocating a vector per texel, since the phone runs it 69 thousand times
 for Sprite Animation's strip alone.
 
 Make a static spec a `def` or a `delay` in the gallery, so the same object comes
-back each visit. `raylib.texture` keeps the filled buffer for a spec without a
+back each visit. `net.b12n.raylib-ios.texture` keeps the filled buffer for a spec without a
 `:version`, and a reopen then costs about one frame instead of a refill. The
 catalog rows give each scene's first-open pause, which runs up to about a second
 for Sprite Animation, because the pixels are computed then.
@@ -281,7 +281,7 @@ for Sprite Animation, because the pixels are computed then.
 Five of the ports draw into an off-screen framebuffer: Render Texture,
 Framebuffer Rendering, Mouse Painting, Magnifying Glass and Top Down Lights.
 raylib's `LoadRenderTexture` returns a `RenderTexture2D` by value and
-`BeginTextureMode` takes one, so neither can cross the FFI. `raylib.texture`
+`BeginTextureMode` takes one, so neither can cross the FFI. `net.b12n.raylib-ios.texture`
 rebuilds the pair from rlgl's scalar calls:
 
 - `target!` with `(scene-id key {:w :h :depth?})` makes the framebuffer on first
@@ -312,7 +312,7 @@ MODELVIEW mode redirects to rlgl's `transform` matrix, so loading identity after
 a matrix-mode call leaves the safe-area translate in place. A pass drew offset by
 the safe inset, and the rest of the frame was translated twice. `with-target!`
 loads identity straight after its push and restores with a push and two pops.
-`test/raylib/rlgl_model.clj` models rlgl's matrix state for the same reason: a
+`test/net/b12n/raylib_ios/rlgl_model.clj` models rlgl's matrix state for the same reason: a
 stub that skips it hides the whole split.
 
 A **persistent canvas** is a target whose picture stays on the GPU. Mouse
@@ -328,7 +328,7 @@ blend mode raylib offers. The call doesn't nest.
 **`perlin-texture!`** is the one native call with a struct return. Magnifying
 Glass's backdrop is raylib's own `GenImagePerlinNoise`, whose `Image` comes back
 by value; jolt passes a buffer first for that, and the pixels go straight to
-`rlLoadTexture`. The pure port `raylib.perlin` takes about 17 microseconds a
+`rlLoadTexture`. The pure port `net.b12n.raylib-ios.perlin` takes about 17 microseconds a
 texel under laptop jolt, so 6 seconds for 800 by 450, and stays as the tested
 reference. The C took 11.7 ms on the phone.
 
@@ -338,10 +338,10 @@ after launch), and 16 field-sized lights in Top Down Lights ran at 58 fps. The c
 
 ## Wiring it in
 
-Three edits, all in `raylib.gallery`:
+Three edits, all in `net.b12n.raylib-ios.gallery`:
 
 ```clojure
-(:require ... [raylib.scenes.spirograph :as spiro])
+(:require ... [net.b12n.raylib-ios.scenes.spirograph :as spiro])
 (def scenes [... (spiro/scene)])
 {:id :generative :title "Generative" :scenes [:spirograph ...]}
 ```

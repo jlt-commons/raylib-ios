@@ -2,6 +2,32 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
+## Unreleased
+
+### Changed
+
+- **Every namespace is now `net.b12n.raylib-ios.*`.** `raylib.<x>` became
+  `net.b12n.raylib-ios.<x>`, so `raylib.gallery` is
+  `net.b12n.raylib-ios.gallery` and `raylib.scenes.<x>` is
+  `net.b12n.raylib-ios.scenes.<x>`, and the files moved to
+  `src/net/b12n/raylib_ios/` and `test/net/b12n/raylib_ios/` to match. The six
+  `poc.raylib` namespaces became `net.b12n.raylib-ios.gallery.core`,
+  `.gallery.ui`, `.gallery.diagnostics`, `.scenes.flappy-bird`,
+  `.scenes.following-eyes` and `.scenes.touch-trail`. Build with
+  `NS=net.b12n.raylib-ios.gallery`, `.link` or `.live`; the test runner is
+  `net.b12n.raylib-ios.test-runner`. Entries below keep the names they were
+  written with.
+- **The six jasalt namespaces are checked as "identical apart from names".**
+  `net.b12n.raylib-ios.jasalt-identity-test` puts the upstream names back,
+  drops whitespace and compares the sha256 with the upstream file's, using the
+  table in `tools/jasalt-identity.edn`, which `tools/extract-from-notebooks`
+  reads too. The whitespace step is there because five of the six had been
+  through `clojure-lsp format` since 4c23d11, so their raw hashes stopped
+  matching the notebooks that day and nothing noticed. The test runs on the
+  JVM only: jolt has no sha256.
+- **`no-old-namespace-remains`** in the gallery smoke test fails on any
+  leftover `raylib.<x>` or `poc.raylib` outside this file and the identity table.
+
 ## 2026-10-04
 
 ### Added

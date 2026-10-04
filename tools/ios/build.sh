@@ -2,8 +2,8 @@
 # build.sh: cross-compile NS into RaylibIOS.app for TARGET, with SDL2 and
 # raylib linked in statically.
 #
-#   NS=raylib.link    TARGET=device sh tools/ios/build.sh
-#   NS=raylib.gallery TARGET=device sh tools/ios/build.sh
+#   NS=net.b12n.raylib-ios.link    TARGET=device sh tools/ios/build.sh
+#   NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh
 #
 # Both targets are tpb64l: threaded portable bytecode. Native code (tarm64ios)
 # is not an option on a device -- iOS requires executable pages to come from a
@@ -12,7 +12,7 @@
 # simulator cannot display OpenGL ES at all, so there is nothing to see there.
 set -eu
 
-NS=${NS:-raylib.link}
+NS=${NS:-net.b12n.raylib-ios.link}
 TARGET=${TARGET:-device}
 APP=${APP:-RaylibIOS.app}
 ALIAS=${ALIAS:-}

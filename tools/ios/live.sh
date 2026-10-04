@@ -3,7 +3,7 @@
 #
 #   UDID=<hardware udid> sh tools/ios/live.sh
 #
-# Builds raylib.live, signs, installs and launches it detached, then tells you
+# Builds net.b12n.raylib-ios.live, signs, installs and launches it detached, then tells you
 # how to reach the REPL. jolt.nrepl binds loopback only, so the port has to be
 # forwarded over USB with iproxy (`jolt proxy` in another terminal).
 set -eu
@@ -15,9 +15,9 @@ LOCAL_PORT=${LOCAL_PORT:-7888}
 # CIDER=1 swaps in the middleware build, which needs the :cider alias because
 # that is where the dependency lives. The default has none.
 if [ "${CIDER:-0}" = 1 ]; then
-  NS=raylib.live-cider ALIAS=:cider TARGET=device sh tools/ios/build.sh
+  NS=net.b12n.raylib-ios.live-cider ALIAS=:cider TARGET=device sh tools/ios/build.sh
 else
-  NS=raylib.live TARGET=device sh tools/ios/build.sh
+  NS=net.b12n.raylib-ios.live TARGET=device sh tools/ios/build.sh
 fi
 DEVICE_PORT="$DEVICE_PORT" CONSOLE=${CONSOLE:-0} sh tools/ios/deploy.sh
 
@@ -33,12 +33,12 @@ live: the gallery is running with an nREPL on the phone's 127.0.0.1:$DEVICE_PORT
 
 Reads are free:
 
-  tools/ios/nrepl-eval $LOCAL_PORT '(do (require (quote [raylib.host])) (pr-str (raylib.host/state)))'
+  tools/ios/nrepl-eval $LOCAL_PORT '(do (require (quote [net.b12n.raylib-ios.host])) (pr-str (net.b12n.raylib-ios.host/state)))'
 
 Anything touching raylib or SDL must go through on-next-frame!, because an
 eval runs on the nREPL thread while the toolkit is main-thread-affine:
 
-  tools/ios/nrepl-eval $LOCAL_PORT '(do (require (quote [raylib.host])) (raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30))))'
+  tools/ios/nrepl-eval $LOCAL_PORT '(do (require (quote [net.b12n.raylib-ios.host])) (net.b12n.raylib-ios.host/on-next-frame! (fn [] (net.b12n.raylib-ios.host/set-target-fps 30))))'
 
 Both ports override: DEVICE_PORT and LOCAL_PORT.
 

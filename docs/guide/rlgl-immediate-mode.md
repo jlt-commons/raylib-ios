@@ -142,7 +142,7 @@ own sign, and so draws at every detail.
 ## Drawing 3D in software
 
 No 3D mode is bound, so the 3D scenes project every vertex themselves in
-`raylib.soft3d` and send flat triangles and lines through `raylib.host/draw-3d!`.
+`net.b12n.raylib-ios.soft3d` and send flat triangles and lines through `net.b12n.raylib-ios.host/draw-3d!`.
 Three rules matter. There is no depth buffer, so `finish` paints the grid and
 under-lines first, then the faces far to near by mean depth, then the wires. That
 painter order is wrong where a grid line should cross a cube's lower half, and

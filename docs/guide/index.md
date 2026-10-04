@@ -122,7 +122,7 @@ The README covers the build in full. The short version:
 
 ```sh
 SDK=device sh tools/ios/deps.sh                   # raylib + SDL2 static archives
-NS=raylib.gallery TARGET=device sh tools/ios/build.sh
+NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh
 UDID=<hardware udid> sh tools/ios/deploy.sh
 ```
 

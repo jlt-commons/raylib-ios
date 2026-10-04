@@ -21,9 +21,15 @@ such. The ports below satisfy it in their docstrings, and they still have to.
 
 ## Carried unchanged
 
-`src/poc/raylib/*.cljc` and `test/poc/raylib/*.cljc` are byte-identical to
-their originals in jasalt/jolt-android-experiment at 6d2b291, and their
-sha256 is verified by `tools/extract-from-notebooks`.
+Six namespaces under `src/net/b12n/raylib_ios/` (`gallery/core.cljc`,
+`gallery/ui.cljc`, `gallery/diagnostics.cljc` and `scenes/flappy_bird.cljc`,
+`scenes/following_eyes.cljc`, `scenes/touch_trail.cljc`) and their tests are
+the originals from jasalt/jolt-android-experiment at 6d2b291, with two
+differences: the namespace names, and whitespace, because clojure-lsp's
+formatter has been over them since. Put the upstream names back and drop the
+whitespace and the sha256 matches the upstream file. The test
+`net.b12n.raylib-ios.jasalt-identity-test` checks that, and
+`tools/extract-from-notebooks` does too.
 
     https://github.com/jasalt/jolt-android-experiment
     Copyright 2026 Jarkko Saltiola
@@ -49,14 +55,14 @@ sha256 is verified by `tools/extract-from-notebooks`.
 
 ## Ported, and altered
 
-`src/raylib/scenes/*.cljc` are ports of examples from jlt-commons/raylib-jlt.
+`src/net/b12n/raylib_ios/scenes/*.cljc` are ports of examples from jlt-commons/raylib-jlt.
 Each is an altered version: the loop is inverted so the host owns it, geometry
 derives from the live screen instead of a fixed 800x450, randomness becomes a
 seeded LCG, and drawing moves to the caller. Every file names its original in
 its own docstring, as the zlib licence's "altered source versions must be
 plainly marked as such" asks.
 
-Some files outside the scenes are derived too. `src/raylib/texture.clj` lifts
+Some files outside the scenes are derived too. `src/net/b12n/raylib_ios/texture.clj` lifts
 the rlgl declarations, the wrap and filter setters, the upload loop and the quad
 from raylib-jlt's `lib/src/net/b12n/raylib/textures.clj`, along with the
 render-texture, with-render-texture and restore-screen-projection! bodies behind
@@ -73,10 +79,10 @@ relicence. The same holds for four of the five render-target scenes
 Render Texture (2026-08-23) predates the relicence and is zlib. Each of those
 docstrings gives its original's licence, and the raylib
 C examples behind them are zlib, so their altered-source marking stands.
-`src/raylib/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
+`src/net/b12n/raylib_ios/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
 `rtextures.c`, and its tests are worked by hand from them.
 `host/draw-circle-gradient` follows `DrawCircleGradient` in raylib 6.0's
-`rshapes.c`, and `perlin-grey` in `src/raylib/perlin.cljc` follows
+`rshapes.c`, and `perlin-grey` in `src/net/b12n/raylib_ios/perlin.cljc` follows
 `GenImagePerlinNoise` in `rtextures.c`. raylib's notice is under "Linked". Each
 file names its source in its own docstring.
 
@@ -86,7 +92,7 @@ file names its source in its own docstring.
 
 ## Ported from stb_perlin, and altered
 
-`src/raylib/perlin.cljc` ports Sean Barrett's stb_perlin.h v0.5 as shipped in
+`src/net/b12n/raylib_ios/perlin.cljc` ports Sean Barrett's stb_perlin.h v0.5 as shipped in
 raylib 6.0's `src/external`, with its permutation and gradient tables copied. It
 is an altered version: it is written in Clojure, not C, and rounds every
 intermediate to a 32-bit float where the C does. stb_perlin.h offers MIT or
@@ -119,9 +125,9 @@ The compiled stb_perlin inside libraylib.a is covered by raylib's notice under
 
 ## Ported from babashka/ffi, and altered
 
-`src/raylib/scenes/helitorus.cljc`, `src/raylib/scenes/doom.cljc` (with
+`src/net/b12n/raylib_ios/scenes/helitorus.cljc`, `src/net/b12n/raylib_ios/scenes/doom.cljc` (with
 `doom/map.cljc`, `doom/ray.cljc` and `doom/hud.cljc`) and
-`src/raylib/scenes/pacman.cljc` are each a port of raylib-jlt's port of a
+`src/net/b12n/raylib_ios/scenes/pacman.cljc` are each a port of raylib-jlt's port of a
 program from the babashka/ffi examples directory, not of one of raylib's own
 examples. Each is an altered version of both.
 
@@ -192,7 +198,7 @@ Both are compiled into the app as static archives.
 
 ## Derived, and licensed
 
-`src/raylib/host.clj`, `gallery.clj`, `touch.clj` and `link.clj` began as
+`src/net/b12n/raylib_ios/host.clj`, `gallery.clj`, `touch.clj` and `link.clj` began as
 derivations of statonjr/glimmer-ios-demo, whose notebooks this project's
 `tools/extract-from-notebooks` reads.
 

@@ -11,10 +11,10 @@ the battery.
 
 ## The insets were never the hard part
 
-`raylib.host/safe-area-insets` had been there since the first week:
+`net.b12n.raylib-ios.host/safe-area-insets` had been there since the first week:
 
 ```clojure
-(raylib.host/safe-area-insets)
+(net.b12n.raylib-ios.host/safe-area-insets)
 ;; {:top 62.0, :left 0.0, :bottom 34.0, :right 0.0}
 ```
 
@@ -148,7 +148,7 @@ The pieces are small and none of them are specific to this project:
 - Translate and clip around it.
 - Translate the pointer the other way, so input and output agree.
 
-The whole thing is about sixty lines across `raylib.host` and `raylib.gallery`:
+The whole thing is about sixty lines across `net.b12n.raylib-ios.host` and `net.b12n.raylib-ios.gallery`:
 45 in `safe-region`, `below-the-safe-area`, `into-safe-region` and
 `safe-area-pixels`, five one-line FFI bindings for the matrix stack and the
 scissor, and the handful of call sites that use them.

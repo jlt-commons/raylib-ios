@@ -352,9 +352,9 @@ field-sized lights, 17 targets and about 182 MB of colour (arithmetic), ran at
 All of it live, over the nREPL, without a rebuild between readings. That is
 worth its own note because it changed how the work went.
 
-`raylib.probe/fps-every-frame?` turns on a per-frame `GetFPS` call and parks the
+`net.b12n.raylib-ios.probe/fps-every-frame?` turns on a per-frame `GetFPS` call and parks the
 answer in `last-fps`, so frame rate becomes a value to read rather than a
-console line to scrape. `raylib.gallery/tap!` opens a scene without a finger.
+console line to scrape. `net.b12n.raylib-ios.gallery/tap!` opens a scene without a finger.
 Together they let a single session open each scene in turn and read its cost.
 
 Two traps, both of which produced wrong numbers before they were noticed.

@@ -1,0 +1,48 @@
+;; The six namespaces carried from jasalt/jolt-android-experiment at 6d2b291.
+;;
+;; :file       where this repo keeps it.
+;; :upstream   the path it has upstream.
+;; :ns         each namespace name used here -> the name upstream has.
+;; :notebook-sha  what the glimmer-ios-demo notebooks recorded for the upstream
+;;             bytes: the full sha256, or its first 16 hex digits where the
+;;             notebooks kept only a prefix.
+;; :sha        sha256 of the upstream file with all whitespace removed. Measured
+;;             from the first commit that carried them, where :notebook-sha
+;;             matches the raw bytes. Five of the six have been through
+;;             clojure-lsp format since (4c23d11), which only moves whitespace,
+;;             so the raw hash no longer matches them and this one does.
+;;
+;; The identity test puts the upstream names back into :file, strips the
+;; whitespace and compares with :sha. tools/extract-from-notebooks reads this
+;; too. A fresh extraction is raw upstream bytes, so it is checked against
+;; :notebook-sha instead.
+[{:file     "src/net/b12n/raylib_ios/scenes/flappy_bird.cljc"
+  :upstream "src/poc/raylib/flappy_bird.cljc"
+  :notebook-sha "4d9cf3ae1984613d2e0a4fc25269e147d09e3562d57e12743233b38610a8c560"
+  :sha      "1d0239fb0b302f1b68a46c46bb7425cf80506fa64e4baeb62dc8b00d6f9045ad"
+  :ns       {net.b12n.raylib-ios.scenes.flappy-bird poc.raylib.flappy-bird}}
+ {:file     "src/net/b12n/raylib_ios/gallery/core.cljc"
+  :upstream "src/poc/raylib/gallery.cljc"
+  :notebook-sha "6bfc1f12cb425b9b"
+  :sha      "77f56efceb5b352d2eff34dd01d1ac3ce2325db1cb3cebe191b57098e77fbde8"
+  :ns       {net.b12n.raylib-ios.gallery.core poc.raylib.gallery}}
+ {:file     "src/net/b12n/raylib_ios/gallery/ui.cljc"
+  :upstream "src/poc/raylib/gallery_ui.cljc"
+  :notebook-sha "a2301b268d555504"
+  :sha      "c99574384682e1a5eb232add67ca78fa587689ace82c5c8822fe7369b78a3065"
+  :ns       {net.b12n.raylib-ios.gallery.ui poc.raylib.gallery-ui}}
+ {:file     "src/net/b12n/raylib_ios/gallery/diagnostics.cljc"
+  :upstream "src/poc/raylib/diagnostics.cljc"
+  :notebook-sha "179b24736879fdf1"
+  :sha      "12b5581897602ef5cafd16aca8d4dc5a8a27b560713ada2a9520a796aeee85f6"
+  :ns       {net.b12n.raylib-ios.gallery.diagnostics poc.raylib.diagnostics}}
+ {:file     "src/net/b12n/raylib_ios/scenes/following_eyes.cljc"
+  :upstream "src/poc/raylib/following_eyes.cljc"
+  :notebook-sha "9dcd98e36aafcb78"
+  :sha      "2fe4417319b6960351d77d0018e7ba71c6ad464701c12bebe72c19b029206539"
+  :ns       {net.b12n.raylib-ios.scenes.following-eyes poc.raylib.following-eyes}}
+ {:file     "src/net/b12n/raylib_ios/scenes/touch_trail.cljc"
+  :upstream "src/poc/raylib/touch_trail.cljc"
+  :notebook-sha "242385a4855c083a"
+  :sha      "6370604ab7d2c357706c21566a95b01165c17199df9edaf42aefd2fc845d75ea"
+  :ns       {net.b12n.raylib-ios.scenes.touch-trail poc.raylib.touch-trail}}]

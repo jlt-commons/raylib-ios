@@ -38,18 +38,18 @@ git -C /tmp/raylib-ios/chez submodule update --init --recursive
 ## The loop
 
 ```sh
-NS=raylib.gallery TARGET=device jolt build-app
+NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app
 jolt deploy                              # signs, installs, launches, streams stdout
 CONSOLE=0 jolt deploy                    # launches detached, for actually playing
 ```
 
-Namespaces worth building: `raylib.link` (does it link at all), `raylib.touch`,
-`raylib.flappy`, `raylib.gallery`, `raylib.live`.
+Namespaces worth building: `net.b12n.raylib-ios.link` (does it link at all), `net.b12n.raylib-ios.touch`,
+`net.b12n.raylib-ios.flappy`, `net.b12n.raylib-ios.gallery`, `net.b12n.raylib-ios.live`.
 
 ## Live development
 
 ```sh
-jolt live                                # builds raylib.live, deploys it detached
+jolt live                                # builds net.b12n.raylib-ios.live, deploys it detached
 jolt proxy                               # in another terminal: forwards the port over USB
 tools/ios/nrepl-eval 7888 '(System/getenv "HOME")'
 tools/ios/nrepl-repl 127.0.0.1 7888      # or a prompt
@@ -76,13 +76,13 @@ inside `SDL_UIKitRunApp`, and raylib and SDL are main-thread-affine. So:
 
 ```clojure
 ;; safe: the loop refreshes this every frame
-(do (require '[raylib.host]) (raylib.host/state))
+(do (require '[net.b12n.raylib-ios.host]) (net.b12n.raylib-ios.host/state))
 
 ;; safe: runs at the top of the next frame, on the main thread
-(raylib.host/on-next-frame! (fn [] (raylib.host/set-target-fps 30)))
+(net.b12n.raylib-ios.host/on-next-frame! (fn [] (net.b12n.raylib-ios.host/set-target-fps 30)))
 
 ;; NOT safe: calls raylib from the nREPL thread
-(raylib.host/set-target-fps 30)
+(net.b12n.raylib-ios.host/set-target-fps 30)
 ```
 
 ### Build --dev, or redefinition silently will not work
@@ -113,20 +113,20 @@ release.
 
 Reading state is not enough to test a scene, because the scene state is
 threaded through the loop rather than kept in an atom, so an editor can look
-and not touch. `raylib.gallery/tap!` is the other half:
+and not touch. `net.b12n.raylib-ios.gallery/tap!` is the other half:
 
 ```clojure
 ;; open a card without a finger. Coordinates are SCREEN PIXELS, not points,
 ;; and the gallery's cards sit below the safe-area inset.
-(raylib.gallery/tap! 890 1700)
+(net.b12n.raylib-ios.gallery/tap! 890 1700)
 
 ;; where the cards actually are, asked of the running layout
 (let [m {:screen [(rl/get-screen-width) (rl/get-screen-height)]}]
   (mapv (juxt :scene-id :x :y)
-        (:cards (ui/gallery-layout m raylib.gallery/scene-ids (diag/layout m)))))
+        (:cards (ui/gallery-layout m net.b12n.raylib-ios.gallery/scene-ids (diag/layout m)))))
 
 ;; what the open scene is doing right now
-(:scene-state (:gstate (raylib.host/state)))
+(:scene-state (:gstate (net.b12n.raylib-ios.host/state)))
 ```
 
 One tap is consumed per frame and cleared as it is taken, so a queued tap

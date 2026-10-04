@@ -27,12 +27,12 @@ shaders, texture and image pipelines, 3D models and meshes, desktop windowing,
 the keyboard, gamepad or clipboard, files, or audio. 2 + 0 + 46 = 48. Five of
 the old 51 (`render_texture`, `framebuffer_rendering`, `mouse_painting`,
 `magnifying_glass` and `top_down_lights`) left the group on 2026-10-04, once
-`raylib.texture/target!` could make a framebuffer. These remain rewrite-ready:
+`net.b12n.raylib-ios.texture/target!` could make a framebuffer. These remain rewrite-ready:
 
 - 3D, projected in software: `dna_helix`. A faithful one built in 12.7 ms on
   the laptop, about 42 times the 0.30 ms a scene is sized to there, so it waits
   for a rewrite that draws far less.
-- `reasings` is already ported: it is the easing header, and `raylib.easings`
+- `reasings` is already ported: it is the easing header, and `net.b12n.raylib-ios.easings`
   carries it, so no scene is left to add for it.
 
 Still blocked, and what each waits on:
@@ -45,7 +45,7 @@ Still blocked, and what each waits on:
 
 ## Infrastructure
 
-- **Split the drawing out of `raylib.gallery`.** It is 4934 lines and grows
+- **Split the drawing out of `net.b12n.raylib-ios.gallery`.** It is 4934 lines and grows
   by about thirty a scene, so splitting it is due. The `draw-scene!` methods
   could move to their own namespace. The file now has 53 `*-cache` atoms with
   the same eight-line body, so a `memo-last` helper belongs in the same split.
@@ -55,9 +55,9 @@ Still blocked, and what each waits on:
   `split3d-list-cache`), so under `DEV_BUILD=1` a redefined `scene-list` or
   soft3d builder does not show until the screen or a player changes. Clearing
   both when a scene opens would fix that.
-- **Lift the virtual window into `raylib.vwindow`.** Viewport Scaling and
+- **Lift the virtual window into `net.b12n.raylib-ios.vwindow`.** Viewport Scaling and
   Window Letterbox carry the same `window`, `handle`, `clamp`, start geometry
-  and drag step, about 55 lines each. A pure `.cljc` next to `raylib.stick`
+  and drag step, about 55 lines each. A pure `.cljc` next to `net.b12n.raylib-ios.stick`
   would hold `window`, `handle`, `clamp`, the start geometry and `drag-step`,
   with Viewport Scaling passing its button claim in. It takes about an hour and
   is worth doing when a third scene would use it.
@@ -73,7 +73,7 @@ Still blocked, and what each waits on:
   the corners once for a billboard and derives its parts from them would make the
   ring of discs in Billboard Rendering affordable (0.62 ms as strips today,
   against a target of 0.30) and make Directional Billboard cheaper.
-- **Extract `call-blended!` into `raylib.blend`** when a third blend scene
+- **Extract `call-blended!` into `net.b12n.raylib-ios.blend`** when a third blend scene
   arrives. Blend Modes and Particles Blending each carry the same six lines and a
   test for them, and none is planned yet.
 - **Pick the Basic Voxel axis at an edge.** A place at an edge or corner hit
@@ -91,7 +91,7 @@ Still blocked, and what each waits on:
   raylib's `BeginScissorMode` calls `GetWindowScaleDPI` on Apple, and raylib's
   SDL2 platform doesn't implement it. Found on device on 2026-09-30. The noise is
   harmless because clipping is correct, but it floods the console.
-- **Share the touch helpers.** `raylib.gesture` now holds `down?`, `in-rect?`,
+- **Share the touch helpers.** `net.b12n.raylib-ios.gesture` now holds `down?`, `in-rect?`,
   `back-region`, `in-back-region?` and the tap, swipe and long-press `track`,
   and the batch 3 scenes use it. The batch 1 and 2 scenes (`touchball`,
   `rlgltriangle`, `particles` and `breakout`) still carry their own copies of
@@ -101,17 +101,17 @@ Still blocked, and what each waits on:
   is worth doing as its own task, with one catch: those `in-rect?` copies are
   closed on the right and bottom edge, while `gesture/in-rect?` is half-open, so
   a touch exactly on that edge changes sides by one pixel.
-- **Lift the relative thumb-stick into `raylib.gesture`.** `stick-dir`,
+- **Lift the relative thumb-stick into `net.b12n.raylib-ios.gesture`.** `stick-dir`,
   `next-stick` and `knob` are the same text in `survivors` and `nudge`. One home
-  means a fix to the stick lands once. `raylib.stick` now exists and `freecam`,
+  means a fix to the stick lands once. `net.b12n.raylib-ios.stick` now exists and `freecam`,
   `yawpitchroll` and `boxcollide` use it, so this is a matter of moving
   `survivors` and `nudge` onto it, or onto the part of it that fits.
-- **Fix the painter's grid-first order.** `raylib.soft3d` paints the grid under
+- **Fix the painter's grid-first order.** `net.b12n.raylib-ios.soft3d` paints the grid under
   every face, so grid lines that cross a cube's lower half are hidden where a
   depth buffer would show them. A below-grid, above-grid order would fix it.
 - **Close freecam's two-finger gap.** When two fingers land on the same frame,
   the look path can still adopt a finger that was already down.
-- **Move `nudge` and `splitscreen` onto `raylib.stick`.** Each keeps its own
+- **Move `nudge` and `splitscreen` onto `net.b12n.raylib-ios.stick`.** Each keeps its own
   tracker, and the shared one could replace both.
 - **Give the older games the idle `:press` exception.** Tetris, Asteroids,
   Snake, Space Invaders and Pong store `gesture/idle` on the frame the game ends
@@ -193,15 +193,15 @@ Still blocked, and what each waits on:
 - 2026-10-04: the render-textures arc closed, with five Toys scenes, `rendertex`,
   `fbrender`, `mousepaint`, `magnify` and `toplights`, which make a hundred and
   thirty-seven scenes and give Toys a hundred and thirteen. They add
-  `raylib.texture/target!`, `with-target!`, `with-blend-factors!` and
+  `net.b12n.raylib-ios.texture/target!`, `with-target!`, `with-blend-factors!` and
   `perlin-texture!`, which calls raylib's own `GenImagePerlinNoise`, and
   `host/draw-circle-gradient`. A device pass of the final build read all five at 58 fps,
   Top Down Lights included with 16 lights, and its first open pauses 75 ms.
 - 2026-10-04: the texture arc closed, with ten Toys scenes, `textiling`,
   `srcrec`, `spritebutton`, `npatch`, `texpoly`, `texproc`, `spriteanim`,
   `texcurve`, `rawdata` and `screenbuf`, which make a hundred and thirty-two
-  scenes and give Toys a hundred and eight. They add `raylib.texture` and
-  `raylib.texel`. A device pass read all ten at 58 or 59 fps, and a scene opened
+  scenes and give Toys a hundred and eight. They add `net.b12n.raylib-ios.texture` and
+  `net.b12n.raylib-ios.texel`. A device pass read all ten at 58 or 59 fps, and a scene opened
   before reopens in about one frame, except the noise of Procedural Textures and
   Raw Data's live panel (0.14 to 0.15 s).
 - 2026-10-03: batch 13 closed, with eight Toys scenes, `blendmodes`,
@@ -217,14 +217,14 @@ Still blocked, and what each waits on:
   Toys ninety. None of the seven has run on the phone. Bunnymark clamps its
   bunnies into the field when the phone turns.
 - 2026-10-02: the finger helpers copied into Free Camera, First-Person Camera and
-  First-Person Maze moved into `raylib.stick` as `follow-pair` and
+  First-Person Maze moved into `net.b12n.raylib-ios.stick` as `follow-pair` and
   `begin-owners`, with no change in behaviour.
 - 2026-10-02: batch 11 closed, with four Toys scenes, `fpcamera`, `fpmaze`,
   `split3d` and `spheres`, which make a hundred and seven scenes and give Toys
-  eighty-three. `raylib.soft3d/cube` now uses the fast box emitter lifted from
+  eighty-three. `net.b12n.raylib-ios.soft3d/cube` now uses the fast box emitter lifted from
   Waving Cubes. The four scenes have not run on the phone. `dna_helix` is
   deferred, since a faithful port built in 12.7 ms on the laptop.
-- 2026-10-02: batch 10 closed early, with `raylib.soft3d/sphere` and `plane` and
+- 2026-10-02: batch 10 closed early, with `net.b12n.raylib-ios.soft3d/sphere` and `plane` and
   three Toys scenes, `wavecubes`, `solarsystem` and `pointcloud`, which make
   a hundred and three scenes and give Toys seventy-nine. Waving Cubes draws 81
   of the original's 196 columns and Point Cloud 400 of its 1500 points, because
@@ -235,13 +235,13 @@ Still blocked, and what each waits on:
 - 2026-10-02: ten raylib-jlt 3D examples, `rotcube`, `camera3d`, `ortho`,
   `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
   `boxcollide` and `picking`, which make a hundred scenes and give Toys
-  seventy-six. They are projected in software through the new `raylib.soft3d`,
-  drawn by `raylib.host/draw-3d!`, and `raylib.stick` tracks the thumb-stick by
+  seventy-six. They are projected in software through the new `net.b12n.raylib-ios.soft3d`,
+  drawn by `net.b12n.raylib-ios.host/draw-3d!`, and `net.b12n.raylib-ios.stick` tracks the thumb-stick by
   touch id. No new bindings. None has run on the phone yet.
 - 2026-10-02: six scenes, `camera2d`, `camera_2d_mouse_zoom`,
   `camera_2d_platformer`, `camera_2d_split_screen`, `input_gestures` and
   `helitorus`, which make ninety scenes and give Toys sixty-six. They add
-  `raylib.camera2d`, `raylib.host/with-camera-2d` and the `:raylib-gesture`
+  `net.b12n.raylib-ios.camera2d`, `net.b12n.raylib-ios.host/with-camera-2d` and the `:raylib-gesture`
   input key, and empty the scalar-binding group. All six run at 58 or 59 fps
   on an iPhone 17 Pro. Helitorus starts at a detail of 64 because 260 ran at 19
   fps, and it no longer toggles culling, since rlgl draws at the batch flush.
@@ -268,7 +268,7 @@ Still blocked, and what each waits on:
 - 2026-10-01: four arcade ports, `pong`, `space_invaders`, `tetris` and
   `asteroids`, which make sixty-four scenes and give Games nine. A touch held
   through a game's end no longer restarts it.
-- 2026-09-30: `raylib.gesture` for tap, swipe and long-press, and four scenes on
+- 2026-09-30: `net.b12n.raylib-ios.gesture` for tap, swipe and long-press, and four scenes on
   it, Bouncing Ball, Snake, 2048 and Minesweeper, which make sixty scenes and
   give Games five. Swiping inside a scene no longer scrolls the list behind it.
 - 2026-09-30: four touch-driven ports, `mouse` as Touch Ball, `rlgl_triangle`,

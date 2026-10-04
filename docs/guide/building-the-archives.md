@@ -81,7 +81,7 @@ an option written as explicitly off is read as present and therefore on.
 
 The one that matters is `SUPPORT_CUSTOM_FRAME_CONTROL`. Under it `EndDrawing`
 does no buffer swap, no timing and no event poll, which means the loop in
-`raylib.host` spins without presenting anything and `GetFPS` returns a literal
+`net.b12n.raylib-ios.host` spins without presenting anything and `GetFPS` returns a literal
 zero.
 
 The tell is worth remembering because it is not obviously a build problem:
@@ -144,7 +144,7 @@ links it with both archives and the frameworks SDL needs, and writes an app
 bundle:
 
 ```sh
-NS=raylib.gallery TARGET=device sh tools/ios/build.sh
+NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh
 ```
 
 About 29 MB, most of it Chez. `tools/ios/RUNBOOK.md` has the failure modes.

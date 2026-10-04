@@ -112,7 +112,7 @@ xcrun devicectl device install app --device "$UDID" "$APP"
 
 # An iOS app inherits no shell environment. devicectl forwards any variable
 # named DEVICECTL_CHILD_<NAME> in the caller's environment into the launched
-# process as <NAME>, which is how DEVICE_PORT reaches raylib.live.
+# process as <NAME>, which is how DEVICE_PORT reaches net.b12n.raylib-ios.live.
 if [ -n "${BIND_DRAWABLE:-}" ]; then
   export DEVICECTL_CHILD_RAYLIB_BIND_DRAWABLE="$BIND_DRAWABLE"
   echo "deploy.sh: app will read RAYLIB_BIND_DRAWABLE=$BIND_DRAWABLE"
