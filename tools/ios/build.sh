@@ -46,9 +46,13 @@ case "$TARGET" in
 esac
 
 WORK=${WORK:-/tmp/raylib-ios}
+# Relative paths are the caller's; the build cds into PROJECT_DIR below.
+case "$DEV" in /*) ;; *) DEV="$PWD/$DEV" ;; esac
+case "$WORK" in /*) ;; *) WORK="$PWD/$WORK" ;; esac
 PACK="$WORK/pack/$([ "$TARGET" = device ] && echo device || echo sim)"
 SDL_A="$DEV/sdl2-ios-$SUFFIX/lib/libSDL2.a"
 RAYLIB_A="${RAYLIB_A:-$DEV/raylib-ios-$SUFFIX/lib/libraylib.a}"
+case "$RAYLIB_A" in /*) ;; *) RAYLIB_A="$PWD/$RAYLIB_A" ;; esac
 
 if [ "${DRY_RUN:-0}" = 1 ]; then
   for v in PROJECT_DIR NS ALIAS TARGET APP INFO_PLIST PACK SDL_A RAYLIB_A; do

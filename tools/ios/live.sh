@@ -7,7 +7,7 @@
 # Builds NS (default net.b12n.raylib-ios.live, the gallery), signs, installs and
 # launches it detached, then tells you how to reach the REPL. jolt.nrepl binds
 # loopback only, so the port has to be forwarded over USB with iproxy
-# (`jolt proxy` in another terminal).
+# (`jolt proxy` here, or `sh tools/ios/proxy.sh` from another project, in another terminal).
 #
 # NS is how a project that shows one scene builds its live variant: an
 # entry namespace whose -main calls net.b12n.raylib-ios.runner.live/live-run!.
@@ -40,7 +40,7 @@ cat <<MSG
 
 live: $NS is running with an nREPL on the phone's 127.0.0.1:$DEVICE_PORT.
 
-  1. in another terminal:   UDID=$UDID LOCAL_PORT=$LOCAL_PORT jolt proxy
+  1. in another terminal:   UDID=$UDID LOCAL_PORT=$LOCAL_PORT sh $TOOLS_DIR/proxy.sh
   2. prove it is the phone: $TOOLS_DIR/nrepl-eval $LOCAL_PORT '(System/getenv "HOME")'
      an iOS sandbox answers /private/var/mobile/Containers/Data/Application/...
      anything else means you are talking to a process on this Mac

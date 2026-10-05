@@ -108,7 +108,7 @@
 ;; only real once the window has been laid out.
 
 ;; UIEdgeInsets {double top, left, bottom, right}: a four-double HFA, returned in
-;; registers — the by-value return milestone 0 proved through libffi.
+;; registers, the by-value return milestone 0 proved through libffi.
 (ffi/defcfn msg-0-insets "objc_msgSend" [:pointer :pointer]
   [:by-value [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]])
 (def ^:private insets-l (ffi/layout [:struct [[:top :double] [:left :double] [:bottom :double] [:right :double]]]))

@@ -61,6 +61,14 @@ expect app-override "$out" APP "$T/out/Demo.app"
 expect sim-target "$out" PACK "$T/work/pack/sim"
 expect sim-target "$out" SDL_A "$T/dev/sdl2-ios-sim/lib/libSDL2.a"
 
+# ---- relative DEV, WORK and RAYLIB_A are the caller's, not the project's
+out=$(dry PROJECT_DIR="$PROJ" NS=foo.app TARGET=device DEV=reldev WORK=relwork)
+expect relative-dev "$out" SDL_A "$ELSE/reldev/sdl2-ios-dev/lib/libSDL2.a"
+expect relative-dev "$out" RAYLIB_A "$ELSE/reldev/raylib-ios-dev/lib/libraylib.a"
+expect relative-work "$out" PACK "$ELSE/relwork/pack/device"
+out=$(dry PROJECT_DIR="$PROJ" NS=foo.app TARGET=device RAYLIB_A=rel/libraylib.a)
+expect relative-raylib-a "$out" RAYLIB_A "$ELSE/rel/libraylib.a"
+
 # ---- a PROJECT_DIR that is not a directory is refused
 if out=$(dry PROJECT_DIR="$T/missing" NS=foo.app 2>&1); then
   fail "a missing PROJECT_DIR was accepted"

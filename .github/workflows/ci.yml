@@ -177,3 +177,6 @@ jobs:
       # splitting, which style-level checks object to.
       - name: Shellcheck
         run: shellcheck -S warning tools/ios/*.sh docs/check-site.sh
+
+      - name: Tools resolve from PROJECT_DIR
+        run: sh tools/ios/test-paths.sh
