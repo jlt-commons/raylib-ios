@@ -13,7 +13,7 @@
 
   Identity comes from the touch ids the host provides at `[:touches :ids]`, in
   the same order as `:touch-points` (`net.b12n.raylib-ios.gallery.diagnostics/normalize-input`,
-  read the same way by `net.b12n.raylib-ios.scenes.multitouch`). When the ids are missing
+  read the same way by the multitouch scene in raylib-ios-demo). When the ids are missing
   or do not match the points one to one, which is what a synthetic `tap!`
   gives, identity is guessed from nearness: a fresh finger is one further than
   `gesture/slop` from every finger of the frame before, and a held stick

@@ -65,5 +65,89 @@ raylib-ios-demo's ROADMAP.
   and Hello. The gallery shell takes its scenes and categories as data, with
   `net.b12n.raylib-ios.gallery/run!` and `net.b12n.raylib-ios.live/live-run!`. See
   `CHANGELOG.md`.
-- Before that, 137 scenes were built and measured here, in batches. The batch-by-batch
-  record is in `CHANGELOG.md`, and the scenes' own roadmap is in raylib-ios-demo.
+- 2026-10-04: the render-textures arc closed, with five Toys scenes, `rendertex`,
+  `fbrender`, `mousepaint`, `magnify` and `toplights`, which make a hundred and
+  thirty-seven scenes and give Toys a hundred and thirteen. They add
+  `net.b12n.raylib-ios.texture/target!`, `with-target!`, `with-blend-factors!` and
+  `perlin-texture!`, which calls raylib's own `GenImagePerlinNoise`, and
+  `host/draw-circle-gradient`. A device pass of the final build read all five at 58 fps,
+  Top Down Lights included with 16 lights, and its first open pauses 75 ms.
+- 2026-10-04: the texture arc closed, with ten Toys scenes, `textiling`,
+  `srcrec`, `spritebutton`, `npatch`, `texpoly`, `texproc`, `spriteanim`,
+  `texcurve`, `rawdata` and `screenbuf`, which make a hundred and thirty-two
+  scenes and give Toys a hundred and eight. They add `net.b12n.raylib-ios.texture` and
+  `net.b12n.raylib-ios.texel`. A device pass read all ten at 58 or 59 fps, and a scene opened
+  before reopens in about one frame, except the noise of Procedural Textures and
+  Raw Data's live panel (0.14 to 0.15 s).
+- 2026-10-03: batch 13 closed, with eight Toys scenes, `blendmodes`,
+  `blendparticles`, `billboard`, `dirbillboard`, `texcube`, `geoshapes`, `voxel`
+  and `doom`, which make a hundred and twenty-two scenes and give Toys ninety-eight.
+  They add `BeginBlendMode` and `EndBlendMode` and the soft3d `billboard`,
+  `cylinder` and `capsule` builders, and 3D Split Screen got faster. A device pass
+  read every scene at 52 to 60 fps, Doom-like Raycaster at 58, except 3D Split
+  Screen from outside its grove (31).
+- 2026-10-02: batch 12 closed, with seven Toys scenes drawn without textures,
+  `bunnymark`, `bgscroll`, `spritestack`, `pixelperfect`, `vpscaling`,
+  `letterbox` and `fogofwar`, which make a hundred and fourteen scenes and give
+  Toys ninety. None of the seven has run on the phone. Bunnymark clamps its
+  bunnies into the field when the phone turns.
+- 2026-10-02: the finger helpers copied into Free Camera, First-Person Camera and
+  First-Person Maze moved into `net.b12n.raylib-ios.stick` as `follow-pair` and
+  `begin-owners`, with no change in behaviour.
+- 2026-10-02: batch 11 closed, with four Toys scenes, `fpcamera`, `fpmaze`,
+  `split3d` and `spheres`, which make a hundred and seven scenes and give Toys
+  eighty-three. `net.b12n.raylib-ios.soft3d/cube` now uses the fast box emitter lifted from
+  Waving Cubes. The four scenes have not run on the phone. `dna_helix` is
+  deferred, since a faithful port built in 12.7 ms on the laptop.
+- 2026-10-02: batch 10 closed early, with `net.b12n.raylib-ios.soft3d/sphere` and `plane` and
+  three Toys scenes, `wavecubes`, `solarsystem` and `pointcloud`, which make
+  a hundred and three scenes and give Toys seventy-nine. Waving Cubes draws 81
+  of the original's 196 columns and Point Cloud 400 of its 1500 points, because
+  the first versions ran at 15 and 9 fps. Both paint far to near by their own
+  order and skip `finish`. The other five planned examples stay on the list above.
+- 2026-10-02: the ten 3D scenes measured on an iPhone 17 Pro, all at 58 or 59 fps,
+  and 3D Picking's tap-to-pick confirmed on the phone.
+- 2026-10-02: ten raylib-jlt 3D examples, `rotcube`, `camera3d`, `ortho`,
+  `spincubes`, `worldscreen`, `wireframes`, `freecam`, `yawpitchroll`,
+  `boxcollide` and `picking`, which make a hundred scenes and give Toys
+  seventy-six. They are projected in software through the new `net.b12n.raylib-ios.soft3d`,
+  drawn by `net.b12n.raylib-ios.host/draw-3d!`, and `net.b12n.raylib-ios.stick` tracks the thumb-stick by
+  touch id. No new bindings. None has run on the phone yet.
+- 2026-10-02: six scenes, `camera2d`, `camera_2d_mouse_zoom`,
+  `camera_2d_platformer`, `camera_2d_split_screen`, `input_gestures` and
+  `helitorus`, which make ninety scenes and give Toys sixty-six. They add
+  `net.b12n.raylib-ios.camera2d`, `net.b12n.raylib-ios.host/with-camera-2d` and the `:raylib-gesture`
+  input key, and empty the scalar-binding group. All six run at 58 or 59 fps
+  on an iPhone 17 Pro. Helitorus starts at a detail of 64 because 260 ran at 19
+  fps, and it no longer toggles culling, since rlgl draws at the batch flush.
+- 2026-10-01: every scene measured on an iPhone 17 Pro, all 84 at 52 to 60 fps,
+  so the catalog has no blank fps cell. Batch 7 has stills, and the device pass
+  fixed four things the phone showed.
+- 2026-10-01: Asteroids keeps firing while fire is held, and Strings Management
+  glues only on a slow drop.
+- 2026-09-30: a jolt-only smoke test that loads the gallery, checks its four
+  registration points and runs every scene for 120 frames.
+- 2026-09-30: a guard so a scene that throws returns to its list instead of
+  ending the app.
+- 2026-10-01: seven scenes, `vampire_survivors`, `pacman`, `core`, `input`,
+  `wheel`, `undo_redo` and `strings_management`, which make eighty-four scenes,
+  give Toys sixty and Games eleven, and empty the ready list. Every scene's input
+  now carries `:measure`.
+- 2026-10-01: seven scenes, `logo`, `text`, `inline_styling`,
+  `outlines_thickness`, `shapes`, `ellipse_collision` and
+  `basic_screen_manager`, which make seventy-seven scenes and give Toys
+  fifty-five.
+- 2026-10-01: six touch toys, `input_virtual_controls`, `starfield_effect`,
+  `easings_box`, `easings_testbed`, `rectangle_bounds` and `rlgl_color_wheel`,
+  which make seventy scenes and give Toys forty-eight.
+- 2026-10-01: four arcade ports, `pong`, `space_invaders`, `tetris` and
+  `asteroids`, which make sixty-four scenes and give Games nine. A touch held
+  through a game's end no longer restarts it.
+- 2026-09-30: `net.b12n.raylib-ios.gesture` for tap, swipe and long-press, and four scenes on
+  it, Bouncing Ball, Snake, 2048 and Minesweeper, which make sixty scenes and
+  give Games five. Swiping inside a scene no longer scrolls the list behind it.
+- 2026-09-30: four touch-driven ports, `mouse` as Touch Ball, `rlgl_triangle`,
+  `particles` and `breakout`, which make fifty-six scenes and give Games its
+  second game. Breakout and the triangle start over cleanly on a rotation.
+- 2026-09-30: four ports, `delta_time`, `random_values`, `format_text` and
+  `triangle_strip`, which make fifty-two scenes.

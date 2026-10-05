@@ -520,7 +520,7 @@
 
 (defn reference-cube
   "`net.b12n.raylib-ios.soft3d/cube` as it was at 926cb1c, before it took the box emitter
-  from `net.b12n.raylib-ios.scenes.wavecubes`: project all eight corners, then test both
+  from the wavecubes scene in raylib-ios-demo: project all eight corners, then test both
   triangles of all six faces by screen sign. Kept here, test only, as the
   reference the new body must reproduce item for item. It calls the private
   helpers it called then, which `cube`'s new body does not change."

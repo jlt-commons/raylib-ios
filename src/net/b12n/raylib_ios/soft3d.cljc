@@ -41,7 +41,7 @@
   `:over`) are the sort keys `finish` reads. `net.b12n.raylib-ios.host/draw-3d!` ignores
   them, so `finish` hands the items on without copying them.
 
-  Visibility is decided the way batch 8's `net.b12n.raylib-ios.scenes.helitorus` decides
+  Visibility is decided the way the helitorus scene in raylib-ios-demo decides
   it, by screen-space sign. Each cube face is wound counter-clockwise seen from
   outside, so in this y-down screen space a face toward the camera has a
   NEGATIVE cross product of its first two edges. That is the winding rlgl

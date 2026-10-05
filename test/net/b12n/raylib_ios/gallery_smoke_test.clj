@@ -116,13 +116,15 @@
                                  :inset-top 0}))]
      (reduce (fn [s _] ((:frame app) s)) start (range n)))))
 
+(defn- enters [calls] (filter #(= :enter! (first %)) calls))
+
 (defn- texts-of [calls] (mapv second (filter #(= :draw-text (first %)) calls)))
 
 (defn- first-card-centre
-  "The centre of the first rectangle drawn after the last clear, which is the
-  first card of the list on screen."
+  "The centre of the first rectangle drawn after the last clear: the first card
+  of the list on screen, or the Back button when a scene is open."
   [calls]
-  (let [after (->> calls (drop-while #(not= :clear-background (first %))) vec)
+  (let [after (->> calls reverse (take-while #(not= :clear-background (first %))) reverse vec)
         [_ x y w h] (first (filter #(= :draw-rectangle (first %)) after))]
     [(+ x (quot w 2)) (+ y (quot h 2))]))
 
@@ -137,6 +139,7 @@
             _ (is (= "Gallery" (:title app)))
             _ (is (some #{"Choose a category"} (texts-of @calls)))
             _ (is (some #{"Platform"} (texts-of @calls)) "the category's title is on its card")
+            _ (is (= [[:enter! nil]] (enters @calls)) "no scene is open while a list shows")
             [cx cy] (first-card-centre @calls)
             _ (do (reset! calls []) (rg/tap! cx cy))
             s2 (run-frames app s1 3)
@@ -148,7 +151,14 @@
             s3 (run-frames app s2 3)]
         (is (= :scene (get-in s3 [:gstate :mode])))
         (is (= :hello (get-in s3 [:gstate :active-scene-id])))
-        (is (some #{hello/line} (texts-of @calls)) "Hello drew its line")))))
+        (is (some #{hello/line} (texts-of @calls)) "Hello drew its line")
+        (testing "the shell tells the texture lifecycle which scene is open, every frame"
+          (is (= [[:enter! :hello] [:enter! :hello]] (rest (enters @calls))) "once Hello is open, its frames name it")
+          (let [[bx by] (first-card-centre @calls)
+                _ (do (reset! calls []) (rg/tap! bx by))
+                s4 (run-frames app s3 3)]
+            (is (= :gallery (get-in s4 [:gstate :mode])) "Back left the scene")
+            (is (= [[:enter! :hello] [:enter! nil] [:enter! nil]] (enters @calls)) "the frame after Back frees the scene's textures")))))))
 
 (deftest run!-takes-its-scenes-as-data
   (testing "a gallery is the two vectors, in the shape the shell has always used"
