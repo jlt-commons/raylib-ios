@@ -4,6 +4,16 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ## Unreleased
 
+### Changed
+
+- **The draw API is `net.b12n.raylib-ios.draw`, and it is public.** It was
+  `net.b12n.raylib-ios.gallery.draw-util`, an internal-sounding name for the
+  `draw-scene!` multimethod that every scene's draw namespace extends. It moved
+  before raylib-ios-demo pins a sha, because after that a rename needs a
+  coordinated bump across all 136 draw namespaces. The docstring, the README and
+  the new [Your own app](docs/guide/your-own-app.md) guide say what a draw method
+  receives and which helpers it has.
+
 ### Removed
 
 - **The examples moved to [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo).** The 136 scenes other than Hello,
@@ -53,7 +63,7 @@ Notable changes, newest first. Dates are the day the work landed.
   along with the helpers and caches only that method uses, and the gallery went
   from 4934 lines to 808. `net.b12n.raylib-ios.gallery.draws` requires every draw
   namespace. The multimethod itself, and the eight helpers more than one method
-  shares, are in `net.b12n.raylib-ios.gallery.draw-util`, because the gallery
+  shares, are in `net.b12n.raylib-ios.draw`, because the gallery
   loads the draw namespaces and so cannot own what they require. Method bodies
   are unchanged.
 - **Every namespace is now `net.b12n.raylib-ios.*`.** `raylib.<x>` became

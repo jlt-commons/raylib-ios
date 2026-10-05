@@ -12,7 +12,7 @@
   jolt-only and skips it on the JVM."
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
-            [net.b12n.raylib-ios.gallery.draw-util :as du]
+            [net.b12n.raylib-ios.draw :as draw]
             [net.b12n.raylib-ios.host :as host]
             [net.b12n.raylib-ios.runner :as runner]
             [net.b12n.raylib-ios.scenes.hello :as hello]
@@ -29,7 +29,7 @@
   [f]
   (let [calls (atom [])
         rec (fn [nm ret] (fn [& args] (swap! calls conj (into [nm] args)) ret))]
-    (with-redefs [du/host-measure (fn [s size] (int (* 0.6 size (count s))))
+    (with-redefs [draw/host-measure (fn [s size] (int (* 0.6 size (count s))))
                   host/get-screen-width (rec :get-screen-width screen-w)
                   host/get-screen-height (rec :get-screen-height screen-h)
                   host/get-touch-point-count (rec :get-touch-point-count 0)
@@ -94,8 +94,8 @@
         (testing "the scene keeps its textures while it runs"
           (is (= (repeat 120 [:enter! :hello]) (calls-named @calls :enter!))))))))
 
-(defmethod du/draw-scene! :runner-test-failing [_ state input]
-  (du/draw-scene! :hello state input))
+(defmethod draw/draw-scene! :runner-test-failing [_ state input]
+  (draw/draw-scene! :hello state input))
 
 (defn- failing-scene
   "A scene that throws in :update on its `n`th frame, counting its :updates."
@@ -107,7 +107,7 @@
                      (throw (ex-info "boom in update" {})))
                    [state []])))
 
-(deftest the-runner-frees-textures-on-exit
+(deftest the-runner-frees-textures-when-the-scene-fails
   ;; The runner has no Back, so a scene is left only by failing. Its textures
   ;; go the same way the gallery frees them: enter! with no scene.
   (with-stubbed-host

@@ -17,13 +17,13 @@
   Android, apart from their names and whitespace. Nothing in them knows what a
   platform is."
   (:refer-clojure :exclude [run!])
-  (:require [net.b12n.raylib-ios.frame :as frame :refer [drain-events!
+  (:require [net.b12n.raylib-ios.draw :as draw :refer [color WHITE]]
+            [net.b12n.raylib-ios.frame :as frame :refer [drain-events!
                                                          ignore-close
                                                          resolve-insets
                                                          safe-region]]
             [net.b12n.raylib-ios.gallery.core :as gallery]
             [net.b12n.raylib-ios.gallery.diagnostics :as diag]
-            [net.b12n.raylib-ios.gallery.draw-util :as du :refer [color WHITE]]
             [net.b12n.raylib-ios.gallery.ui :as ui]
             [net.b12n.raylib-ios.host :as rl]
             [net.b12n.raylib-ios.scenes.hello :as hello]
@@ -87,9 +87,9 @@
 (def drag! frame/drag!)
 
 ;; --- drawing: the owner-affine half of the contract
-;; The multimethod is defined in net.b12n.raylib-ios.gallery.draw-util, which
+;; The multimethod is defined in net.b12n.raylib-ios.draw, which
 ;; every draw namespace can require without requiring this one.
-(def draw-scene! du/draw-scene!)
+(def draw-scene! draw/draw-scene!)
 
 (defn- centered-text!
   "Draw `text` centred in the rectangle, with MeasureText."

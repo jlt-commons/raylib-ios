@@ -1,10 +1,37 @@
-(ns net.b12n.raylib-ios.gallery.draw-util
-  "What more than one draw-scene! method needs, and the multimethod itself.
+(ns net.b12n.raylib-ios.draw
+  "The public draw API: the `draw-scene!` multimethod and the helpers that more
+  than one draw method needs.
 
-  The multimethod lives here rather than in net.b12n.raylib-ios.gallery because
-  each draw namespace requires it, and a scene's draw namespace must not need
-  the gallery shell (the one-scene runner and every scene app load the draw
-  without it)."
+  A scene is a pure reducer (see net.b12n.raylib-ios.gallery.core) and draws
+  through a method of `draw-scene!`, dispatched on the scene's `:id`:
+
+      (defmethod draw/draw-scene! :my-scene [id state {:keys [k m safe]}]
+        ...)
+
+  A method receives
+    `id`    the scene's id, which it was dispatched on;
+    `state` the scene's own state, as its :update last returned it;
+    `env`   `{:k :m :safe}`: `k` is the display scale (pixels per UIKit point),
+            `m` the scene's metrics, whose `:screen` is the SAFE REGION's
+            size (not the display's), and `safe` the safe region itself,
+            `{:x :y :width :height}` in pixels.
+  The host has already translated the origin to the safe region's corner and
+  scissored to it, so a method draws in the coordinates its scene computed.
+
+  Helpers:
+    `color`         an `[r g b a]` vector as a raylib color; `WHITE` is one
+    `clear-to!`     clear the frame to an `[r g b a]`
+    `stroke!`       a line a few pixels wide
+    `outline!`      a one pixel rectangle outline
+    `draw-caption!` a `{:keys [s x y size]}` caption in a color
+    `draw-in-field!` run a function scissored to a `[x y w h]` field
+    `host-measure`  raylib's own text width, `(fn [s size])`
+
+  The multimethod lives here and not in net.b12n.raylib-ios.gallery because
+  every draw namespace requires it, and a scene's draw namespace must not need
+  the gallery shell: the one-scene runner and every scene app load the draw
+  without it. Renaming anything here breaks every project that draws scenes, so
+  treat it as API."
   (:require [net.b12n.raylib-ios.host :as rl]))
 
 (def WHITE (rl/rgba 255 255 255 255))

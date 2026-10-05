@@ -12,10 +12,10 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
+            [net.b12n.raylib-ios.draw :as draw]
             [net.b12n.raylib-ios.gallery :as rg]
             [net.b12n.raylib-ios.gallery.core :as gallery]
             [net.b12n.raylib-ios.gallery.diagnostics :as diag]
-            [net.b12n.raylib-ios.gallery.draw-util :as du]
             [net.b12n.raylib-ios.host :as host]
             [net.b12n.raylib-ios.scenes.hello :as hello]
             [net.b12n.raylib-ios.scroll :as scroll]
@@ -52,7 +52,7 @@
       (is (= [:hello] (mapv :id scenes)))
       (is (= [[:hello]] (mapv :scenes categories))))
     (testing "its draw method is loaded with the shell"
-      (is (contains? (set (keys (methods du/draw-scene!))) :hello)))
+      (is (contains? (set (keys (methods draw/draw-scene!))) :hello)))
     (testing "it opens and runs 120 frames of touch"
       (let [opened (gallery/open-scene registry gallery/initial-gallery-state :hello
                                        (input :idle nil))
@@ -78,7 +78,7 @@
   [f]
   (let [calls (atom [])
         rec (fn [nm ret] (fn [& args] (swap! calls conj (into [nm] args)) ret))]
-    (with-redefs [du/host-measure (fn [s size] (int (* 0.6 size (count s))))
+    (with-redefs [draw/host-measure (fn [s size] (int (* 0.6 size (count s))))
                   host/measure-text (fn [s size] (int (* 0.6 size (count s))))
                   host/get-screen-width (rec :get-screen-width screen-w)
                   host/get-screen-height (rec :get-screen-height screen-h)

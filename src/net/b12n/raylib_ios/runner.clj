@@ -21,9 +21,9 @@
   a separate namespace so a release binary never loads jolt.nrepl."
   (:refer-clojure :exclude [run!])
   (:require [clojure.string :as str]
+            [net.b12n.raylib-ios.draw :as draw :refer [color]]
             [net.b12n.raylib-ios.frame :as frame]
             [net.b12n.raylib-ios.gallery.core :as core]
-            [net.b12n.raylib-ios.gallery.draw-util :as du :refer [color]]
             [net.b12n.raylib-ios.gallery.ui :as ui]
             [net.b12n.raylib-ios.host :as rl]
             [net.b12n.raylib-ios.texture :as texture]))
@@ -127,10 +127,10 @@
              (frame/guarded
               (fn [e] (fail s id e))
               (fn []
-                (du/draw-scene! id (:scene-state (:gstate s))
-                                {:k k
-                                 :m scene-m
-                                 :safe safe})
+                (draw/draw-scene! id (:scene-state (:gstate s))
+                                  {:k k
+                                   :m scene-m
+                                   :safe safe})
                 s))))))))
 
 (defn app

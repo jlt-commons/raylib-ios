@@ -10,8 +10,8 @@
   shell unchanged except that the pieces are public and `poll-input`,
   `scene-metrics`, `scene-input`, `draw-in-safe-region!` and `guarded` now name
   what the shell used to do inline."
-  (:require [net.b12n.raylib-ios.gallery.diagnostics :as diag]
-            [net.b12n.raylib-ios.gallery.draw-util :refer [host-measure]]
+  (:require [net.b12n.raylib-ios.draw :refer [host-measure]]
+            [net.b12n.raylib-ios.gallery.diagnostics :as diag]
             [net.b12n.raylib-ios.host :as rl]))
 
 ;; --- driving it from an editor ------------------------------------------------
