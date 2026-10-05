@@ -1,6 +1,7 @@
 (ns net.b12n.raylib-ios.scenes.hello
-  "The basic window: one line of text on a clear screen. Ported from raylib-jlt's
-  `core`, which is raylib's `core_basic_window` example.
+  "The basic window: one line of text on a clear screen. Ported from
+  raylib-jolt-demo's `core` demo (originally raylib-jlt's `core`), which is
+  raylib's `core_basic_window` example.
 
   The original is an 800x450 window cleared to RAYWHITE with `Congrats! You
   created your first window!` in LIGHTGRAY at size 20, 190 px from the left and

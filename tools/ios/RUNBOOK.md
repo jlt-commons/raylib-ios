@@ -228,6 +228,13 @@ displayed OpenGL ES since iOS 17.5. Pixels reach the framebuffer, which
 called every frame; see the README. The host computes its own rate now, and
 scenes that draw it every frame are fine.
 
+**`jolt live` fails to build under jolt v0.8.16 and later.** The phone's live
+build stops with `variable error is not bound` in the `jolt.socket.native`
+unit, and builds after that release fail the same way. jolt v0.8.15 builds it.
+Install v0.8.15 beside your usual jolt and put it first on `PATH` for the
+build, then deploy as usual. Nothing in `tools/ios` pins the version, so a
+newer jolt on `PATH` fails until jolt fixes it.
+
 ## Signing
 
 `deploy.sh` finds a development profile covering the bundle id, validates it

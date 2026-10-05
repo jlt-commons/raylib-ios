@@ -79,7 +79,8 @@ identical apart from namespace names and whitespace (a test checks the sha256
 under that rule). So did three scenes, which are in raylib-ios-demo now. They were
 written for a different platform and run here with their logic untouched. The
 other hundred and thirty-four scenes there are ports from
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
+[raylib-jolt-demo](https://github.com/jlt-commons/raylib-jolt-demo)'s demos,
+originally raylib-jlt's.
 
 The gallery shell takes its scenes as data, `(gallery/run! {:scenes [...]
 :categories [...]})`, so an app lists exactly the scenes it wants. Its own `-main`
@@ -87,6 +88,10 @@ runs the platform gallery, which holds Hello and nothing else, and
 `net.b12n.raylib-ios.runner/run!` shows one scene full screen with no menu.
 
 ## The guides
+
+**[Your own app](your-own-app.html)** starts here if you want to build something
+of your own: the dependency coordinate, a scene, its draw method, the entry
+namespace, and how to find and run the build tools from your own project.
 
 **[Performance on a phone](performance-on-a-phone.html)** is the one to read
 first. It starts with a wrong guess, that the FFI boundary was the cost, and

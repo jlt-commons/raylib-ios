@@ -18,6 +18,12 @@ raylib-ios-demo's ROADMAP.
 
 ## Infrastructure
 
+- **`resolve-insets` can leave three edges unfetched.** A positive `inset-top`
+  at init stops bottom, left and right from ever being fetched. It is not
+  reachable while the phone starts at 0.
+- **`prepare` does not check the categories.** Every category entry should name
+  a scene in `:scenes`, and the behaviour on a bad id needs deciding: a throw at
+  launch kills the app on the phone with the message only on the console.
 - **Add a batch `soft3d/cubes` builder.** 3D Split Screen carries `flat-cubes`,
   a 100-line unrolled copy of `soft3d/cube {:shade :flat}` that tests hold to the
   live builder. A builder that takes many cubes (shared matrix destructuring, no

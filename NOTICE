@@ -56,8 +56,9 @@ NOTICE covers them.
 
 ## Ported, and altered
 
-`src/net/b12n/raylib_ios/scenes/hello.cljc`, the one scene here, is a port of the
-`core` example from jlt-commons/raylib-jlt, which is raylib's `core_basic_window`.
+`src/net/b12n/raylib_ios/scenes/hello.cljc`, the one scene here, is a port of
+raylib-jolt-demo's `core` demo (originally raylib-jlt's), which is raylib's
+`core_basic_window`.
 It is an altered version: the loop is inverted so the host owns it, geometry
 derives from the live screen instead of a fixed 800x450, and drawing moves to
 the caller. Its docstring names its original, as the zlib licence's "altered
@@ -140,7 +141,8 @@ Both are compiled into the app as static archives.
 
 `src/net/b12n/raylib_ios/host.clj`, `gallery.clj`, `touch.clj` and `link.clj` began as
 derivations of statonjr/glimmer-ios-demo, whose notebooks this project's
-`tools/extract-from-notebooks` reads.
+`tools/extract-from-notebooks` reads. `frame.clj` holds the per-frame half of
+`gallery.clj`, moved out of it on 2026-10-04.
 
     https://github.com/statonjr/glimmer-ios-demo
 

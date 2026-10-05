@@ -7,7 +7,7 @@ Notable changes, newest first. Dates are the day the work landed.
 ### Changed
 
 - **The draw API is `net.b12n.raylib-ios.draw`, and it is public.** It was
-  `net.b12n.raylib-ios.gallery.draw-util`, an internal-sounding name for the
+  the gallery's draw-util namespace, an internal-sounding name for the
   `draw-scene!` multimethod that every scene's draw namespace extends. It moved
   before raylib-ios-demo pins a sha, because after that a rename needs a
   coordinated bump across all 136 draw namespaces. The docstring, the README and

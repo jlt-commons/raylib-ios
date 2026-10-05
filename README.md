@@ -17,7 +17,8 @@ each its own sub-project that builds an app. Three of them, Following Eyes,
 Touch Trail and Flappy Bird, are
 [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)'s
 files at `6d2b291`, identical apart from namespace names and whitespace. The other hundred
-and thirty-four are ports from [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
+and thirty-four are ports from [raylib-jolt-demo](https://github.com/jlt-commons/raylib-jolt-demo)'s demos,
+originally raylib-jlt's.
 
 This repo keeps one scene of its own, Hello, the basic window. It is the proof that the
 shell, the host loop and the tools work, and `-main` in `net.b12n.raylib-ios.gallery`
@@ -103,6 +104,8 @@ because there is no library to load.
   target pack's xpatch is compiled Scheme that loads only into the exact Chez
   that produced it.
 - **Xcode**, for the iOS SDK and `devicectl`.
+- **jolt v0.8.15 for device builds with the nREPL.** `jolt live` needs it for now;
+  see the RUNBOOK.
 - **cmake**, to cross-build the two archives.
 - **A paired iPhone and an Apple Development identity.** Signing uses whatever
   team wildcard profile already covers your account; `tools/ios/deploy.sh`
@@ -139,6 +142,9 @@ well.
 
 The first `jolt deps` takes a few minutes. After that both archives are
 cached under `~/dev/{sdl2,raylib}-ios-dev`.
+
+[Your own app](docs/guide/your-own-app.md) walks through starting a project of
+your own, from the dependency to the first build.
 
 The build tools work on the project they are run from, so another repo can use
 them. `PROJECT_DIR` (default: the current directory) is the jolt project and
@@ -183,6 +189,7 @@ default, 33 MB and three with it.
 
 | namespace | what it does |
 |---|---|
+| `net.b12n.raylib-ios.draw` | the public draw API: the `draw-scene!` multimethod every scene's draw namespace extends, and the helpers `color`, `clear-to!`, `stroke!`, `outline!`, `draw-caption!`, `draw-in-field!` and `host-measure`. See below. raylib-ios-demo's 136 draw namespaces require it |
 | `net.b12n.raylib-ios.link` | one call into each archive, no window. Proves the link, the frameworks and the export trie |
 | `net.b12n.raylib-ios.touch` | scalar touch polling, press edges, a marker under the finger |
 | `net.b12n.raylib-ios.gallery` | the shell: `run!` takes `{:scenes :categories}` and draws the menu, hit testing and Back. `-main` runs Hello alone |
@@ -198,7 +205,7 @@ namespace.
 Ported examples live in [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo). They are pure `.cljc` in the
 same shape as the three from the Android experiment, so they test on the build
 host, and each scene's `draw-scene!` method sits beside it. `spirograph` was the first,
-from [raylib-jlt](https://github.com/jlt-commons/raylib-jlt); porting one means
+from raylib-jolt-demo's demos (originally raylib-jlt's); porting one means
 turning a namespace that owns its own loop into a reducer over frames, and
 deriving geometry from the live screen instead of a fixed 800x450.
 
@@ -221,6 +228,36 @@ framework or an empty export trie from anything to do with rendering. `touch`
 is the smallest thing that draws and responds to a finger. Reach for them first
 after an Xcode, SDK, SDL or raylib bump, when the useful question is which
 layer moved rather than what the gallery is doing.
+
+### The draw API
+
+`net.b12n.raylib-ios.draw` is public, and renaming anything in it breaks every
+project that draws scenes. A scene draws through a method of `draw-scene!`,
+dispatched on its `:id`:
+
+```clojure
+(ns my.scene.draw
+  (:require [net.b12n.raylib-ios.draw :as draw]))
+
+(defmethod draw/draw-scene! :my-scene [id state {:keys [k m safe]}]
+  (draw/clear-to! [20 24 40 255])
+  ...)
+```
+
+A method receives:
+
+- `id`, the scene's id.
+- `state`, the scene's own state as its `:update` last returned it.
+- an env map `{:k :m :safe}`. `k` is the display scale, pixels per UIKit
+  point. `m` is the scene's metrics, and its `:screen` is the size of the safe
+  region, not of the display. `safe` is the safe region, `{:x :y :width
+  :height}` in pixels. The host has already translated the origin to its corner
+  and scissored to it.
+
+The helpers are `color` (an `[r g b a]` vector as a raylib color), `WHITE`,
+`clear-to!`, `stroke!` (a line a few pixels wide), `outline!` (a one-pixel
+rectangle outline), `draw-caption!`, `draw-in-field!` (scissor to a 3D field)
+and `host-measure` (raylib's own text width).
 
 ## Layout
 
@@ -250,7 +287,7 @@ tools/ios/test-paths.sh  checks the tools find their files from PROJECT_DIR, not
 state)` between `BeginDrawing` and `EndDrawing`. A scene is a reducer over
 frames, so nothing in it polls, draws or holds a native value. That contract
 is the Android experiment's, and it is the reason their `.cljc` files run here
-untouched.
+unchanged apart from namespace names and whitespace.
 
 ## Four traps the scripts encode
 
@@ -408,8 +445,8 @@ provided their notices travel with it, which is what `NOTICE` is for. zlib's
 requirement that altered sources be plainly marked survives the change, and the
 ports satisfy it in their docstrings.
 
-Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces
-began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),
+Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces, and the
+per-frame half of one now in `frame.clj`, began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),
 which is MIT, and the scene contract comes from
 [jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment),
 also MIT, identical to the originals apart from namespace names and
