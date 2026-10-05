@@ -1,14 +1,22 @@
 (ns net.b12n.raylib-ios.gallery
-  "The scene gallery: a two-level menu over every scene, on the iOS host.
+  "The scene gallery: a two-level menu over the scenes it is handed, on the iOS host.
 
   This namespace is the half that has to touch raylib, and it exists so that
   nothing else does. It polls the scalar input, hands the result to the pure
-  gallery in net.b12n.raylib-ios.gallery.core, and draws whatever comes back. Every scene
-  itself is pure, and its draw-scene! method sits beside it in the scene's own
-  draw namespace, which net.b12n.raylib-ios.gallery.draws loads.
+  gallery in net.b12n.raylib-ios.gallery.core, and draws whatever comes back.
+  Every scene itself is pure, and its draw-scene! method sits beside it in the
+  scene's own draw namespace.
 
-  That split is why three of the scenes run as files written for
-  Android, apart from their names and whitespace. Nothing in them knows what a platform is."
+  The shell holds no scenes of its own beyond Hello. `run!` takes the scene
+  maps and the categories that group them, so an app lists exactly what it
+  wants in its menu and requires exactly those scenes' draw namespaces.
+  raylib-ios-demo's gallery passes all of its scenes this way, and `-main`
+  runs the platform gallery below, which has Hello alone.
+
+  That split is why three of raylib-ios-demo's scenes run as files written for
+  Android, apart from their names and whitespace. Nothing in them knows what a
+  platform is."
+  (:refer-clojure :exclude [run!])
   (:require [net.b12n.raylib-ios.frame :as frame :refer [drain-events!
                                                          ignore-close
                                                          resolve-insets
@@ -16,190 +24,30 @@
             [net.b12n.raylib-ios.gallery.core :as gallery]
             [net.b12n.raylib-ios.gallery.diagnostics :as diag]
             [net.b12n.raylib-ios.gallery.draw-util :as du :refer [color WHITE]]
-            [net.b12n.raylib-ios.gallery.draws]
             [net.b12n.raylib-ios.gallery.ui :as ui]
             [net.b12n.raylib-ios.host :as rl]
-            [net.b12n.raylib-ios.scenes.align :as align]
-            [net.b12n.raylib-ios.scenes.analog :as analog]
-            [net.b12n.raylib-ios.scenes.angles :as ang]
-            [net.b12n.raylib-ios.scenes.asteroids :as astr]
-            [net.b12n.raylib-ios.scenes.automata :as auto]
-            [net.b12n.raylib-ios.scenes.balls :as balls]
-            [net.b12n.raylib-ios.scenes.bars :as bars]
-            [net.b12n.raylib-ios.scenes.bezier :as bez]
-            [net.b12n.raylib-ios.scenes.bgscroll :as bgscroll]
-            [net.b12n.raylib-ios.scenes.billboard :as billboard]
-            [net.b12n.raylib-ios.scenes.blendmodes :as blendmodes]
-            [net.b12n.raylib-ios.scenes.blendparticles :as blendparticles]
-            [net.b12n.raylib-ios.scenes.boids :as boids]
-            [net.b12n.raylib-ios.scenes.bounce :as bounce]
-            [net.b12n.raylib-ios.scenes.boxcollide :as boxcollide]
-            [net.b12n.raylib-ios.scenes.breakout :as brk]
-            [net.b12n.raylib-ios.scenes.bullets :as bull]
-            [net.b12n.raylib-ios.scenes.bunnymark :as bunnymark]
-            [net.b12n.raylib-ios.scenes.camera2d :as c2d]
-            [net.b12n.raylib-ios.scenes.camera3d :as c3d]
-            [net.b12n.raylib-ios.scenes.camerazoom :as czoom]
-            [net.b12n.raylib-ios.scenes.clipbox :as clipbox]
-            [net.b12n.raylib-ios.scenes.clock :as clock]
-            [net.b12n.raylib-ios.scenes.clockgrid :as cgrid]
-            [net.b12n.raylib-ios.scenes.collision :as coll]
-            [net.b12n.raylib-ios.scenes.colorwheel :as wheel]
-            [net.b12n.raylib-ios.scenes.dashed :as dash]
-            [net.b12n.raylib-ios.scenes.deltatime :as dtime]
-            [net.b12n.raylib-ios.scenes.dirbillboard :as dirbillboard]
-            [net.b12n.raylib-ios.scenes.doom :as doom]
-            [net.b12n.raylib-ios.scenes.easings :as ease]
-            [net.b12n.raylib-ios.scenes.easingsbox :as ebox]
-            [net.b12n.raylib-ios.scenes.easingstestbed :as etb]
-            [net.b12n.raylib-ios.scenes.ellipses :as ell]
-            [net.b12n.raylib-ios.scenes.epicycles :as epi]
-            [net.b12n.raylib-ios.scenes.fan :as fan]
-            [net.b12n.raylib-ios.scenes.fbrender :as fbrender]
-            [net.b12n.raylib-ios.scenes.fireworks :as fw]
-            [net.b12n.raylib-ios.scenes.flappy-bird :as flappy]
-            [net.b12n.raylib-ios.scenes.flowfield :as flow]
-            [net.b12n.raylib-ios.scenes.fogofwar :as fogofwar]
-            [net.b12n.raylib-ios.scenes.following-eyes :as eyes]
-            [net.b12n.raylib-ios.scenes.fontsizes :as fsizes]
-            [net.b12n.raylib-ios.scenes.formattext :as ftext]
-            [net.b12n.raylib-ios.scenes.fpcamera :as fpcamera]
-            [net.b12n.raylib-ios.scenes.fpmaze :as fpmaze]
-            [net.b12n.raylib-ios.scenes.freecam :as freecam]
-            [net.b12n.raylib-ios.scenes.game2048 :as g2048]
-            [net.b12n.raylib-ios.scenes.geoshapes :as geoshapes]
-            [net.b12n.raylib-ios.scenes.gestures :as gestures]
-            [net.b12n.raylib-ios.scenes.gradient :as grad]
-            [net.b12n.raylib-ios.scenes.helitorus :as helitorus]
             [net.b12n.raylib-ios.scenes.hello :as hello]
-            [net.b12n.raylib-ios.scenes.hilbert :as hil]
-            [net.b12n.raylib-ios.scenes.huewheel :as hue]
-            [net.b12n.raylib-ios.scenes.inlinestyle :as istyle]
-            [net.b12n.raylib-ios.scenes.invaders :as inv]
-            [net.b12n.raylib-ios.scenes.kaleidoscope :as kal]
-            [net.b12n.raylib-ios.scenes.letterbox :as letterbox]
-            [net.b12n.raylib-ios.scenes.life :as life]
-            [net.b12n.raylib-ios.scenes.logo :as still-logo]
-            [net.b12n.raylib-ios.scenes.logoanim :as logoanim]
-            [net.b12n.raylib-ios.scenes.lorenz :as lor]
-            [net.b12n.raylib-ios.scenes.lsystem :as lsys]
-            [net.b12n.raylib-ios.scenes.magnify :as magnify]
-            [net.b12n.raylib-ios.scenes.minesweeper :as msw]
-            [net.b12n.raylib-ios.scenes.mousepaint :as mousepaint]
-            [net.b12n.raylib-ios.scenes.multitouch :as multi]
-            [net.b12n.raylib-ios.scenes.npatch :as npatch]
-            [net.b12n.raylib-ios.scenes.nudge :as nudge]
-            [net.b12n.raylib-ios.scenes.ortho :as ortho]
-            [net.b12n.raylib-ios.scenes.outlines :as outl]
-            [net.b12n.raylib-ios.scenes.pacman :as pacman]
-            [net.b12n.raylib-ios.scenes.palette :as pal]
-            [net.b12n.raylib-ios.scenes.particles :as parts]
-            [net.b12n.raylib-ios.scenes.pendulum :as pend]
-            [net.b12n.raylib-ios.scenes.penrose :as pen]
-            [net.b12n.raylib-ios.scenes.picking :as picking]
-            [net.b12n.raylib-ios.scenes.piechart :as pie]
-            [net.b12n.raylib-ios.scenes.pixelperfect :as pixelperfect]
-            [net.b12n.raylib-ios.scenes.platformer :as platformer]
-            [net.b12n.raylib-ios.scenes.pointcloud :as pointcloud]
-            [net.b12n.raylib-ios.scenes.pong :as pong]
-            [net.b12n.raylib-ios.scenes.randomvalues :as rv]
-            [net.b12n.raylib-ios.scenes.rawdata :as rawdata]
-            [net.b12n.raylib-ios.scenes.rectbounds :as rbounds]
-            [net.b12n.raylib-ios.scenes.rendertex :as rendertex]
-            [net.b12n.raylib-ios.scenes.resize :as rsz]
-            [net.b12n.raylib-ios.scenes.ring :as ring]
-            [net.b12n.raylib-ios.scenes.rlgltriangle :as rlgl]
-            [net.b12n.raylib-ios.scenes.rotcube :as rotcube]
-            [net.b12n.raylib-ios.scenes.rounded :as rnd]
-            [net.b12n.raylib-ios.scenes.screenbuf :as screenbuf]
-            [net.b12n.raylib-ios.scenes.screens :as screens]
-            [net.b12n.raylib-ios.scenes.sector :as sector]
-            [net.b12n.raylib-ios.scenes.sequence :as seqn]
-            [net.b12n.raylib-ios.scenes.shapes :as shp]
-            [net.b12n.raylib-ios.scenes.snake :as snk]
-            [net.b12n.raylib-ios.scenes.solarsystem :as solarsystem]
-            [net.b12n.raylib-ios.scenes.spheres :as spheres]
-            [net.b12n.raylib-ios.scenes.spincubes :as spincubes]
-            [net.b12n.raylib-ios.scenes.spirograph :as spiro]
-            [net.b12n.raylib-ios.scenes.splines :as spl]
-            [net.b12n.raylib-ios.scenes.split3d :as split3d]
-            [net.b12n.raylib-ios.scenes.splitscreen :as split]
-            [net.b12n.raylib-ios.scenes.spriteanim :as spriteanim]
-            [net.b12n.raylib-ios.scenes.spritebutton :as spritebutton]
-            [net.b12n.raylib-ios.scenes.spritestack :as spritestack]
-            [net.b12n.raylib-ios.scenes.srcrec :as srcrec]
-            [net.b12n.raylib-ios.scenes.starfield :as sfield]
-            [net.b12n.raylib-ios.scenes.stars :as stars]
-            [net.b12n.raylib-ios.scenes.strings :as strings]
-            [net.b12n.raylib-ios.scenes.strip :as strip]
-            [net.b12n.raylib-ios.scenes.survivors :as surv]
-            [net.b12n.raylib-ios.scenes.tesseract :as tess]
-            [net.b12n.raylib-ios.scenes.tetris :as tet]
-            [net.b12n.raylib-ios.scenes.texcube :as texcube]
-            [net.b12n.raylib-ios.scenes.texcurve :as texcurve]
-            [net.b12n.raylib-ios.scenes.texpoly :as texpoly]
-            [net.b12n.raylib-ios.scenes.texproc :as texproc]
-            [net.b12n.raylib-ios.scenes.textiling :as textiling]
-            [net.b12n.raylib-ios.scenes.toplights :as toplights]
-            [net.b12n.raylib-ios.scenes.touch-trail :as trail]
-            [net.b12n.raylib-ios.scenes.touchball :as tball]
-            [net.b12n.raylib-ios.scenes.tree :as tree]
-            [net.b12n.raylib-ios.scenes.undoredo :as undoredo]
-            [net.b12n.raylib-ios.scenes.unitcircle :as circle]
-            [net.b12n.raylib-ios.scenes.vecangle :as vang]
-            [net.b12n.raylib-ios.scenes.virtualpad :as vpad]
-            [net.b12n.raylib-ios.scenes.voxel :as voxel]
-            [net.b12n.raylib-ios.scenes.vpscaling :as vpscaling]
-            [net.b12n.raylib-ios.scenes.wavecubes :as wavecubes]
-            [net.b12n.raylib-ios.scenes.wheelbox :as wbox]
-            [net.b12n.raylib-ios.scenes.wireframes :as wireframes]
-            [net.b12n.raylib-ios.scenes.worldscreen :as worldscreen]
-            [net.b12n.raylib-ios.scenes.writing :as writ]
-            [net.b12n.raylib-ios.scenes.yawpitchroll :as ypr]
+            [net.b12n.raylib-ios.scenes.hello.draw]
             [net.b12n.raylib-ios.scroll :as scroll]
             [net.b12n.raylib-ios.texture :as texture]))
 
-(def scenes [(eyes/scene) (trail/scene) (flappy/scene)
-             (spiro/scene) (kal/scene) (fw/scene) (pen/scene) (boids/scene)
-             (pend/scene) (epi/scene) (hil/scene) (tree/scene) (stars/scene)
-             (lsys/scene) (flow/scene) (lor/scene) (tess/scene)
-             (life/scene) (auto/scene)
-             (wheel/scene) (circle/scene)
-             (clock/scene) (pie/scene) (logoanim/scene)
-             (ease/scene)
-             (ang/scene) (writ/scene) (balls/scene) (seqn/scene)
-             (bull/scene) (coll/scene) (dash/scene) (multi/scene)
-             (analog/scene) (cgrid/scene) (sector/scene) (pal/scene)
-             (grad/scene) (ring/scene) (spl/scene)
-             (rnd/scene) (vang/scene) (bars/scene)
-             (bez/scene) (fan/scene) (clipbox/scene)
-             (rsz/scene) (align/scene) (dtime/scene) (rv/scene)
-             (ftext/scene) (strip/scene) (tball/scene) (rlgl/scene)
-             (parts/scene) (brk/scene) (bounce/scene) (snk/scene)
-             (g2048/scene) (msw/scene) (pong/scene) (inv/scene)
-             (tet/scene) (astr/scene) (vpad/scene) (sfield/scene)
-             (ebox/scene) (etb/scene) (rbounds/scene) (hue/scene) (still-logo/scene) (fsizes/scene)
-             (istyle/scene) (outl/scene) (shp/scene) (ell/scene) (screens/scene) (surv/scene) (pacman/scene)
-             (hello/scene) (nudge/scene) (wbox/scene) (undoredo/scene)
-             (strings/scene) (c2d/scene) (czoom/scene) (platformer/scene) (split/scene)
-             (gestures/scene) (helitorus/scene)
-             (rotcube/scene) (c3d/scene) (ortho/scene)
-             (spincubes/scene) (worldscreen/scene) (wireframes/scene) (freecam/scene) (ypr/scene) (boxcollide/scene)
-             (picking/scene) (wavecubes/scene) (solarsystem/scene) (pointcloud/scene)
-             (fpcamera/scene) (fpmaze/scene) (split3d/scene) (spheres/scene)
-             (bunnymark/scene) (bgscroll/scene) (spritestack/scene) (pixelperfect/scene)
-             (vpscaling/scene) (letterbox/scene) (fogofwar/scene)
-             (blendmodes/scene) (blendparticles/scene)
-             (billboard/scene) (dirbillboard/scene) (texcube/scene) (geoshapes/scene)
-             (voxel/scene) (doom/scene)
-             (textiling/scene) (srcrec/scene) (spritebutton/scene)
-             (npatch/scene) (texpoly/scene) (texproc/scene)
-             (spriteanim/scene) (texcurve/scene) (rendertex/scene) (fbrender/scene) (mousepaint/scene)
-             (magnify/scene) (toplights/scene)
-             (rawdata/scene) (screenbuf/scene)])
+(def platform-gallery
+  "What `-main` runs: Hello alone, in one category. It is the platform's proof
+  that the shell, the host loop and the build tools work, with no other scene
+  needed."
+  {:scenes [(hello/scene)]
+   :categories [{:id :platform
+                 :title "Platform"
+                 :scenes [:hello]}]})
 
-(def registry (gallery/make-registry scenes))
-(def scene-ids (mapv :id scenes))
+(defn- prepare
+  "The shell's working set for a gallery: the registry, and the categories with
+  their ids. `scenes` is a vector of scene maps (each `:id` and the contract's
+  fns) and `categories` a vector of `{:id :title :scenes [scene-id ...]}`."
+  [{:keys [scenes categories]}]
+  {:registry (gallery/make-registry scenes)
+   :categories categories
+   :category-ids (mapv :id categories)})
 
 ;; --- a level above the scene contract ----------------------------------------
 ;; net.b12n.raylib-ios.gallery.core knows two modes, :gallery and :scene, and its layout fits
@@ -211,44 +59,16 @@
 ;; The whole trick is that ui/gallery-layout takes the ids to lay out as an
 ;; argument. Hand it category ids and it lays out categories; hand it the ids
 ;; in a category and it lays out those. Same untouched function, twice.
-(def categories
-  [{:id :generative
-    :title "Generative"
-    :scenes [:spirograph :kaleidoscope :fireworks :penrose :epicycles :flowfield
-             :lorenz :life :bullets]}
-   {:id :fractals
-    :title "Fractals"
-    :scenes [:hilbert :tree :lsystem :automata]}
-   {:id :toys
-    :title "Toys"
-    :scenes [:following-eyes :touch-trail :boids :pendulum :stars :tesseract
-             :colorwheel :unitcircle :clock :piechart :logoanim :easings
-             :angles :writing :balls :sequence :collision :dashed :multitouch
-             :analog :clockgrid :sector :palette :gradient :ring :splines
-             :rounded :vecangle :bars :bezier :fan :clipbox :resize :align
-             :deltatime :randomvalues :formattext :strip :touchball :rlgltriangle
-             :particles :bounce :virtualpad :starfield :easingsbox :easingstestbed
-             :rectbounds :huewheel :logo :fontsizes :inlinestyle :outlines :shapes :ellipses :screens
-             :hello :nudge :wheelbox :undoredo :strings :camera2d :camerazoom :platformer :splitscreen :gestures :helitorus
-             :rotcube :camera3d :ortho :spincubes :worldscreen :wireframes :freecam :yawpitchroll :boxcollide :picking
-             :wavecubes :solarsystem :pointcloud :fpcamera :fpmaze :split3d :spheres
-             :bunnymark :bgscroll :spritestack :pixelperfect :vpscaling :letterbox :fogofwar
-             :blendmodes :blendparticles :billboard :dirbillboard :texcube :geoshapes :voxel :doom
-             :textiling :srcrec :spritebutton :npatch :texpoly :texproc
-             :spriteanim :texcurve :rendertex :fbrender :mousepaint :magnify :toplights :rawdata :screenbuf]}
-   {:id :games
-    :title "Games"
-    :scenes [:flappy-bird :breakout :snake :game2048 :minesweeper :pong :invaders :tetris :asteroids :survivors :pacman]}])
 
-(def ^:private category-ids (mapv :id categories))
-
-(defn- category-by-id [id] (some (fn [c] (when (= id (:id c)) c)) categories))
+(defn- category-by-id [{:keys [categories]} id]
+  (some (fn [c] (when (= id (:id c)) c)) categories))
 
 (defn- title-of
   "Cards are drawn from an id, and an id is a category at the top level and a
   scene inside one."
-  [id]
-  (or (:title (category-by-id id))
+  [{:keys [registry]
+    :as cfg} id]
+  (or (:title (category-by-id cfg id))
       (:title (gallery/scene-by-id registry id))
       (name id)))
 
@@ -289,7 +109,7 @@
   letting a card scroll over it is the obvious ordering and the wrong one: the
   scissor already stops that, and the heading then has to be redrawn anyway
   because the card that overlapped it has repainted the background it sat on."
-  [{:keys [margin title-size body-size line-gap cards content-height viewport-height]}
+  [cfg {:keys [margin title-size body-size line-gap cards content-height viewport-height]}
    p top scroll heading subheading]
   (rl/clear-background (color (:background p)))
   (let [grid-top (+ top margin title-size (* 2 line-gap))
@@ -303,7 +123,7 @@
       (when (and (< (:y card) (+ grid-top grid-h))
                  (> (+ (:y card) (:height card)) grid-top))
         (rl/draw-rectangle (:x card) (:y card) (:width card) (:height card) (color (:card p)))
-        (centered-text! (title-of scene-id) card body-size WHITE)))
+        (centered-text! (title-of cfg scene-id) card body-size WHITE)))
     (rl/end-scissor-mode)
     (when-let [[ty th] (scroll/thumb scroll content-height viewport-height)]
       (let [w (rl/get-screen-width)
@@ -371,9 +191,10 @@
   "The ids this level lays out: the categories at the top, or one category's
   scenes inside it. In :scene mode nothing but the Back target is read from the
   layout, so either list would do."
-  [category]
+  [{:keys [category-ids]
+    :as cfg} category]
   (if category
-    (:scenes (category-by-id category))
+    (:scenes (category-by-id cfg category))
     category-ids))
 
 (defn- navigate
@@ -389,7 +210,7 @@
   on the list they opened it from. In :gallery mode Back leaves the category,
   and only then is it cleared. Collapsing the two sends every scene's Back
   straight to the top level, which looks like the list was never there."
-  [category mode hit list-back?]
+  [cfg category mode hit list-back?]
   (cond
     ;; Back out of a category's scene list, to the categories
     list-back?                              [nil false]
@@ -399,7 +220,7 @@
     (nil? category)                         [(when (keyword? hit) hit) false]
     ;; a scene card inside a category
     (and (keyword? hit)
-         (some #{hit} (:scenes (category-by-id category))))
+         (some #{hit} (:scenes (category-by-id cfg category))))
     [category true]
     :else                                   [category false]))
 
@@ -421,11 +242,13 @@
   (assoc gstate :mode :gallery :active-scene-id nil :scene-state nil
          :scene-events []))
 
-(defn- guard-scene
+(defn guard-scene
   "Call `f`, which runs scene code for scene `id`, and return its result. If it
   throws, return `gstate` abandoned instead. Before this, one bug in a scene's :update or
   draw-scene! method ended the process on the phone, so each porting mistake
-  cost a rebuild and a redeploy just to read the message."
+  cost a rebuild and a redeploy just to read the message.
+
+  Public so raylib-ios-demo's gallery tests can check the abandonment path."
   [gstate id f]
   (frame/guarded (fn [e] (abandon-scene gstate id e)) f))
 
@@ -436,8 +259,8 @@
 
   Returns the gallery state, which is the argument unless the scene's draw threw
   and was abandoned."
-  [{:keys [mode active-scene-id scene-state]
-    :as gstate} category layout k m top safe scroll]
+  [cfg {:keys [mode active-scene-id scene-state]
+        :as gstate} category layout k m top safe scroll]
   ;; Every frame, so a scene's textures are freed the frame after it is left,
   ;; however it was left: Back, or abandoned by guard-scene. An abandoned scene
   ;; comes through here with :mode :gallery, either this frame (it threw in
@@ -463,16 +286,17 @@
         result)
 
       category
-      (do (draw-gallery! layout p top scroll (title-of category) "Choose a scene")
+      (do (draw-gallery! cfg layout p top scroll (title-of cfg category) "Choose a scene")
           (draw-back! layout accent)
           gstate)
 
       :else
-      (do (draw-gallery! layout p top scroll (:title p) "Choose a category")
+      (do (draw-gallery! cfg layout p top scroll (:title p) "Choose a category")
           gstate))))
 
-(defn- next-scroll
-  "The list's scroll offset after this frame's pointer.
+(defn next-scroll
+  "The list's scroll offset after this frame's pointer. Public so
+  raylib-ios-demo's gallery tests can check the rule.
 
   A drag moves the list only while the list is what is showing. Inside a scene
   the list is hidden behind it, and a swipe game drags constantly, so following
@@ -489,8 +313,11 @@
 (defn- frame
   "One frame: sample, decide where the press goes, advance the pure gallery,
   draw. The state carried between frames is the touch count, the cached inset,
-  which category is open, and the pure state itself."
-  [{:keys [k insets touches gstate category]
+  which category is open, and the pure state itself. `cfg` is the gallery
+  `prepare` made, the same for every frame."
+  [{:keys [registry]
+    :as cfg}
+   {:keys [k insets touches gstate category]
     :as s}]
   (let [insets (resolve-insets k insets)
         top    (:top insets 0)
@@ -502,7 +329,7 @@
         ;; then translates it into place at draw time, which is why no scene
         ;; has to know a safe area exists.
         scene-m (frame/scene-metrics m safe)
-        layout (below-the-safe-area m (diag/layout m) top (visible-ids category)
+        layout (below-the-safe-area m (diag/layout m) top (visible-ids cfg category)
                                     (:scroll s 0))
         phase (get-in input [:pointer :phase])
         point (get-in input [:pointer :position])
@@ -536,7 +363,7 @@
         ;; purpose: see navigate.
         list-back? (and tapped? (= :gallery (:mode gstate)) category
                         (within? (:back layout) tap-at))
-        [category' opening?] (navigate category (:mode gstate) hit list-back?)
+        [category' opening?] (navigate cfg category (:mode gstate) hit list-back?)
         scene-input (frame/scene-input input safe scene-m (= hit :back))
         gstate (-> (guard-scene gstate (or (:active-scene-id gstate) hit)
                                 (fn []
@@ -545,7 +372,7 @@
                                     (gallery/run-frame registry gstate scene-input))))
                    drain-events!
                    ignore-close)
-        gstate (render! gstate category' layout k scene-m top safe scroll')]
+        gstate (render! cfg gstate category' layout k scene-m top safe scroll')]
     (assoc s :insets insets
            :category category'
              ;; The offset belongs to the level being shown, so moving between
@@ -558,7 +385,30 @@
            :touches (get-in input [:touches :count])
            :gstate gstate)))
 
+(defn app
+  "The host app for a gallery, `{:title :init :frame}`, which `run!` hands to
+  the host loop. A function of its own so a test can drive the frames over
+  stubbed raylib, as it does the runner's."
+  [gallery]
+  (let [cfg (prepare gallery)]
+    {:title "Gallery"
+     :init init
+     :frame (fn [s] (frame cfg s))}))
+
+(defn run!
+  "Run a gallery on the host loop. Does not return.
+
+  `gallery` is `{:scenes [...] :categories [...]}`:
+
+  - `:scenes` is a vector of scene maps, each the result of a scene's `(scene)`.
+  - `:categories` is a vector of `{:id :title :scenes [scene-id ...]}`, in menu
+    order. The top level lists the categories and a category lists its scenes.
+
+  Every scene's draw namespace must be loaded by the caller, since the shell
+  requires none beyond Hello's. A scene in `:scenes` with no draw-scene! method
+  is abandoned on open with its message printed, like any scene that throws."
+  [gallery]
+  (rl/run! (app gallery)))
+
 (defn -main [& _]
-  (rl/run! {:title "Gallery"
-            :init init
-            :frame frame}))
+  (run! platform-gallery))

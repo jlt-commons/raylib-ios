@@ -2,8 +2,9 @@
   "What more than one draw-scene! method needs, and the multimethod itself.
 
   The multimethod lives here rather than in net.b12n.raylib-ios.gallery because
-  the gallery requires every draw namespace and each of those requires the
-  multimethod, so it cannot be defined in the namespace that loads them."
+  each draw namespace requires it, and a scene's draw namespace must not need
+  the gallery shell (the one-scene runner and every scene app load the draw
+  without it)."
   (:require [net.b12n.raylib-ios.host :as rl]))
 
 (def WHITE (rl/rgba 255 255 255 255))

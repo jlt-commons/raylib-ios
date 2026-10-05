@@ -1,55 +1,61 @@
 # Contributing
 
-Thanks for looking. The most useful contribution is another scene, and the
-second most useful is a correction to something in `docs/guide/` that turns out
-not to be true.
+Thanks for looking. raylib-ios is the platform: the host loop, the gallery shell,
+the single-scene runner, the bindings and the build tools. The scenes that run on
+it live in [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo), so **a new scene goes there**, and the
+second most useful contribution is a correction to something in `docs/guide/`
+that turns out not to be true.
 
 ## Before anything
 
 ```sh
-clojure -M:test     # no device needed; runs every scene and module test
-clj-kondo --lint src test
+jolt -M:test        # the shipping runtime; also runs the jolt-only smoke tests
+clojure -M:test     # the JVM job; skips the jolt-only namespaces and says so
+clj-kondo --lint src test --fail-level warning
+clojure-lsp format --dry && clojure-lsp clean-ns --dry
+shellcheck -S warning tools/ios/*.sh docs/check-site.sh
 ```
 
-Both are gates in CI and both run in seconds. The tests need no raylib, no SDL
-and no phone, which is the entire point of the scene contract.
+All of these are gates in CI and all run in seconds. The tests need no raylib, no
+SDL and no phone. raylib-ios-demo depends on this repo through a `:local/root`, so
+a platform change should also pass that repo's gates (`bb gen --check`, `bb doctor`
+and its own test suites).
 
-## Adding a scene
+## What goes where
 
-Four touchpoints. Miss one and the failure is quiet rather than loud, which is
-why they are listed rather than discovered.
+- **Here:** anything a scene stands on. `host.clj` and its bindings, `frame.clj`,
+  the gallery shell (`gallery.clj`) and the pure gallery under `gallery/`,
+  `runner.clj`, the texture and render-target code, the pure helpers
+  (`soft3d`, `camera2d`, `stick`, `gesture`, `scroll`, `easings`, `perlin`, `texel`),
+  `tools/ios/` and the guides about the platform. Hello is the one scene, as the
+  platform's proof.
+- **raylib-ios-demo:** every other scene, its draw method and its tests, the
+  generated registry the gallery app passes to `gallery/run!`, and the scene
+  catalog. Adding a scene there is one line in `demos.edn` and `bb gen`; its
+  CONTRIBUTING has the steps.
 
-**1. A pure namespace** at `src/net/b12n/raylib_ios/scenes/<name>.cljc`.
+The shell holds no scene list. `(gallery/run! {:scenes [...] :categories [...]})`
+takes both as data, and `net.b12n.raylib-ios.live/live-run!` does the same with an
+nREPL. Its own `-main` runs `gallery/platform-gallery`, which is Hello alone. A
+test fails if a scene namespace other than Hello comes back to this repo.
 
-It must not require `net.b12n.raylib-ios.host` or call raylib. It is state and the functions
-that advance it, and it returns:
+## What a scene can use
 
-```clojure
-(defn scene []
-  {:id :yourscene :title "Your Scene"
-   :init init :update update-scene :draw draw :dispose dispose})
-```
+A scene is a pure namespace that returns `{:id :title :init :update :draw
+:dispose}`, plus a `draw-scene!` method in its own draw namespace. It must not
+require `net.b12n.raylib-ios.host` or call raylib outside that method. Derive
+geometry from `(:screen metrics)` rather than hardcoding pixels. The metrics a
+scene receives are the safe region, not the whole display, and they differ
+between devices. See [the safe area](docs/guide/the-safe-area.md). Use a seeded
+generator rather than `GetRandomValue`, so a scene replays identically and its
+tests are possible.
 
-Derive geometry from `(:screen metrics)` rather than hardcoding pixels. The
-metrics a scene receives are the safe region, not the whole display, and they
-differ between devices. See [the safe area](docs/guide/the-safe-area.md).
-
-Use a seeded generator rather than `GetRandomValue` if the scene is random.
-Every existing one uses the same LCG, which makes a scene replay identically and
-makes its tests possible.
-
-**Frame-locked speeds.** The originals move by a fixed step per frame, so a
-port scales that step to the screen. Scale each axis by its own dimension when
-the motion is bound to an axis, as `breakout`, `pong` and `invaders` do.
-Use one factor when direction matters, such as thrust along a heading: `asteroids`
-uses the geometric mean of the two axes. Cap the per-frame step below what a hit
-test needs, so nothing tunnels. `breakout` caps at a quarter of a brick and
-`invaders` at half an alien.
+These are the platform helpers a scene reaches for, and how each works.
 
 **Text layout.** A pure scene can't call `MeasureText`, so a scene that wraps or
 centres text takes a `measure` function `(fn [s size] -> px)`. Every scene's
 input carries one as `:measure`, which is raylib's own text width. A scene that
-keeps text widths in its state, as `strings` does, reads it in `init` and
+keeps text widths in its state, as the `strings` scene does, reads it in `init` and
 `update`, with a fallback so tests can run without the FFI. A scene that lays
 text out only in `dimensions` still gets `measure` from its draw method, as
 `rectbounds` does. If the draw method caches the layout, the
@@ -71,7 +77,7 @@ project as they go, and `finish` sorts the result far to near. The draw method
 hands that list to `net.b12n.raylib-ios.host/draw-3d!`, scissored to the field. Nothing
 behind the near plane is drawn and every triangle keeps rlgl's front winding. A
 scene that draws many small boxes may bypass `finish` with its own paint order,
-as `wavecubes` and `pointcloud` do, if the order is provably right for that
+as raylib-ios-demo's `wavecubes` and `pointcloud` do, if the order is provably right for that
 scene.
 
 **Textures.** A scene that draws a texture stays pure and never touches FFI.
@@ -107,14 +113,14 @@ answers a packed colour, `r | g<<8 | b<<16 | a<<24`, which is what
   texture, using `net.b12n.raylib-ios.texel` (which follows raylib 6.0's `ImageDraw*` loops,
   quirks included). Pixel fns that run on the phone should not allocate a vector
   per texel; `texel/pack4` takes the four channels as arguments.
-- Make a static spec a `def` or a `delay` in `net.b12n.raylib-ios.gallery`, built once. A
+- Make a static spec a `def` or a `delay` in the scene's draw namespace, built once. A
   spec without a `:version`, handed back as the identical object, is kept as a
   filled buffer, so a reopen costs about one frame instead of a refill. A spec
   built fresh each frame is refilled each time. Only one scene's textures are on
   the GPU at once: `net.b12n.raylib-ios.texture/enter!` frees the rest when a scene opens.
 - A first open can pause, because the pixels are computed and uploaded then.
-  Measure it on the phone and say so in the catalog row, and in the scene's
-  docstring, when the largest frame is over 100 ms.
+  Measure it on the phone and say so in the scene's catalog row in raylib-ios-demo,
+  and in the scene's docstring, when the largest frame is over 100 ms.
 
 **Render textures.** A scene that draws into an off-screen framebuffer stays
 pure too. The `draw-scene!` method asks `net.b12n.raylib-ios.texture` for a target, draws
@@ -153,9 +159,10 @@ rebuilds them from rlgl's scalar calls.
   it is the one native call here with a struct return. `net.b12n.raylib-ios.perlin` is the
   pure model that tests it.
 - A field-sized RGBA8 target is about 10.7 MB in portrait. Give the total in the
-  catalog row, and measure the first open on the phone.
-- Testing: the smoke test checks SDL's framebuffer, the scissor and the full
-  matrix snapshot after every frame. `test/net/b12n/raylib_ios/rlgl_model.clj` models rlgl's
+  scene's catalog row in raylib-ios-demo, and measure the first open on the phone.
+- Testing: raylib-ios-demo's gallery smoke test checks SDL's framebuffer, the scissor
+  and the full matrix snapshot after every frame, and `texture_test.clj` here checks the
+  pass itself. `test/net/b12n/raylib_ios/rlgl_model.clj` models rlgl's
   matrix state, so a pass can be tested for what it leaves behind, and a stub
   that skips it would hide the transform and modelview split.
 - The native Perlin test needs libraylib. Plain `jolt -M:test` and CI skip it and
@@ -164,40 +171,25 @@ rebuilds them from rlgl's scalar calls.
 
 **Thumb-sticks.** A scene that steers with a relative stick tracks it with
 `net.b12n.raylib-ios.stick`, which follows one finger by its touch id and never adopts a
-finger that was already down. `freecam`, `yawpitchroll` and `boxcollide` use it.
+finger that was already down. raylib-ios-demo's `freecam`, `yawpitchroll` and `boxcollide` use it.
 
 **Gestures.** A scene that wants raylib's own recogniser reads `:raylib-gesture`
-from its input, which is the code from `GetGestureDetected`, as `gestures` does.
-It only ever reports one finger, so pinch never appears there.
+from its input, which is the code from `GetGestureDetected`, as raylib-ios-demo's
+`gestures` scene does. It only ever reports one finger, so pinch never appears there.
 
-**2. A test** at `test/net/b12n/raylib_ios/scenes/<name>_test.cljc`.
+## Changing the shell
 
-Prefer properties over golden values: that a rotation preserves length, that
-slices tile a circle exactly, that a trail stays bounded. Two of this project's
-own tests shipped wrong expectations that a property would have caught.
+`test/net/b12n/raylib_ios/gallery_smoke_test.clj` covers the platform gallery (a walk
+from the category to Hello over stubbed raylib, and Hello running 120 frames of
+touch), a scene that throws, and the scroll rule.
+raylib-ios-demo's smoke test runs every scene through the same shell for 120 frames
+over stubbed raylib. `guard-scene` and `next-scroll` are public so both can reach
+them.
 
-**Test the first frame.** A scene crashed in production asking for element 0 of
-an empty buffer, past 1400 assertions, because every test called `advance`
-before looking at anything.
-
-**3. Register it** in `src/net/b12n/raylib_ios/gallery.clj`: add the require, add
-`(yours/scene)` to the `scenes` vector, and add its `:id` to a category's
-`:scenes` list. All three, or it will not appear.
-
-**4. A `draw-scene!` method**, in its own namespace beside the scene,
-`net.b12n.raylib-ios.scenes.<name>.draw` at `scenes/<name>/draw.clj`. Add that
-namespace to the list in `net.b12n.raylib-ios.gallery.draws`, the one file that
-requires every draw namespace. This is the only place
-raylib gets called. Drawing reads the state the scene produced and calls
-`rl/draw-line` and friends. A texture scene also keeps its spec here, as a `def` or
-`delay` beside the method (see Textures above).
-
-Then add it to `test/net/b12n/raylib_ios/test_runner.clj`, which lists its namespaces
-explicitly. It also fails if a `*_test` file exists that it does not list, so
-forgetting is caught rather than silently skipped.
-
-Under jolt, `jolt -M:test` also runs a smoke test that fails if a scene is
-missing from any of the four registration points.
+Adding a test namespace means listing it in
+`test/net/b12n/raylib_ios/test_runner.clj`. The runner also fails if a `*_test`
+file exists that it does not list, so forgetting is caught rather than silently
+skipped.
 
 ## The performance budget
 
@@ -237,11 +229,12 @@ was zlib until 2026-09-05; the change was to match the rest of jlt-commons.
 
 Parts of `host.clj`, `gallery.clj`, `touch.clj` and `link.clj` derive from
 [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo), which is MIT,
-and the scenes are ports from raylib-jlt, which is zlib. Those keep their own
+and Hello is a port from raylib-jlt, which is zlib. Those keep their own
 licences: a change of outbound licence cannot relicense someone else's
 copyright. `NOTICE` has the detail and reproduces every notice.
 
-One inherited obligation applies to anyone adding a scene. zlib requires that
+One inherited obligation applies to anyone porting a scene, in raylib-ios-demo or
+here. zlib requires that
 altered source versions be plainly marked as such, so a port names its original
 in its docstring and says what changed. That is not a stylistic convention here,
 it is the licence.

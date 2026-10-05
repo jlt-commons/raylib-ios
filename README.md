@@ -9,92 +9,38 @@ raylib and SDL2 on an iPhone, driven from Clojure by
 [jolt](https://github.com/jolt-lang/jolt), on threaded portable bytecode with
 no JIT and nothing generated at run time.
 
-What runs today: a gallery of a hundred and thirty-seven scenes, each one a pure `.cljc`
-simulation under an iOS owner loop of about thirty lines. Three of them,
-Following Eyes, Touch Trail and Flappy Bird, came byte for byte from
-[jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-at `6d2b291`, and the other hundred and thirty-four are ports from
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt). Tap a card to
-open a scene, tap Back to leave it. The bird flaps on a press edge.
+This repo is the platform: the host loop, the gallery shell, the single-scene
+runner, the raylib and SDL bindings, and the build, deploy and live tools. What
+runs on it is [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo), a hundred and thirty-seven scenes,
+each a pure `.cljc` simulation under an iOS owner loop of about thirty lines and
+each its own sub-project that builds an app. Three of them, Following Eyes,
+Touch Trail and Flappy Bird, are
+[jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)'s
+files at `6d2b291`, identical apart from namespace names and whitespace. The other hundred
+and thirty-four are ports from [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
+
+This repo keeps one scene of its own, Hello, the basic window. It is the proof that the
+shell, the host loop and the tools work, and `-main` in `net.b12n.raylib-ios.gallery`
+runs it as a one-card gallery:
 
 <p>
-  <a href="docs/images/gallery.png"><img src="docs/images/thumbs/gallery.png" width="200" alt="The category screen"></a>
-  <a href="docs/images/spirograph.png"><img src="docs/images/thumbs/spirograph.png" width="200" alt="Spirograph"></a>
-  <a href="docs/images/penrose.png"><img src="docs/images/thumbs/penrose.png" width="200" alt="Penrose P3 tiling"></a>
-  <a href="docs/images/kaleidoscope.png"><img src="docs/images/thumbs/kaleidoscope.png" width="200" alt="Kaleidoscope"></a>
-</p>
-<p>
-  <a href="docs/images/boids.png"><img src="docs/images/thumbs/boids.png" width="200" alt="Boids"></a>
-  <a href="docs/images/fireworks.png"><img src="docs/images/thumbs/fireworks.png" width="200" alt="Fireworks"></a>
-  <a href="docs/images/flappy-bird.png"><img src="docs/images/thumbs/flappy-bird.png" width="200" alt="Flappy Bird"></a>
-</p>
-<p>
-  <a href="docs/images/touchball.png"><img src="docs/images/thumbs/touchball.png" width="200" alt="Touch Ball"></a>
-  <a href="docs/images/rlgltriangle.png"><img src="docs/images/thumbs/rlgltriangle.png" width="200" alt="rlgl Triangle, one corner mid-drag"></a>
-  <a href="docs/images/particles.png"><img src="docs/images/thumbs/particles.png" width="200" alt="Particles, smoke"></a>
-  <a href="docs/images/breakout.png"><img src="docs/images/thumbs/breakout.png" width="200" alt="Breakout mid-game"></a>
-</p>
-<p>
-  <a href="docs/images/deltatime.png"><img src="docs/images/thumbs/deltatime.png" width="200" alt="Delta Time, the two boxes already apart"></a>
-  <a href="docs/images/randomvalues.png"><img src="docs/images/thumbs/randomvalues.png" width="200" alt="Random Values"></a>
-  <a href="docs/images/formattext.png"><img src="docs/images/thumbs/formattext.png" width="200" alt="Formatted Text"></a>
-  <a href="docs/images/strip.png"><img src="docs/images/thumbs/strip.png" width="200" alt="Triangle Strip"></a>
-</p>
-<p>
-  <a href="docs/images/survivors.png"><img src="docs/images/thumbs/survivors.png" width="200" alt="Vampire Survivors mid-wave"></a>
-  <a href="docs/images/pacman.png"><img src="docs/images/thumbs/pacman.png" width="200" alt="Pac-Man"></a>
   <a href="docs/images/hello.png"><img src="docs/images/thumbs/hello.png" width="200" alt="Basic Window"></a>
-  <a href="docs/images/nudge.png"><img src="docs/images/thumbs/nudge.png" width="200" alt="Keyboard Ball"></a>
-  <a href="docs/images/wheelbox.png"><img src="docs/images/thumbs/wheelbox.png" width="200" alt="Mouse Wheel, the box dragged down"></a>
-  <a href="docs/images/undoredo.png"><img src="docs/images/thumbs/undoredo.png" width="200" alt="Undo Redo with a trail"></a>
-  <a href="docs/images/strings.png"><img src="docs/images/thumbs/strings.png" width="200" alt="Strings Management, a sentence cut and shaken"></a>
+  <a href="docs/images/spirograph.png"><img src="docs/images/spirograph.png" width="200" alt="Spirograph, one of raylib-ios-demo's scenes"></a>
+  <a href="docs/images/penrose.png"><img src="docs/images/thumbs/penrose.png" width="200" alt="Penrose P3 tiling, from raylib-ios-demo"></a>
 </p>
 
-*Every one of these is a photograph of an iPhone 17 Pro, captured unattended
-off the device. Click for full size.*
+*Photographs of an iPhone 17 Pro, captured unattended off the device. Click for
+full size. The second and third are raylib-ios-demo scenes.*
 
 <p>
   <img src="docs/images/spirograph.gif" width="200" alt="Spirograph drawing itself">
   <img src="docs/images/kaleidoscope.gif" width="200" alt="Kaleidoscope">
   <img src="docs/images/fireworks.gif" width="200" alt="Fireworks">
   <img src="docs/images/boids.gif" width="200" alt="Boids flocking">
-  <img src="docs/images/flappy-bird.gif" width="200" alt="Flappy Bird, flapped over the nREPL">
-</p>
-<p>
-  <img src="docs/images/pendulum.gif" width="200" alt="A chaotic double pendulum">
-  <img src="docs/images/epicycles.gif" width="200" alt="Fourier epicycles drawing a square wave">
-  <img src="docs/images/tree.gif" width="200" alt="A fractal tree swaying">
-  <img src="docs/images/stars.gif" width="200" alt="A starfield">
-  <img src="docs/images/lsystem.gif" width="200" alt="An L-system plant growing">
-  <img src="docs/images/flowfield.gif" width="200" alt="Particles in a flow field">
-</p>
-<p>
-  <img src="docs/images/lorenz.gif" width="200" alt="The Lorenz attractor, camera orbiting">
-  <img src="docs/images/tesseract.gif" width="200" alt="A rotating 4D hypercube">
-</p>
-<p>
-  <img src="docs/images/colorwheel.gif" width="200" alt="An HSV colour wheel, drawn as an rlgl triangle fan">
-  <img src="docs/images/unitcircle.gif" width="200" alt="Sine and cosine traced from a rotating radius">
-  <img src="docs/images/clock.gif" width="200" alt="A seven-segment clock showing the time">
-</p>
-<p>
-  <img src="docs/images/piechart.gif" width="200" alt="A rotating pie chart">
-  <img src="docs/images/logoanim.gif" width="200" alt="raylib's logo assembling itself">
-  <img src="docs/images/life.gif" width="200" alt="Conway's Game of Life">
-  <img src="docs/images/automata.gif" width="200" alt="Elementary cellular automata scrolling">
-  <img src="docs/images/easings.gif" width="200" alt="Fifteen easing curves plotted and running together">
-  <img src="docs/images/balls.gif" width="200" alt="Balls falling and bouncing under gravity">
-</p>
-<p>
-  <img src="docs/images/sequence.gif" width="200" alt="A shuffled sequence of coloured bars">
-  <img src="docs/images/angles.gif" width="200" alt="A ring of spokes with one turning">
-  <img src="docs/images/writing.gif" width="200" alt="A message typing itself out">
 </p>
 
 *And moving, recorded off a live iPhone Mirroring window. The device bezel is
-the mirror's, not a frame we drew. Nobody touched the phone for any of them,
-including Flappy Bird: that one is flapped by a loop running inside the app,
-started from the nREPL.*
+the mirror's, not a frame we drew. Nobody touched the phone for any of them.*
 
 Licensed [EPL 2.0](LICENSE), matching the rest of jlt-commons. Third-party code
 and attribution are in [`NOTICE`](NOTICE).
@@ -110,20 +56,17 @@ mistakes as well as the answers.
 This project is the same code as an ordinary source tree, so a build reads
 files rather than tangling them out of prose first. `tools/extract-from-notebooks`
 did the one-time extraction and is kept for provenance: it refuses to
-extract without an explicit scratch destination, and it checks that the six
-pure namespaces are still their upstream files apart from namespace names and
-whitespace.
+extract without an explicit scratch destination, and it checks that the three
+pure namespaces still here are their upstream files apart from namespace names and
+whitespace. The three scenes from the same source are checked by raylib-ios-demo.
 
 ```
 $ ./tools/extract-from-notebooks
 identity of the pure namespaces (jasalt/jolt-android-experiment @ 6d2b291),
-upstream names put back and whitespace dropped, against the table's :sha:
-  src/net/b12n/raylib_ios/gallery/core.cljc            ok  77f56efceb5b352d
-  src/net/b12n/raylib_ios/gallery/diagnostics.cljc     ok  12b5581897602ef5
-  src/net/b12n/raylib_ios/gallery/ui.cljc              ok  c99574384682e1a5
-  src/net/b12n/raylib_ios/scenes/flappy_bird.cljc      ok  1d0239fb0b302f1b
-  src/net/b12n/raylib_ios/scenes/following_eyes.cljc   ok  2fe4417319b69603
-  src/net/b12n/raylib_ios/scenes/touch_trail.cljc      ok  6370604ab7d2c357
+upstream names put back and layout normalised, against the table's :sha:
+  src/net/b12n/raylib_ios/gallery/core.cljc            ok  887e96fd6a37c605
+  src/net/b12n/raylib_ios/gallery/diagnostics.cljc     ok  df06972101085722
+  src/net/b12n/raylib_ios/gallery/ui.cljc              ok  402ba8191b64a426
 ```
 
 ## raylib has no iOS backend, and does not need one
@@ -172,15 +115,21 @@ from a ChezScheme checkout, so nothing from a jolt tree ends up in a pack.
 ## Quick start
 
 ```sh
-jolt test                            # the pure namespaces, every scene, and the gallery smoke test
+jolt test                            # the pure namespaces, Hello, and the shell's smoke tests
 
 SDK=device jolt deps                 # SDL 2.32.10 and raylib 6.0, static, iphoneos
 NS=net.b12n.raylib-ios.link  TARGET=device jolt build-app     # does it link?
 UDID=<hardware udid> jolt deploy                # sign, install, launch, watch stdout
 
-NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app
+NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app     # the platform gallery: Hello
 UDID=<hardware udid> CONSOLE=0 jolt deploy      # detached, for actually playing
 ```
+
+To run the scenes, check out [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) beside this repo and run
+`UDID=<hardware udid> bb gallery` there for all of them in one app, or
+`bb asteroids` for one on its own. Its `common/deps.edn` points at this
+checkout, and its `scripts/ios_tools.clj` calls the build, deploy and live scripts
+here with `PROJECT_DIR` set to its own sub-project.
 
 `jolt devices` lists what `deploy` can talk to, and prints the **hardware**
 udid (`00008150-...`), which is what a provisioning profile lists under
@@ -194,7 +143,7 @@ cached under `~/dev/{sdl2,raylib}-ios-dev`.
 The build tools work on the project they are run from, so another repo can use
 them. `PROJECT_DIR` (default: the current directory) is the jolt project and
 holds `RaylibIOS.app` afterwards; `NS` is the namespace to build. `live.sh`
-takes `NS` too, for a live build of something other than the gallery.
+takes `NS` too, for a live build of something other than the platform gallery.
 `DRY_RUN=1` on `build.sh` prints what it resolved and stops:
 
 ```sh
@@ -202,14 +151,16 @@ cd ~/dev/my-app && NS=my.app.main TARGET=device sh /path/to/raylib-ios/tools/ios
 ```
 
 A project that shows a single scene full screen calls
-`(net.b12n.raylib-ios.runner/run! (my-scene/scene))` from its `-main`. See the
-RUNBOOK.
+`(net.b12n.raylib-ios.runner/run! (my-scene/scene))` from its `-main`, and one that
+wants a menu calls `(net.b12n.raylib-ios.gallery/run! {:scenes [...] :categories [...]})`.
+Either needs the scenes' `.draw` namespaces required by the app namespace, since
+neither loads any. See the RUNBOOK.
 
 For live development against the running app, and for every failure worth
 recognising on sight, see [`tools/ios/RUNBOOK.md`](tools/ios/RUNBOOK.md):
 
 ```sh
-jolt live                                # the gallery with an nREPL
+jolt live                                # the platform gallery with an nREPL
 jolt proxy                               # another terminal: forward it over USB
 tools/ios/nrepl-eval 7888 '(System/getenv "HOME")'   # prove it is the phone
 ```
@@ -234,23 +185,26 @@ default, 33 MB and three with it.
 |---|---|
 | `net.b12n.raylib-ios.link` | one call into each archive, no window. Proves the link, the frameworks and the export trie |
 | `net.b12n.raylib-ios.touch` | scalar touch polling, press edges, a marker under the finger |
-| `net.b12n.raylib-ios.flappy` | the Android experiment's Flappy Bird, unchanged, under the owner loop |
-| `net.b12n.raylib-ios.gallery` | the scene contract: cards, hit testing, Back, every scene's drawing |
+| `net.b12n.raylib-ios.gallery` | the shell: `run!` takes `{:scenes :categories}` and draws the menu, hit testing and Back. `-main` runs Hello alone |
 | `net.b12n.raylib-ios.runner` | `run!` shows one scene full screen, with no menu and no Back (needs the scene's `.draw` namespace required by the app) |
 | `net.b12n.raylib-ios.runner.live` | `live-run!`: the same with an nREPL, for a one-scene app's dev build |
-| `net.b12n.raylib-ios.live` | the gallery plus an nREPL, so an editor can drive the running app |
+| `net.b12n.raylib-ios.live` | the gallery shell plus an nREPL (`live-run!` takes the same map), so an editor can drive the running app |
 | `net.b12n.raylib-ios.live-cider` | the same with the cider-nrepl ops, under `-A:cider` (the one optional dependency) |
 
-Ported examples live in `src/net/b12n/raylib_ios/scenes/`. They are pure `.cljc` in the same
-shape as the six from the Android experiment, so they test on the build host,
-and `net.b12n.raylib-ios.gallery` owns their drawing. `spirograph` is the first, from
-[raylib-jlt](https://github.com/jlt-commons/raylib-jlt); porting one means
+The shell requires no scene beyond Hello. An app that wants more lists them itself,
+the way raylib-ios-demo's generated registry does, and requires each scene's draw
+namespace.
+
+Ported examples live in [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo). They are pure `.cljc` in the
+same shape as the three from the Android experiment, so they test on the build
+host, and each scene's `draw-scene!` method sits beside it. `spirograph` was the first,
+from [raylib-jlt](https://github.com/jlt-commons/raylib-jlt); porting one means
 turning a namespace that owns its own loop into a reducer over frames, and
 deriving geometry from the live screen instead of a fixed 800x450.
 
 Two guides worth reading before adding to this:
 [docs/guide/porting-an-example.md](docs/guide/porting-an-example.md) for the
-four changes a raylib-jlt example needs, and
+four changes an example needs, and
 [docs/guide/performance-on-a-phone.md](docs/guide/performance-on-a-phone.md)
 for why the first two ports ran at 15 fps and what fixed them. The short
 version of the second is that the FFI was never the problem.
@@ -274,17 +228,16 @@ layer moved rather than what the gallery is doing.
 src/net/b12n/raylib_ios/objc.clj      three Objective-C runtime calls, and nothing else
 src/net/b12n/raylib_ios/probe.clj     the measuring apparatus, all of it off by default
 src/net/b12n/raylib_ios/host.clj      the owner loop: SDL_UIKitRunApp, InitWindow, the frame
-src/net/b12n/raylib_ios/{link,touch,flappy,gallery}.clj   scenes for that host
-src/net/b12n/raylib_ios/scenes/*.cljc one pure namespace per ported scene
+src/net/b12n/raylib_ios/{link,touch}.clj   the bring-up scenes for that host
+src/net/b12n/raylib_ios/gallery.clj   the shell: run! takes {:scenes :categories}, -main shows Hello
+src/net/b12n/raylib_ios/scenes/       Hello, the platform's one scene (hello.cljc, hello/draw.clj)
 src/net/b12n/raylib_ios/scroll.cljc   the card list's scrolling and its tap-versus-drag rule
-src/net/b12n/raylib_ios/easings.cljc  raylib's easing curves, shared by two scenes
+src/net/b12n/raylib_ios/easings.cljc  raylib's easing curves, shared by the scenes that use them
 src/net/b12n/raylib_ios/frame.clj     the per-frame machinery the gallery and the runner share
 src/net/b12n/raylib_ios/runner.clj    one scene, full screen (runner/live.clj adds an nREPL)
 src/net/b12n/raylib_ios/nrepl.clj     starting the nREPL, shared by the live namespaces
 src/net/b12n/raylib_ios/live.clj      the gallery with an nREPL listening, dev builds only
-src/net/b12n/raylib_ios/gallery/*.cljc   the pure gallery (core, ui, diagnostics)
-src/net/b12n/raylib_ios/scenes/{flappy_bird,following_eyes,touch_trail}.cljc
-                         with gallery/*, six namespaces that are 6d2b291's apart from their names
+src/net/b12n/raylib_ios/gallery/*.cljc   the pure gallery (core, ui, diagnostics: 6d2b291's apart from their names)
 tools/ios/deps.sh        SDL2 and raylib, cross-built static
 tools/ios/build.sh       jolt build --target, with both archives on the link line
 tools/ios/deploy.sh      sign, install, launch
@@ -332,8 +285,8 @@ trie without it.
 
 ## Numbers, measured
 
-An iPhone 17 Pro on iOS 26.6.1, running `net.b12n.raylib-ios.gallery` with Flappy Bird
-open, over portable bytecode with every draw call a libffi call. The host
+An iPhone 17 Pro on iOS 26.6.1, running the gallery shell (then holding all the scenes)
+with Flappy Bird open, over portable bytecode with every draw call a libffi call. The host
 prints a summary every 300 frames:
 
 ```
@@ -372,13 +325,14 @@ instead and after n calls just n slots are filled, so it returns
 That model has no free parameters, since the slot size comes from the measured
 frame time and raylib's own `FPS_CAPTURE_FRAMES_COUNT`, and it fits all
 eighteen readings to within 0.76%. The controlled run settles it: the same
-binary running `net.b12n.raylib-ios.flappy`, which draws `GetFPS` every frame, reported a
+binary running the standalone Flappy Bird loop the project had then (since replaced by the
+single-scene runner), which drew `GetFPS` every frame, reported a
 steady 59 from the first window through 5700 frames.
 
 So raylib is behaving as designed and the misuse was ours. `net.b12n.raylib-ios.host` now
 computes the window's rate from the frame times it already sums, which needs
 nothing from raylib and cannot drift. Scenes that draw `GetFPS` every frame,
-which is `net.b12n.raylib-ios.flappy` and `net.b12n.raylib-ios.touch`, were always fine.
+such as Flappy Bird and `net.b12n.raylib-ios.touch`, were always fine.
 
 Before and after on the same phone, both readings taken on the gallery's card
 screen so the comparison holds one thing constant:
@@ -433,8 +387,8 @@ Two related things about iOS itself, both of which look like rendering bugs:
 
 ## Contributing
 
-[`CONTRIBUTING.md`](CONTRIBUTING.md). The most useful contribution is another
-scene, and the second most useful is a correction to something in `docs/guide/`
+[`CONTRIBUTING.md`](CONTRIBUTING.md). A new scene goes to
+[raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo). Here, the most useful contribution is a correction to something in `docs/guide/`
 that turns out not to be true.
 
 ## Licence
@@ -456,16 +410,17 @@ ports satisfy it in their docstrings.
 
 Third-party code and attribution are in [`NOTICE`](NOTICE). Four namespaces
 began as derivations of [glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo),
-which is MIT, and three scenes plus the scene contract come from
+which is MIT, and the scene contract comes from
 [jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment),
 also MIT, identical to the originals apart from namespace names and
-whitespace. Both notices are reproduced there.
+whitespace. Both notices are reproduced there. The scenes' own licences are in
+raylib-ios-demo's NOTICE.
 
 ## Attribution
 
 - [jasalt/jolt-android-experiment](https://github.com/jasalt/jolt-android-experiment)
-  at `6d2b291`: the scene contract, the input normalisation and all three
-  scenes, unchanged. RAY-009 established that jolt can own the raylib loop,
+  at `6d2b291`: the scene contract and the input normalisation, unchanged, and three
+  scenes, which are in raylib-ios-demo. RAY-009 established that jolt can own the raylib loop,
   and RAY-018 wrote Flappy Bird as a pure simulation so that the same file
   could run under a different host. It does.
 - [statonjr/glimmer-ios-demo](https://github.com/statonjr/glimmer-ios-demo):

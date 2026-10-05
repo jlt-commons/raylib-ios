@@ -44,7 +44,8 @@ CONSOLE=0 jolt deploy                    # launches detached, for actually playi
 ```
 
 Namespaces worth building: `net.b12n.raylib-ios.link` (does it link at all), `net.b12n.raylib-ios.touch`,
-`net.b12n.raylib-ios.flappy`, `net.b12n.raylib-ios.gallery`, `net.b12n.raylib-ios.live`.
+`net.b12n.raylib-ios.gallery` (the platform gallery, Hello alone) and `net.b12n.raylib-ios.live`. One
+scene on its own is `net.b12n.raylib-ios.runner`, driven by that scene's app namespace in raylib-ios-demo.
 
 ### Building another project's app
 
@@ -174,7 +175,7 @@ and not touch. `net.b12n.raylib-ios.gallery/tap!` is the other half:
 ;; where the cards actually are, asked of the running layout
 (let [m {:screen [(rl/get-screen-width) (rl/get-screen-height)]}]
   (mapv (juxt :scene-id :x :y)
-        (:cards (ui/gallery-layout m net.b12n.raylib-ios.gallery/scene-ids (diag/layout m)))))
+        (:cards (ui/gallery-layout m [:platform] (diag/layout m)))))
 
 ;; what the open scene is doing right now
 (:scene-state (:gstate (net.b12n.raylib-ios.host/state)))

@@ -21,15 +21,16 @@ such. The ports below satisfy it in their docstrings, and they still have to.
 
 ## Carried unchanged
 
-Six namespaces under `src/net/b12n/raylib_ios/` (`gallery/core.cljc`,
-`gallery/ui.cljc`, `gallery/diagnostics.cljc` and `scenes/flappy_bird.cljc`,
-`scenes/following_eyes.cljc`, `scenes/touch_trail.cljc`) and their tests are
+Three namespaces under `src/net/b12n/raylib_ios/` (`gallery/core.cljc`,
+`gallery/ui.cljc` and `gallery/diagnostics.cljc`) and their tests are
 the originals from jasalt/jolt-android-experiment at 6d2b291, with two
 differences: the namespace names, and whitespace, because clojure-lsp's
 formatter has been over them since. Put the upstream names back and collapse
 the whitespace and the sha256 matches the upstream file. The test
 `net.b12n.raylib-ios.jasalt-identity-test` checks that, and
-`tools/extract-from-notebooks` does too.
+`tools/extract-from-notebooks` does too. The three scenes from the same source
+(Following Eyes, Touch Trail and Flappy Bird) are in raylib-ios-demo, whose
+NOTICE covers them.
 
     https://github.com/jasalt/jolt-android-experiment
     Copyright 2026 Jarkko Saltiola
@@ -55,12 +56,13 @@ the whitespace and the sha256 matches the upstream file. The test
 
 ## Ported, and altered
 
-`src/net/b12n/raylib_ios/scenes/*.cljc` are ports of examples from jlt-commons/raylib-jlt.
-Each is an altered version: the loop is inverted so the host owns it, geometry
-derives from the live screen instead of a fixed 800x450, randomness becomes a
-seeded LCG, and drawing moves to the caller. Every file names its original in
-its own docstring, as the zlib licence's "altered source versions must be
-plainly marked as such" asks.
+`src/net/b12n/raylib_ios/scenes/hello.cljc`, the one scene here, is a port of the
+`core` example from jlt-commons/raylib-jlt, which is raylib's `core_basic_window`.
+It is an altered version: the loop is inverted so the host owns it, geometry
+derives from the live screen instead of a fixed 800x450, and drawing moves to
+the caller. Its docstring names its original, as the zlib licence's "altered
+source versions must be plainly marked as such" asks. The other scenes moved to
+raylib-ios-demo, and its NOTICE records their licences.
 
 Some files outside the scenes are derived too. `src/net/b12n/raylib_ios/texture.clj` lifts
 the rlgl declarations, the wrap and filter setters, the upload loop and the quad
@@ -70,14 +72,8 @@ render-texture, with-render-texture and restore-screen-projection! bodies behind
 table, the retained staging buffers, the power-of-two rule and `triangles!`.
 That source was added to raylib-jlt on 2026-09-19, after its 2026-09-05
 relicence, so it is EPL 2.0 (Copyright (c) 2026 Burin Choomnuan), not the zlib
-licence of the block below, which describes the older scenes. The same holds for
-eight of the ten texture scenes (Source and Destination Rects, Sprite Button,
-Npatch Drawing, Polygon Drawing, Sprite Animation, Textured Curve, Raw Data and
-Screen Buffer); only Texture Tiling and Procedural Textures predate the
-relicence. The same holds for four of the five render-target scenes
-(Framebuffer Rendering, Mouse Painting, Magnifying Glass and Top Down Lights);
-Render Texture (2026-08-23) predates the relicence and is zlib. Each of those
-docstrings gives its original's licence, and the raylib
+licence of the block below, which describes the older sources. The scenes that
+use it have the same split, and raylib-ios-demo's NOTICE has it. The raylib
 C examples behind them are zlib, so their altered-source marking stands.
 `src/net/b12n/raylib_ios/texel.cljc` follows the `ImageDraw*` loops of raylib 6.0's
 `rtextures.c`, and its tests are worked by hand from them.
@@ -104,62 +100,6 @@ The compiled stb_perlin inside libraylib.a is covered by raylib's notice under
     https://github.com/nothings/stb
     Copyright (c) 2017 Sean Barrett
     MIT License (alternative A; the file also offers the public domain)
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-## Ported from babashka/ffi, and altered
-
-`src/net/b12n/raylib_ios/scenes/helitorus.cljc`, `src/net/b12n/raylib_ios/scenes/doom.cljc` (with
-`doom/map.cljc`, `doom/ray.cljc` and `doom/hud.cljc`) and
-`src/net/b12n/raylib_ios/scenes/pacman.cljc` are each a port of raylib-jlt's port of a
-program from the babashka/ffi examples directory, not of one of raylib's own
-examples. Each is an altered version of both.
-
-    https://github.com/babashka/ffi
-    Copyright (c) 2026 Michiel Borkent (@borkdude)
-    MIT License
-
-    helitorus  <- examples/helitorus.clj  (1034e56, 2026-08-28)
-    doom       <- examples/doom.clj       (1034e56, 2026-08-28)
-    pacman     <- examples/pacman.clj     (94ccd77, 2026-08-31)
-
-For doom, the sixteen level rows, the DDA, the shading and the HUD came from
-its original; this port draws flat strips instead of textures, casts 180
-columns and replaces keys and mouse with touch.
-
-The geometry, the painter's ordering, the backface test, the lighting and the
-palette came from the helitorus original and are substantially unchanged. What the
-ports changed is how the program reaches raylib and its input: babashka.ffi
-calls became this project's wrapper, the buffers gained jolt type hints, the
-loop is inverted so the host owns it, and the mouse and keys became touch. The
-palette, hsl(337..349, 100..78%, 17..72%), is the quickest way to check the
-claim, since it is the original's.
-
-Michiel Borkent's own header for helitorus credits it one step further back, to
-a Scittle demo drawing the same figure to a 2D canvas. That attribution is
-repeated here rather than independently verified.
-
-babashka/ffi's licence notice, as shipped in its LICENSE file:
-
-    MIT License
-
-    Copyright (c) 2026 Michiel Borkent
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -239,7 +179,9 @@ reproduced here in full:
 
 Nothing blocking. EPL 2.0 in `LICENSE` covers this project's own work, MIT
 covers what came from the demo, from jasalt and from stb_perlin, zlib covers what came from
-raylib-jlt, and every one of those notices is in this file.
+raylib-jlt, and every one of those notices is in this file. The scenes' own
+sources, and the babashka/ffi notice that goes with three of them, are in
+raylib-ios-demo's NOTICE.
 
 The four files were also substantially rewritten on 2026-09-04, from the
 upstream APIs and this project's own device measurements, taking the expressive

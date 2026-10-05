@@ -1,6 +1,8 @@
 (ns net.b12n.raylib-ios.live
-  "The gallery with an nREPL listening, so a running app on the phone can be
-  inspected and driven from an editor.
+  "The gallery shell with an nREPL listening, so a running app on the phone can
+  be inspected and driven from an editor. `-main` runs the platform gallery
+  (Hello alone) and `live-run!` takes the scenes and categories of a bigger
+  one, as net.b12n.raylib-ios.gallery/run! does.
 
   Dev only, and deliberately so. App Store rule 2.5.2 says an app may not
   download, install or execute code, and an nREPL is exactly that: a shipped
@@ -31,7 +33,13 @@
   (:require [net.b12n.raylib-ios.gallery :as gallery]
             [net.b12n.raylib-ios.nrepl :as nrepl]))
 
-(defn -main [& _]
+(defn live-run!
+  "Start the nREPL, then `gallery/run!` `config`, which is
+  `{:scenes [...] :categories [...]}`. Does not return."
+  [config]
   (nrepl/announce-platform!)
   (nrepl/start-nrepl! nil)
-  (gallery/-main))
+  (gallery/run! config))
+
+(defn -main [& _]
+  (live-run! gallery/platform-gallery))

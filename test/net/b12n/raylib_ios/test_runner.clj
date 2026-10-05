@@ -1,8 +1,9 @@
 (ns net.b12n.raylib-ios.test-runner
-  "Entry point for `jolt -M:test` and `clojure -M:test`. Runs the pure scene and
-  gallery namespaces, which the JVM and jolt both load, plus the jolt-only set
-  (`jolt-only` below) when it is running under jolt. Six of the pure ones are
+  "Entry point for `jolt -M:test` and `clojure -M:test`. Runs the platform's pure
+  namespaces and Hello, which the JVM and jolt both load, plus the jolt-only set
+  (`jolt-only` below) when it is running under jolt. Three of the pure ones are
   carried from jasalt/jolt-android-experiment at 6d2b291, apart from their names.
+  The scenes' own tests run in raylib-ios-demo.
 
   Nothing here touches raylib, SDL, UIKit or a device: the whole point of the
   scene contract is that the simulation is pure, so its tests run on the build
@@ -52,144 +53,19 @@
   (some? (System/getProperty "jolt.version")))
 
 (defn -main [& _]
-  (let [namespaces '[net.b12n.raylib-ios.scenes.kaleidoscope-test
-                     net.b12n.raylib-ios.scenes.angles-test
-                     net.b12n.raylib-ios.scenes.automata-test
-                     net.b12n.raylib-ios.scenes.balls-test
-                     net.b12n.raylib-ios.scenes.bullets-test
-                     net.b12n.raylib-ios.scenes.collision-test
-                     net.b12n.raylib-ios.scenes.dashed-test
-                     net.b12n.raylib-ios.scenes.multitouch-test
-                     net.b12n.raylib-ios.scenes.analog-test
-                     net.b12n.raylib-ios.scenes.clockgrid-test
-                     net.b12n.raylib-ios.scenes.sector-test
-                     net.b12n.raylib-ios.scenes.palette-test
-                     net.b12n.raylib-ios.scenes.gradient-test
-                     net.b12n.raylib-ios.scenes.ring-test
-                     net.b12n.raylib-ios.scenes.splines-test
-                     net.b12n.raylib-ios.scenes.rounded-test
-                     net.b12n.raylib-ios.scenes.vecangle-test
-                     net.b12n.raylib-ios.scenes.bars-test
-                     net.b12n.raylib-ios.scenes.bezier-test
-                     net.b12n.raylib-ios.scenes.fan-test
-                     net.b12n.raylib-ios.scenes.clipbox-test
-                     net.b12n.raylib-ios.scenes.align-test
-                     net.b12n.raylib-ios.scenes.resize-test
-                     net.b12n.raylib-ios.scenes.deltatime-test
-                     net.b12n.raylib-ios.scenes.randomvalues-test
-                     net.b12n.raylib-ios.scenes.formattext-test
-                     net.b12n.raylib-ios.scenes.strip-test
-                     net.b12n.raylib-ios.scenes.touchball-test
-                     net.b12n.raylib-ios.scenes.rlgltriangle-test
-                     net.b12n.raylib-ios.scenes.particles-test
-                     net.b12n.raylib-ios.scenes.breakout-test
-                     net.b12n.raylib-ios.scenes.bounce-test
-                     net.b12n.raylib-ios.scenes.snake-test
-                     net.b12n.raylib-ios.scenes.game2048-test
-                     net.b12n.raylib-ios.scenes.minesweeper-test
-                     net.b12n.raylib-ios.scenes.pong-test
-                     net.b12n.raylib-ios.scenes.invaders-test
-                     net.b12n.raylib-ios.scenes.tetris-test
-                     net.b12n.raylib-ios.scenes.asteroids-test
-                     net.b12n.raylib-ios.scenes.virtualpad-test
-                     net.b12n.raylib-ios.scenes.starfield-test
-                     net.b12n.raylib-ios.scenes.easingsbox-test
-                     net.b12n.raylib-ios.scenes.easingstestbed-test
-                     net.b12n.raylib-ios.scenes.rectbounds-test
-                     net.b12n.raylib-ios.scenes.huewheel-test
-                     net.b12n.raylib-ios.scenes.logo-test
-                     net.b12n.raylib-ios.scenes.fontsizes-test
-                     net.b12n.raylib-ios.scenes.inlinestyle-test
-                     net.b12n.raylib-ios.scenes.outlines-test
-                     net.b12n.raylib-ios.scenes.shapes-test
-                     net.b12n.raylib-ios.scenes.ellipses-test
-                     net.b12n.raylib-ios.scenes.screens-test
-                     net.b12n.raylib-ios.scenes.survivors-test
-                     net.b12n.raylib-ios.scenes.pacman-test
-                     net.b12n.raylib-ios.scenes.hello-test
-                     net.b12n.raylib-ios.scenes.nudge-test
-                     net.b12n.raylib-ios.scenes.wheelbox-test
-                     net.b12n.raylib-ios.scenes.undoredo-test
-                     net.b12n.raylib-ios.scenes.strings-test
+  (let [namespaces '[net.b12n.raylib-ios.scenes.hello-test
                      net.b12n.raylib-ios.scroll-test
                      net.b12n.raylib-ios.gesture-test
                      net.b12n.raylib-ios.camera2d-test
                      net.b12n.raylib-ios.soft3d-test
-                     net.b12n.raylib-ios.scenes.camera2d-test
-                     net.b12n.raylib-ios.scenes.camerazoom-test
-                     net.b12n.raylib-ios.scenes.platformer-test
-                     net.b12n.raylib-ios.scenes.splitscreen-test
-                     net.b12n.raylib-ios.scenes.gestures-test
-                     net.b12n.raylib-ios.scenes.helitorus-test
-                     net.b12n.raylib-ios.scenes.rotcube-test
-                     net.b12n.raylib-ios.scenes.camera3d-test
-                     net.b12n.raylib-ios.scenes.ortho-test
-                     net.b12n.raylib-ios.scenes.spincubes-test
-                     net.b12n.raylib-ios.scenes.wireframes-test
-                     net.b12n.raylib-ios.scenes.freecam-test
-                     net.b12n.raylib-ios.scenes.yawpitchroll-test
-                     net.b12n.raylib-ios.scenes.boxcollide-test
-                     net.b12n.raylib-ios.scenes.fpcamera-test
-                     net.b12n.raylib-ios.scenes.voxel-test
-                     net.b12n.raylib-ios.scenes.doom-test
-                     net.b12n.raylib-ios.scenes.fpmaze-test
-                     net.b12n.raylib-ios.scenes.split3d-test
-                     net.b12n.raylib-ios.scenes.picking-test
-                     net.b12n.raylib-ios.scenes.worldscreen-test
-                     net.b12n.raylib-ios.scenes.wavecubes-test
-                     net.b12n.raylib-ios.scenes.solarsystem-test
-                     net.b12n.raylib-ios.scenes.pointcloud-test
-                     net.b12n.raylib-ios.scenes.spheres-test
-                     net.b12n.raylib-ios.scenes.bunnymark-test
-                     net.b12n.raylib-ios.scenes.bgscroll-test
-                     net.b12n.raylib-ios.scenes.spritestack-test
-                     net.b12n.raylib-ios.scenes.pixelperfect-test
-                     net.b12n.raylib-ios.scenes.vpscaling-test
-                     net.b12n.raylib-ios.scenes.letterbox-test
-                     net.b12n.raylib-ios.scenes.fogofwar-test
-                     net.b12n.raylib-ios.scenes.blendmodes-test
-                     net.b12n.raylib-ios.scenes.blendparticles-test
-                     net.b12n.raylib-ios.scenes.billboard-test
-                     net.b12n.raylib-ios.scenes.dirbillboard-test
-                     net.b12n.raylib-ios.scenes.texcube-test
-                     net.b12n.raylib-ios.scenes.geoshapes-test
-                     net.b12n.raylib-ios.scenes.textiling-test
-                     net.b12n.raylib-ios.scenes.srcrec-test
-                     net.b12n.raylib-ios.scenes.spritebutton-test
-                     net.b12n.raylib-ios.scenes.npatch-test
-                     net.b12n.raylib-ios.scenes.texpoly-test
-                     net.b12n.raylib-ios.scenes.texproc-test
-                     net.b12n.raylib-ios.scenes.rawdata-test
-                     net.b12n.raylib-ios.scenes.screenbuf-test
-                     net.b12n.raylib-ios.scenes.spriteanim-test
-                     net.b12n.raylib-ios.scenes.texcurve-test
-                     net.b12n.raylib-ios.scenes.rendertex-test
-                     net.b12n.raylib-ios.scenes.fbrender-test
-                     net.b12n.raylib-ios.scenes.mousepaint-test
-                     net.b12n.raylib-ios.scenes.magnify-test
-                     net.b12n.raylib-ios.scenes.toplights-test
                      net.b12n.raylib-ios.stick-test
                      net.b12n.raylib-ios.easings-test
                      net.b12n.raylib-ios.texel-test
                      net.b12n.raylib-ios.perlin-test
-                     net.b12n.raylib-ios.scenes.clock-test
-                     net.b12n.raylib-ios.scenes.easings-test
-                     net.b12n.raylib-ios.scenes.colorwheel-test
-                     net.b12n.raylib-ios.scenes.life-test
-                     net.b12n.raylib-ios.scenes.logoanim-test
-                     net.b12n.raylib-ios.scenes.lorenz-test
-                     net.b12n.raylib-ios.scenes.piechart-test
-                     net.b12n.raylib-ios.scenes.sequence-test
-                     net.b12n.raylib-ios.scenes.tesseract-test
-                     net.b12n.raylib-ios.scenes.unitcircle-test
-                     net.b12n.raylib-ios.scenes.writing-test
                      net.b12n.raylib-ios.jasalt-identity-test
-                     net.b12n.raylib-ios.scenes.flappy-bird-test
                      net.b12n.raylib-ios.gallery.core-test
                      net.b12n.raylib-ios.gallery.ui-test
-                     net.b12n.raylib-ios.gallery.diagnostics-test
-                     net.b12n.raylib-ios.scenes.following-eyes-test
-                     net.b12n.raylib-ios.scenes.touch-trail-test]]
+                     net.b12n.raylib-ios.gallery.diagnostics-test]]
     ;; A hardcoded list silently skips any test file not on it, and "Ran 23
     ;; tests" reads exactly like success when the new namespace never loaded.
     ;; Cost one round today. Compare the list against what is on disk instead.

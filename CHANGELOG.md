@@ -4,8 +4,27 @@ Notable changes, newest first. Dates are the day the work landed.
 
 ## Unreleased
 
+### Removed
+
+- **The examples moved to [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo).** The 136 scenes other than Hello,
+  their draw namespaces and tests, the scene catalog and the scene images
+  went there, one sub-project per scene, with the gallery's registry generated from its
+  `demos.edn`. This repo keeps the platform and Hello, the proof that it works.
+  `net.b12n.raylib-ios.gallery.draws` is gone, since the registry that raylib-ios-demo
+  generates requires every draw namespace itself. So is `net.b12n.raylib-ios.flappy`,
+  the standalone Flappy Bird host loop from milestone 4: the single-scene runner does
+  what it did, and its `draw-game!` moved into the flappy-bird scene's draw namespace.
+  Three rows left `tools/jasalt-identity.edn` with their scenes, so it holds the three
+  gallery namespaces now.
+
 ### Added
 
+- **`net.b12n.raylib-ios.gallery/run!` takes the scenes as data.**
+  `(gallery/run! {:scenes [(my/scene) ...] :categories [{:id :c :title "C" :scenes [:my]}]})`
+  runs the two-level menu over exactly those. `live/live-run!` and `live-cider/live-run!`
+  do the same with an nREPL. `-main` runs `gallery/platform-gallery`, which is Hello
+  in one category. `guard-scene` and `next-scroll` are public, so raylib-ios-demo's
+  smoke test can call them.
 - **`net.b12n.raylib-ios.runner/run!` shows one scene full screen.** It takes what a
   scene's `(scene)` returns and runs it with no menu and no Back, through the
   same frame, safe area, texture lifecycle and `guard-scene` machinery as the

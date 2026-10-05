@@ -35,7 +35,13 @@
   ['nrepl.middleware/default-middleware
    'cider.nrepl/cider-middleware])
 
-(defn -main [& _]
+(defn live-run!
+  "Start the nREPL with the cider middleware, then `gallery/run!` `config`,
+  which is `{:scenes [...] :categories [...]}`. Does not return."
+  [config]
   (nrepl/announce-platform!)
   (nrepl/start-nrepl! middleware)
-  (gallery/-main))
+  (gallery/run! config))
+
+(defn -main [& _]
+  (live-run! gallery/platform-gallery))

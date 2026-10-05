@@ -15,7 +15,7 @@ test -f "$out/index.html"       || { echo "no homepage generated"; exit 1; }
 test -f "$out/guide/index.html" || { echo "no guide page generated"; exit 1; }
 test -f "$out/css/screen.css"   || { echo "static assets missing"; exit 1; }
 
-# The scenes are the point of this site, and a missing asset dir is only a
+# The pictures are the point of this site, and a missing asset dir is only a
 # warning inside the engine, deliberately. It has to be an error here or the
 # docs publish with every image broken.
 imgs=$(find "$out/images" -name '*.gif' -o -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
@@ -41,30 +41,20 @@ for page in performance-on-a-phone porting-an-example; do
   test -f "$out/guide/$page.html" || { echo "missing guide page: $page"; exit 1; }
 done
 
-# The homepage links every scene, and the two most recent are the ones most
-# likely to be forgotten when the grid is edited.
-for img in gallery.png gallery-scenes.png multitouch.png \
-           clockgrid.png palette.png sector.png gradient.png ring.png \
-           splines.png rounded.png vecangle.png bars.png \
-           fan.png bezier.png clipbox.png resize.png align.png analog.gif \
-           deltatime.png randomvalues.png formattext.png strip.png \
-           touchball.png rlgltriangle.png particles.png breakout.png \
-           survivors.png pacman.png hello.png nudge.png wheelbox.png \
-           undoredo.png strings.png \
-           lorenz.gif tesseract.gif life.gif automata.gif colorwheel.gif \
-           unitcircle.gif clock.gif piechart.gif logoanim.gif easings.gif \
-           angles.gif writing.gif balls.gif sequence.gif \
-           bullets.gif collision.gif dashed.gif; do
+# The homepage shows the platform's own scene and a few of the demos, and these
+# are the ones most likely to be dropped when the grid is edited.
+for img in hello.png spirograph.gif kaleidoscope.gif fireworks.gif boids.gif \
+           penrose.png; do
   grep -q "$img" "$out/index.html" || { echo "homepage does not show $img"; exit 1; }
   test -f "$out/images/$img"       || { echo "missing image: $img"; exit 1; }
 done
 
 # A GIF that recorded badly is invisible until someone loads the page on a
-# phone. The bullet spiral came off the recorder at 2.2 MB, five times the next
+# phone. A bullet spiral (now in raylib-ios-demo) came off the recorder at 2.2 MB, five times the next
 # largest, and squeeze-gif took it to 430 KB.
 #
 # The cap is set to catch that kind of accident rather than to squeeze
-# everything, because not every GIF can be squeezed. colorwheel.gif is 1233 KB
+# everything, because not every GIF can be squeezed. raylib-ios-demo's colorwheel.gif is 1233 KB
 # and that is close to its floor: resampling a gradient invents colours the
 # source did not have and the result still has to fit 256, so every smaller
 # variant bands, and the one setting that keeps it smooth is larger than the

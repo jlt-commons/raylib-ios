@@ -16,7 +16,7 @@
 ;; org file and line, which is exactly the coupling this extraction removes,
 ;; and which would break the byte-identity check below.
 ;;
-;; Identity matters for the six pure namespaces, which come from
+;; Identity matters for the three pure namespaces, which come from
 ;; jasalt/jolt-android-experiment at 6d2b291. Both notebooks record their
 ;; sha256 to prove it. The table in tools/jasalt-identity.edn holds those hashes
 ;; and the names the files have in this repo, and is the same table the
@@ -35,14 +35,14 @@
 ;; refuses to run without an
 ;; explicit DEST and never defaults to this tree: pointed at it, it would
 ;; recreate the old-namespace files beside the renamed ones. Extract into a
-;; scratch directory, check the six against the table's :notebook-sha, and map
+;; scratch directory, check the three against the table's :notebook-sha, and map
 ;; names by hand. With no arguments only the verify half runs, on this tree.
 (require '[babashka.fs :as fs]
          '[clojure.edn :as edn]
          '[clojure.string :as str])
 
 (def identity-table
-  "The six pure namespaces: see tools/jasalt-identity.edn."
+  "The three pure namespaces: see tools/jasalt-identity.edn."
   (edn/read-string (slurp (str (fs/path (fs/parent (fs/real-path *file*)) "jasalt-identity.edn")))))
 
 (load-file (str (fs/path (fs/parent (fs/real-path *file*)) "jasalt_identity.clj")))

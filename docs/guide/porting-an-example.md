@@ -1,11 +1,13 @@
-# Porting an example from raylib-jlt
+# Porting an example from raylib-jolt-demo
 
-[jlt-commons/raylib-jlt](https://github.com/jlt-commons/raylib-jlt) has 187
-examples, and 139 of them are in the gallery. Those count
-examples and not scenes, because the `easings` scene covers three of them and
-the three Android scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`.
-The ones that need no input at all port almost mechanically. This is what "almost"
-means, worked through with the first seven.
+[jlt-commons/raylib-jolt-demo](https://github.com/jlt-commons/raylib-jolt-demo)
+(originally raylib-jlt's examples) has 187 examples. The scenes ported from them
+live in [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo), 139 of them counting the examples that share a
+scene, because the `easings` scene covers three of them and the three Android
+scenes stand in for `flappy_bird`, `eyes` and `mouse_trail`. The ones that need
+no input at all port almost mechanically. This is what "almost" means, worked
+through with the first seven. The code samples name the platform's namespaces,
+which is what a scene in raylib-ios-demo requires.
 
 ![Spirograph running on an iPhone 17 Pro](../images/spirograph.png)
 
@@ -270,10 +272,10 @@ texture, and not by eye. A scene that fills the texture in a pixel fn should
 avoid allocating a vector per texel, since the phone runs it 69 thousand times
 for Sprite Animation's strip alone.
 
-Make a static spec a `def` or a `delay` in the gallery, so the same object comes
+Make a static spec a `def` or a `delay` in the scene, so the same object comes
 back each visit. `net.b12n.raylib-ios.texture` keeps the filled buffer for a spec without a
 `:version`, and a reopen then costs about one frame instead of a refill. The
-catalog rows give each scene's first-open pause, which runs up to about a second
+[scene catalog](https://github.com/jlt-commons/raylib-ios-demo/blob/main/docs/guide/scene-catalog.md) gives each scene's first-open pause, which runs up to about a second
 for Sprite Animation, because the pixels are computed then.
 
 ## Render textures
@@ -334,21 +336,31 @@ reference. The C took 11.7 ms on the phone.
 
 On the phone all five read 58 fps. First opens pause 29 to 33 ms, except
 Top Down Lights at 75 ms and Render Texture at 103 ms (the first scene opened
-after launch), and 16 field-sized lights in Top Down Lights ran at 58 fps. The catalog rows give each figure.
+after launch), and 16 field-sized lights in Top Down Lights ran at 58 fps. The [scene catalog](https://github.com/jlt-commons/raylib-ios-demo/blob/main/docs/guide/scene-catalog.md) in raylib-ios-demo gives each figure.
 
 ## Wiring it in
 
-Three edits in `net.b12n.raylib-ios.gallery`:
+A scene is a sub-project of raylib-ios-demo. Make `<name>/` after the raylib-jolt-demo
+demo you port (or the scene id, if it ports none) and put three things in it:
+
+- the pure scene, `src/net/b12n/raylib_ios/scenes/<id>.cljc`;
+- its `draw-scene!` method, `src/net/b12n/raylib_ios/scenes/<id>/draw.clj`;
+- a test namespace, `test/net/b12n/raylib_ios/scenes/<id>_test.cljc`, since the
+  scene is pure and there is no excuse not to.
+
+Then add one line to that repo's `demos.edn` (the name, the id, the category, the
+title, a short description and where it comes from) and run `bb gen`. It writes
+the sub-project's `deps.edn` and `bb.edn`, its two app namespaces, the gallery's
+registry and the root tasks, so there is no list to edit by hand. Its CONTRIBUTING
+has the full steps.
+
+raylib-ios itself takes no scene beyond Hello. The gallery shell is handed its
+scenes as data, so the registry that `bb gen` writes is the only list:
 
 ```clojure
-(:require ... [net.b12n.raylib-ios.scenes.spirograph :as spiro])
-(def scenes [... (spiro/scene)])
-{:id :generative :title "Generative" :scenes [:spirograph ...]}
+(gallery/run! {:scenes [(spiro/scene) ...]
+               :categories [{:id :generative :title "Generative" :scenes [:spirograph ...]}]})
 ```
 
-plus a `draw-scene!` method in `scenes/<name>/draw.clj`, listed in `net.b12n.raylib-ios.gallery.draws`. Then a test namespace beside the others, since the
-scene is pure and there is no excuse not to.
-
-Under jolt, `jolt -M:test` also runs a smoke test that fails if a scene is
-missing from any of the four registration points: the `:require`, the `scenes`
-vector, a category and the `draw-scene!` method.
+Under jolt, `jolt -M:test` in raylib-ios-demo also runs a smoke test that fails if
+a scene is missing from the registry, from its category or from the draw methods.

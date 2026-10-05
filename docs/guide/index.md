@@ -1,9 +1,12 @@
 # raylib-ios
 
 raylib 6.0 and SDL2 rendering on a physical iPhone, driven from Clojure running
-on Chez Scheme via [Jolt](https://github.com/jolt-lang/jolt). A hundred and thirty-seven scenes,
-all measured at 52 to 60 fps (one dips to 31 in its heaviest view), as threaded portable bytecode,
-with no JIT and nothing generated at run time.
+on Chez Scheme via [Jolt](https://github.com/jolt-lang/jolt), as threaded portable
+bytecode, with no JIT and nothing generated at run time. This repo is the
+platform: the host loop, the gallery shell, the single-scene runner, the bindings and
+the build tools. The hundred and thirty-seven scenes that run on it, all measured at 52
+to 60 fps (one dips to 31 in its heaviest view), live in
+[raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo).
 
 This is the orientation page. The two guides after it are the ones worth
 reading, and both are about things the device taught us rather than things the
@@ -70,13 +73,18 @@ No raylib call appears anywhere in it. Drawing is a separate multimethod that
 reads the state a scene produced, which is why the scenes are pure `.cljc` and
 test on a build host with no raylib, no SDL and no device.
 
-That separation is not tidiness. Three of the scenes came from the
-[Jolt Android experiment](https://github.com/jasalt/jolt-android-experiment)
+That separation is not tidiness. Three namespaces here carry the contract, and they
+came from the [Jolt Android experiment](https://github.com/jasalt/jolt-android-experiment)
 identical apart from namespace names and whitespace (a test checks the sha256
-under that rule), along with three more namespaces carrying the contract
-itself. They were written for a different platform and run here with their
-logic untouched. The other hundred and thirty-four are ports from
+under that rule). So did three scenes, which are in raylib-ios-demo now. They were
+written for a different platform and run here with their logic untouched. The
+other hundred and thirty-four scenes there are ports from
 [raylib-jlt](https://github.com/jlt-commons/raylib-jlt).
+
+The gallery shell takes its scenes as data, `(gallery/run! {:scenes [...]
+:categories [...]})`, so an app lists exactly the scenes it wants. Its own `-main`
+runs the platform gallery, which holds Hello and nothing else, and
+`net.b12n.raylib-ios.runner/run!` shows one scene full screen with no menu.
 
 ## The guides
 
@@ -90,7 +98,7 @@ is a proxy rather than a budget, and why a reading past the knee is not
 repeatable.
 
 **[Porting an example](porting-an-example.html)** is the practical one: taking a
-raylib-jlt example that owns its own loop and turning it into a scene that does
+raylib-jolt-demo example that owns its own loop and turning it into a scene that does
 not. Inverting the loop, replacing `GetRandomValue` with a seeded generator so
 a scene replays identically, deriving geometry from the live screen instead of a
 fixed 800x450, and moving drawing to the caller.
@@ -114,8 +122,9 @@ rlgl's matrix stack does the work.
 the two scenes that fill rather than outline, and why raylib's own shapes API
 cannot draw a triangle with a different colour at each corner.
 
-**[The scenes](scene-catalog.html)** lists all hundred and thirty-seven with what each costs
-per frame and what it measured.
+**[The scenes](https://github.com/jlt-commons/raylib-ios-demo/blob/main/docs/guide/scene-catalog.md)** are in raylib-ios-demo,
+which lists all hundred and thirty-seven with what each costs per frame and what
+it measured.
 
 ## Getting it running
 
@@ -123,9 +132,12 @@ The README covers the build in full. The short version:
 
 ```sh
 SDK=device sh tools/ios/deps.sh                   # raylib + SDL2 static archives
-NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh
+NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh   # Hello, the platform gallery
 UDID=<hardware udid> sh tools/ios/deploy.sh
 ```
+
+To run the scenes, check out [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) beside this repo and
+`UDID=<hardware udid> bb gallery` there. It builds with these tools.
 
 `tools/ios/RUNBOOK.md` has the failure modes, including the four CMake traps
 worth knowing before the first build.

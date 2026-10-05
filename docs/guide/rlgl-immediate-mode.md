@@ -146,7 +146,7 @@ No 3D mode is bound, so the 3D scenes project every vertex themselves in
 Three rules matter. There is no depth buffer, so `finish` paints the grid and
 under-lines first, then the faces far to near by mean depth, then the wires. That
 painter order is wrong where a grid line should cross a cube's lower half, and
-the catalog rows for the cube scenes say so. Every triangle is built with
+the cube scenes' rows in [raylib-ios-demo's scene catalog](https://github.com/jlt-commons/raylib-ios-demo/blob/main/docs/guide/scene-catalog.md) say so. Every triangle is built with
 the front winding rlgl keeps, decided by the sign of its screen-space cross
 product, because rlgl culls at the batch flush and nothing after that can fix a
 wrong winding. And a face with any corner behind the near plane is dropped while
