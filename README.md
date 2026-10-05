@@ -128,11 +128,11 @@ NS=net.b12n.raylib-ios.gallery TARGET=device jolt build-app     # the platform g
 UDID=<hardware udid> CONSOLE=0 jolt deploy      # detached, for actually playing
 ```
 
-To run the scenes, check out [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) beside this repo and run
+To run the scenes, clone [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) and run
 `UDID=<hardware udid> bb gallery` there for all of them in one app, or
-`bb asteroids` for one on its own. Its `common/deps.edn` points at this
-checkout, and its `scripts/ios_tools.clj` calls the build, deploy and live scripts
-here with `PROJECT_DIR` set to its own sub-project.
+`bb asteroids` for one on its own. It pins this repo by sha in its
+`common/deps.edn`, and its `scripts/ios_tools.clj` calls the build, deploy and live
+scripts from that checkout with `PROJECT_DIR` set to its own sub-project.
 
 `jolt devices` lists what `deploy` can talk to, and prints the **hardware**
 udid (`00008150-...`), which is what a provisioning profile lists under

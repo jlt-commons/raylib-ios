@@ -17,9 +17,10 @@ shellcheck -S warning tools/ios/*.sh docs/check-site.sh
 ```
 
 All of these are gates in CI and all run in seconds. The tests need no raylib, no
-SDL and no phone. raylib-ios-demo depends on this repo through a `:local/root`, so
-a platform change should also pass that repo's gates (`bb gen --check`, `bb doctor`
-and its own test suites).
+SDL and no phone. raylib-ios-demo pins this repo by sha. To try a platform change
+there before it is pushed, point its `common/deps.edn` at your checkout with
+`{:local/root "../raylib-ios"}`, run its gates (`bb gen --check`, `bb doctor` and
+its own test suites), and don't commit that line.
 
 ## What goes where
 

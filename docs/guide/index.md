@@ -141,8 +141,9 @@ NS=net.b12n.raylib-ios.gallery TARGET=device sh tools/ios/build.sh   # Hello, th
 UDID=<hardware udid> sh tools/ios/deploy.sh
 ```
 
-To run the scenes, check out [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) beside this repo and
-`UDID=<hardware udid> bb gallery` there. It builds with these tools.
+To run the scenes, clone [raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo) and run
+`UDID=<hardware udid> bb gallery` there. It pins this repo by sha in its
+`common/deps.edn` and builds with these tools.
 
 `tools/ios/RUNBOOK.md` has the failure modes, including the four CMake traps
 worth knowing before the first build.
