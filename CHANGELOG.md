@@ -2,7 +2,13 @@
 
 Notable changes, newest first. Dates are the day the work landed.
 
-## Unreleased
+## v0.2.0
+
+v0.2.0 is everything from here down to the 2026-10-02 entry. v0.1.0 ends at
+2026-10-01. It breaks every caller of v0.1.0: the namespaces are
+`net.b12n.raylib-ios.*` now, and the scenes other than Hello moved to
+[raylib-ios-demo](https://github.com/jlt-commons/raylib-ios-demo). The undated
+entries straight below landed on 2026-10-04, after the dated section for that day.
 
 ### Changed
 
